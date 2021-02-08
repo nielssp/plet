@@ -14,7 +14,6 @@ typedef struct Token Token;
 typedef struct Reader Reader;
 
 typedef enum {
-  T_ERROR,
   T_NAME,
   T_KEYWORD,
   T_OPERATOR,
@@ -34,16 +33,18 @@ struct Token {
     int64_t int_value;
     double float_value;
     uint8_t *string_value;
+    uint8_t operator_value[3];
   };
   Token *next;
   int line;
   int column;
   uint32_t size;
+  int error;
   TokenType type;
 };
 
 Reader *open_reader(FILE *file);
-void close_reader(Reader r);
+void close_reader(Reader *r);
 
 void delete_token(Token *t);
 
