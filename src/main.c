@@ -52,6 +52,9 @@ int main(int argc, char *argv[]) {
   Reader *reader = open_reader(in, infile);
   Token *tokens = read_all(reader, 0);
   if (reader_errors(reader)) {
+    close_reader(reader);
+    delete_tokens(tokens);
+    fclose(in);
     return 1;
   }
   close_reader(reader);
@@ -60,4 +63,5 @@ int main(int argc, char *argv[]) {
     printf("%s ", token_name(t));
   }
   delete_tokens(tokens);
+  return 0;
 }

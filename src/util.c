@@ -7,11 +7,12 @@
 #include "util.h"
 
 #include <stdio.h>
+#include <string.h>
 
 void *allocate(size_t size) {
   void *p = malloc(size);
   if (!p) {
-    fprintf(stderr, "memory allocation failed!\n");
+    fprintf(stderr, ERROR_LABEL "memory allocation failed!\n" SGR_RESET);
     exit(-1);
   }
   return p;
@@ -20,8 +21,15 @@ void *allocate(size_t size) {
 void *reallocate(void *old, size_t size) {
   void *new = realloc(old, size);
   if (!new) {
-    fprintf(stderr, "memory allocation failed!\n");
+    fprintf(stderr, ERROR_LABEL "memory allocation failed!\n" SGR_RESET);
     exit(-1);
   }
   return new;
+}
+
+char *copy_string(const char *src) {
+  size_t l = strlen(src) + 1;
+  char *dest = allocate(l);
+  memcpy(dest, src, l);
+  return dest;
 }

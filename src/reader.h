@@ -7,6 +7,8 @@
 #ifndef READER_H
 #define READER_H
 
+#include "util.h"
+
 #include <stdint.h>
 #include <stdio.h>
 
@@ -32,14 +34,15 @@ struct Token {
   union {
     int64_t int_value;
     double float_value;
+    char *name_value;
     uint8_t *string_value;
     uint8_t operator_value[3];
     uint8_t punct_value;
   };
   Token *next;
-  int line;
-  int column;
-  uint32_t size;
+  size_t size;
+  Pos start;
+  Pos end;
   int error;
   TokenType type;
 };

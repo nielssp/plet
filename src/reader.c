@@ -15,11 +15,6 @@
 
 #define BUFFER_SIZE 32
 
-
-#define SGR_RESET "\001\033[0m\002"
-#define SGR_RED "\001\033[31m\002"
-#define SGR_BOLD "\001\033[1m\002"
-
 typedef struct ParenStack ParenStack;
 
 struct ParenStack {
@@ -31,8 +26,7 @@ struct Reader {
   FILE *file;
   char *file_name;
   ParenStack *parens;
-  int line;
-  int column;
+  Pos pos;
   int errors;
   int la;
   uint8_t buffer[3];
@@ -44,20 +38,17 @@ typedef struct {
   size_t size;
 } Buffer;
 
-static char *copy_string(const char *src) {
-  size_t l = strlen(src) + 1;
-  char *dest = allocate(l);
-  memcpy(dest, src, l);
-  return dest;
-}
+const char *keywords[] = {
+  "if", "else", "for", "in", "switch", "case", "default", "end", "fn", "and", "or", "not", "do", NULL
+};
 
 Reader *open_reader(FILE *file, const char *file_name) {
   Reader *r = allocate(sizeof(Reader));
   r->file = file;
   r->file_name = copy_string(file_name);
   r->parens = NULL;
-  r->line = 1;
-  r->column = 1;
+  r->pos.line = 1;
+  r->pos.column = 1;
   r->la = 0;
   return r;
 }
@@ -105,7 +96,7 @@ void close_reader(Reader *r) {
 
 static void reader_error(Reader *r, const char *format, ...) {
   va_list va;
-  fprintf(stderr, SGR_BOLD "%s:%d:%d: " SGR_RED "error: " SGR_RESET SGR_BOLD, r->file_name, r->line, r->column);
+  fprintf(stderr, SGR_BOLD "%s:%d:%d: " ERROR_LABEL, r->file_name, r->pos.line, r->pos.column);
   va_start(va, format);
   vfprintf(stderr, format, va);
   va_end(va);
@@ -156,10 +147,10 @@ static int pop(Reader *r) {
     c = fgetc(r->file);
   }
   if (c == '\n') {
-    r->line++;
-    r->column = 1;
+    r->pos.line++;
+    r->pos.column = 1;
   } else {
-    r->column++;
+    r->pos.column++;
   }
   return c;
 }
@@ -168,8 +159,8 @@ static Token *create_token(TokenType type, Reader *r) {
   Token *t = allocate(sizeof(Token));
   t->string_value = NULL;
   t->next = NULL;
-  t->line = r->line;
-  t->column = r->column;
+  t->start = r->pos;
+  t->end = r->pos;
   t->size = 0;
   t->type = type;
   t->error = 0;
@@ -198,6 +189,10 @@ void delete_token(Token *t) {
   switch (t->type) {
     case T_NAME:
     case T_KEYWORD:
+      if (t->name_value) {
+        free(t->name_value);
+      }
+      break;
     case T_STRING:
     case T_TEXT:
       if (t->string_value) {
@@ -228,7 +223,8 @@ static Token *read_name(Reader *r) {
     int c = peek(r);
     if (c == EOF || !is_valid_name_char(c)) {
       if (!buffer.size) {
-        reader_error(r, "invalid character: '%c'", c);
+        pop(r);
+        reader_error(r, "unexpected '%c'", c);
         token->error = 1;
       }
       break;
@@ -238,7 +234,14 @@ static Token *read_name(Reader *r) {
   }
   token->size = buffer.size;
   buffer_put(&buffer, '\0');
-  token->string_value = buffer.data;
+  token->name_value = (char *) buffer.data;
+  for (const char **keyword = keywords; *keyword; keyword++) {
+    if (strcmp(*keyword, token->name_value) == 0) {
+      token->type = T_KEYWORD;
+      break;
+    }
+  }
+  token->end = r->pos;
   return token;
 }
 
@@ -271,6 +274,7 @@ static Token *read_operator(Reader *r) {
       }
       break;
   }
+  token->end = r->pos;
   return token;
 }
 
@@ -280,7 +284,7 @@ static int utf8_encode(uint32_t code_point, Buffer *buffer, Reader *r) {
     return 1;
   }
   if (code_point > 0x10FFFFFF) {
-    reader_error(r, "unicode code point out of range");
+    reader_error(r, "unicode code point out of range: 0x%x", code_point);
     return 0;
   }
   uint8_t bytes[3];
@@ -319,12 +323,12 @@ static int read_hex_code_point(Reader *r, uint32_t *code_point, int length) {
   *code_point = 0;
   for (int i = 0; i < length; i++) {
     *code_point <<= 4;
-    int c = pop(r);
+    int c = peek(r);
     if (!isxdigit(c)) {
       reader_error(r, "invalid hexadecimal escape sequence");
       return 0;
     }
-    *code_point |= hex_to_dec(c);
+    *code_point |= hex_to_dec(pop(r));
   }
   return 1;
 }
@@ -372,14 +376,21 @@ static int read_escape_sequence(Reader *r, Buffer *buffer, int double_quote) {
       if (!read_hex_code_point(r, &code_point, 4)) {
         return 0;
       }
-      utf8_encode(code_point, buffer, r);
+      if (!utf8_encode(code_point, buffer, r)) {
+        return 0;
+      }
       break;
     case 'U':
       if (!read_hex_code_point(r, &code_point, 8)) {
         return 0;
       }
-      utf8_encode(code_point, buffer, r);
+      if (!utf8_encode(code_point, buffer, r)) {
+        return 0;
+      }
       break;
+    default:
+      reader_error(r, "undefined escape sequence: '%c'", c);
+      return 0;
   }
   return 1;
 } 
@@ -391,13 +402,14 @@ static Token *read_string(Reader *r) {
   while (1) {
     int c = peek(r);
     if (c == EOF) {
-      reader_error(r, "missing end of string literal, string literal started on line %d:%d", token->line, token->column);
+      reader_error(r, "missing end of string literal, string literal started on line %d:%d", token->start.line, token->start.column);
       token->error = 1;
       break;
     } else if (c == '\'') {
       pop(r);
       break;
     } else if (c == '\\') {
+      pop(r);
       if (!read_escape_sequence(r, &buffer, 0)) {
         token->error = 1;
       }
@@ -408,6 +420,7 @@ static Token *read_string(Reader *r) {
   token->size = buffer.size;
   buffer_put(&buffer, '\0');
   token->string_value = buffer.data;
+  token->end = r->pos;
   return token;
 }
 
@@ -420,7 +433,7 @@ static Token *read_verbatim(Reader *r) {
   while (1) {
     int c = peek(r);
     if (c == EOF) {
-      reader_error(r, "missing end of string literal, string literal started on line %d:%d", token->line, token->column);
+      reader_error(r, "missing end of string literal, string literal started on line %d:%d", token->start.line, token->start.column);
       token->error = 1;
       break;
     } else if (c == '"' && peek_n(2, r) == '"' && peek_n(3, r) == '"') {
@@ -435,6 +448,7 @@ static Token *read_verbatim(Reader *r) {
   token->size = buffer.size;
   buffer_put(&buffer, '\0');
   token->string_value = buffer.data;
+  token->end = r->pos;
   return token;
 }
 
@@ -483,6 +497,7 @@ static Token *read_number(Reader *r) {
     token->int_value = atol((char *) buffer.data);
   }
   delete_buffer(buffer);
+  token->end = r->pos;
   return token;
 }
 
@@ -540,6 +555,7 @@ static Token *read_next_token(Reader *r) {
     token->size = buffer.size;
     buffer_put(&buffer, '\0');
     token->string_value = buffer.data;
+    token->end = r->pos;
     return token;
   } else {
     int is_command = (top_paren == '{' && (!r->parens->next || (r->parens->next && r->parens->next->paren == '"')));
@@ -548,6 +564,7 @@ static Token *read_next_token(Reader *r) {
     if (c == '\n') {
       Token *token = create_token(T_LF, r);
       pop(r);
+      token->end = r->pos;
       return token;
     } else if (c == '}' && is_command) {
       pop(r);
@@ -559,6 +576,7 @@ static Token *read_next_token(Reader *r) {
       Token *token = create_token(T_END_QUOTE, r);
       pop(r);
       pop_paren(r);
+      token->end = r->pos;
       return token;
     } else if (c == '"') {
       if (peek_n(2, r) == '"' && peek_n(3, r) == '"') {
@@ -567,6 +585,7 @@ static Token *read_next_token(Reader *r) {
         Token *token = create_token(T_START_QUOTE, r);
         pop(r);
         push_paren(r, '"');
+        token->end = r->pos;
         return token;
       }
     } else if (c == '(' || c == '[' || c == '{') {
@@ -586,6 +605,7 @@ static Token *read_next_token(Reader *r) {
         return read_next_token(r);
       }
       push_paren(r, token->punct_value);
+      token->end = r->pos;
       return token;
     } else if (c == ')' || c == ']' || c == '}') {
       Token *token = create_token(T_PUNCT, r);
@@ -605,6 +625,7 @@ static Token *read_next_token(Reader *r) {
           token->error = 1;
         }
       }
+      token->end = r->pos;
       return token;
     } else if (is_operator_char(c)) {
       return read_operator(r);
