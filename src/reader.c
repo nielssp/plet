@@ -11,13 +11,29 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 
 #define BUFFER_SIZE 32
 
+
+#define SGR_RESET "\001\033[0m\002"
+#define SGR_RED "\001\033[31m\002"
+#define SGR_BOLD "\001\033[1m\002"
+
+typedef struct ParenStack ParenStack;
+
+struct ParenStack {
+  ParenStack *next;
+  uint8_t paren;
+};
+
 struct Reader {
   FILE *file;
+  char *file_name;
+  ParenStack *parens;
   int line;
   int column;
+  int errors;
   int la;
   uint8_t buffer[3];
 };
@@ -28,9 +44,18 @@ typedef struct {
   size_t size;
 } Buffer;
 
-Reader *open_reader(FILE *file) {
+static char *copy_string(const char *src) {
+  size_t l = strlen(src) + 1;
+  char *dest = allocate(l);
+  memcpy(dest, src, l);
+  return dest;
+}
+
+Reader *open_reader(FILE *file, const char *file_name) {
   Reader *r = allocate(sizeof(Reader));
   r->file = file;
+  r->file_name = copy_string(file_name);
+  r->parens = NULL;
   r->line = 1;
   r->column = 1;
   r->la = 0;
@@ -41,13 +66,48 @@ void close_reader(Reader *r) {
   free(r);
 }
 
+int reader_errors(Reader *r) {
+  return r->errors;
+}
+
+static uint8_t get_top_paren(Reader *r) {
+  if (r->parens) {
+    return r->parens->paren;
+  }
+  return 0;
+}
+
+static uint8_t pop_paren(Reader *r) {
+  uint8_t top = 0;
+  if (r->parens) {
+    ParenStack *p = r->parens;
+    r->parens = p->next;
+    top = p->paren;
+    free(p);
+  }
+  return top;
+}
+
+static void push_paren(Reader *r, uint8_t paren) {
+  ParenStack *p = allocate(sizeof(ParenStack));
+  p->next = r->parens;
+  p->paren = paren;
+  r->parens = p;
+}
+
+static void clear_parens(Reader *r) {
+  while (r->parens) {
+    pop_paren(r);
+  }
+}
+
 static void reader_error(Reader *r, const char *format, ...) {
   va_list va;
-  fprintf(stderr, "%d:%d: input error: ", r->line, r->column);
+  fprintf(stderr, SGR_BOLD "%s:%d:%d: " SGR_RED "error: " SGR_RESET SGR_BOLD, r->file_name, r->line, r->column);
   va_start(va, format);
   vfprintf(stderr, format, va);
   va_end(va);
-  fprintf(stderr, "\n");
+  fprintf(stderr, "\n" SGR_RESET);
 }
 
 static Buffer create_buffer() {
@@ -114,6 +174,24 @@ static Token *create_token(TokenType type, Reader *r) {
   return t;
 }
 
+const char *token_name(Token *t) {
+  switch (t->type) {
+    case T_NAME: return "T_NAME";
+    case T_KEYWORD: return "T_KEYWORD";
+    case T_OPERATOR: return "T_OPERATOR";
+    case T_STRING: return "T_STRING";
+    case T_INT: return "T_INT";
+    case T_FLOAT: return "T_FLOAT";
+    case T_TEXT: return "T_TEXT";
+    case T_LF: return "T_LF";
+    case T_END_QUOTE: return "T_END_QUOTE";
+    case T_START_QUOTE: return "T_START_QUOTE";
+    case T_PUNCT: return "T_PUNCT";
+    case T_EOF: return "T_EOF";
+    default: return "unknwon";
+  }
+}
+
 void delete_token(Token *t) {
   switch (t->type) {
     case T_NAME:
@@ -152,6 +230,11 @@ static Token *read_name(Reader *r) {
   buffer_put(&buffer, '\0');
   token->string_value = buffer.data;
   return token;
+}
+
+static int is_operator_char(int c) {
+  return c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '!' || c == '<'
+    || c == '>' || c == '=' || c == '|' || c == '.' || c == ',' || c == ':';
 }
 
 static Token *read_operator(Reader *r) {
@@ -393,8 +476,161 @@ static Token *read_number(Reader *r) {
   return token;
 }
 
+static void skip_ws(Reader *r, int skip_lf) {
+  int c = peek(r);
+  while (c == ' ' || c == '\t' || c == '\r' || (skip_lf && c == '\n')) {
+    pop(r);
+    c = peek(r);
+  }
+}
+
 static Token *read_next_token(Reader *r) {
+  if (peek(r) == EOF) {
+    return create_token(T_EOF, r);
+  }
+  uint8_t top_paren = get_top_paren(r);
+  if (!top_paren || top_paren == '"') {
+    Token *token = create_token(T_TEXT, r);
+    Buffer buffer = create_buffer();
+    while (1) {
+      int c = peek(r);
+      if (c == EOF) {
+        break;
+      } else if (c == '{') {
+        pop(r);
+        if (peek(r) == '#') {
+          // Comment
+          pop(r);
+          while (peek(r) != EOF) {
+            if (pop(r) == '#') {
+              if (peek(r) == '}') {
+                pop(r);
+                break;
+              }
+            }
+          }
+        } else {
+          push_paren(r, '{');
+        }
+        break;
+      } else if (top_paren == '"' && c == '\\') {
+        pop(r);
+        if (!read_escape_sequence(r, &buffer, 1)) {
+          token->error = 1;
+        }
+      } else if (top_paren == '"' && c == '"') {
+        // Don't pop char, will be picked up as T_END_QUOTE on next call
+        pop_paren(r);
+        push_paren(r, '$'); // end quote
+        break;
+      } else {
+        buffer_put(&buffer, pop(r));
+      }
+    }
+    token->size = buffer.size;
+    buffer_put(&buffer, '\0');
+    token->string_value = buffer.data;
+    return token;
+  } else {
+    int is_command = (top_paren == '{' && (!r->parens->next || (r->parens->next && r->parens->next->paren == '"')));
+    skip_ws(r, !!r->parens->next);
+    int c = peek(r);
+    if (c == '\n') {
+      Token *token = create_token(T_LF, r);
+      pop(r);
+      return token;
+    } else if (c == '}' && is_command) {
+      pop(r);
+      pop_paren(r);
+      return read_next_token(r);
+    } else if (c == '\'') {
+      return read_string(r);
+    } else if (c == '"' && top_paren == '$') {
+      Token *token = create_token(T_END_QUOTE, r);
+      pop(r);
+      pop_paren(r);
+      return token;
+    } else if (c == '"') {
+      if (peek_n(2, r) == '"' && peek_n(3, r) == '"') {
+        return read_verbatim(r);
+      } else {
+        Token *token = create_token(T_START_QUOTE, r);
+        pop(r);
+        push_paren(r, '"');
+        return token;
+      }
+    } else if (c == '(' || c == '[' || c == '{') {
+      Token *token = create_token(T_PUNCT, r);
+      token->punct_value = pop(r);
+      if (c == '{' && peek(r) == '#') {
+        // Comment
+        pop(r);
+        while (peek(r) != EOF) {
+          if (pop(r) == '#') {
+            if (peek(r) == '}') {
+              pop(r);
+              break;
+            }
+          }
+        }
+        return read_next_token(r);
+      }
+      push_paren(r, token->punct_value);
+      return token;
+    } else if (c == ')' || c == ']' || c == '}') {
+      Token *token = create_token(T_PUNCT, r);
+      token->punct_value = pop(r);
+      if (!top_paren) {
+        reader_error(r, "unexpected '%c'", c);
+        token->error = 1;
+      } else {
+        uint8_t expected = pop_paren(r);
+        switch (expected) {
+          case '(': expected = ')'; break;
+          case '[': expected = ']'; break;
+          case '{': expected = '}'; break;
+        }
+        if (c != expected) {
+          reader_error(r, "unexpected '%c', expected '%c'", c, expected);
+          token->error = 1;
+        }
+      }
+      return token;
+    } else if (is_operator_char(c)) {
+      return read_operator(r);
+    } else if (isdigit(c)) {
+      return read_number(r);
+    } else {
+      return read_name(r);
+    }
+  }
 }
 
 Token *read_all(Reader *r, int template) {
+  Token *first = NULL, *last = NULL;
+  r->errors = 0;
+  clear_parens(r);
+  if (!template) {
+    push_paren(r, '{');
+  }
+  while (1) {
+    Token *token = read_next_token(r);
+    if (!first) {
+      first = token;
+    } else {
+      last->next = token;
+    }
+    last = token;
+    if (token->error) {
+      r->errors++;
+      if (r->errors > 20) {
+        reader_error(r, "too many errors");
+        break;
+      }
+    }
+    if (token->type == T_EOF) {
+      break;
+    }
+  }
+  return first;
 }

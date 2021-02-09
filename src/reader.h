@@ -34,6 +34,7 @@ struct Token {
     double float_value;
     uint8_t *string_value;
     uint8_t operator_value[3];
+    uint8_t punct_value;
   };
   Token *next;
   int line;
@@ -43,9 +44,11 @@ struct Token {
   TokenType type;
 };
 
-Reader *open_reader(FILE *file);
+Reader *open_reader(FILE *file, const char *file_name);
 void close_reader(Reader *r);
+int reader_errors(Reader *r);
 
+const char *token_name(Token *t);
 void delete_token(Token *t);
 
 Token *read_all(Reader *r, int template);
