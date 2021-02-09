@@ -50,6 +50,7 @@ int reader_errors(Reader *r);
 
 const char *token_name(Token *t);
 void delete_token(Token *t);
+void delete_tokens(Token *t);
 
 Token *read_all(Reader *r, int template);
 

@@ -54,7 +54,10 @@ int main(int argc, char *argv[]) {
   if (reader_errors(reader)) {
     return 1;
   }
+  close_reader(reader);
+  fclose(in);
   for (Token *t = tokens; t; t = t->next) {
     printf("%s ", token_name(t));
   }
+  delete_tokens(tokens);
 }

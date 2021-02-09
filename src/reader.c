@@ -62,10 +62,6 @@ Reader *open_reader(FILE *file, const char *file_name) {
   return r;
 }
 
-void close_reader(Reader *r) {
-  free(r);
-}
-
 int reader_errors(Reader *r) {
   return r->errors;
 }
@@ -99,6 +95,12 @@ static void clear_parens(Reader *r) {
   while (r->parens) {
     pop_paren(r);
   }
+}
+
+void close_reader(Reader *r) {
+  clear_parens(r);
+  free(r->file_name);
+  free(r);
 }
 
 static void reader_error(Reader *r, const char *format, ...) {
@@ -197,6 +199,7 @@ void delete_token(Token *t) {
     case T_NAME:
     case T_KEYWORD:
     case T_STRING:
+    case T_TEXT:
       if (t->string_value) {
         free(t->string_value);
       }
@@ -205,6 +208,13 @@ void delete_token(Token *t) {
       break;
   }
   free(t);
+}
+
+void delete_tokens(Token *t) {
+  if (t->next) {
+    delete_tokens(t->next);
+  }
+  delete_token(t);
 }
 
 static int is_valid_name_char(int c) {
