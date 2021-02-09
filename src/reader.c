@@ -167,20 +167,20 @@ static Token *create_token(TokenType type, Reader *r) {
   return t;
 }
 
-const char *token_name(Token *t) {
-  switch (t->type) {
-    case T_NAME: return "T_NAME";
-    case T_KEYWORD: return "T_KEYWORD";
-    case T_OPERATOR: return "T_OPERATOR";
-    case T_STRING: return "T_STRING";
-    case T_INT: return "T_INT";
-    case T_FLOAT: return "T_FLOAT";
-    case T_TEXT: return "T_TEXT";
-    case T_LF: return "T_LF";
-    case T_END_QUOTE: return "T_END_QUOTE";
-    case T_START_QUOTE: return "T_START_QUOTE";
-    case T_PUNCT: return "T_PUNCT";
-    case T_EOF: return "T_EOF";
+const char *token_name(TokenType type) {
+  switch (type) {
+    case T_NAME: return "name";
+    case T_KEYWORD: return "keyword";
+    case T_OPERATOR: return "operator";
+    case T_STRING: return "string";
+    case T_INT: return "integer";
+    case T_FLOAT: return "float";
+    case T_TEXT: return "text";
+    case T_LF: return "newline";
+    case T_END_QUOTE: return "end quote";
+    case T_START_QUOTE: return "start quote";
+    case T_PUNCT: return "punctuation";
+    case T_EOF: return "eof";
     default: return "unknwon";
   }
 }

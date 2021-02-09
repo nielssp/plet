@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
   close_reader(reader);
   fclose(in);
   for (Token *t = tokens; t; t = t->next) {
-    printf("%s ", token_name(t));
+    printf("%s ", token_name(t->type));
   }
   delete_tokens(tokens);
   return 0;

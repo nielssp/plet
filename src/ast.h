@@ -73,7 +73,7 @@ struct Node {
   Pos end;
   NodeType type;
   union {
-    uint8_t *name_value;
+    char *name_value;
     int64_t int_value;
     double float_value;
     struct {

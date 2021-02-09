@@ -36,8 +36,8 @@ struct Token {
     double float_value;
     char *name_value;
     uint8_t *string_value;
-    uint8_t operator_value[3];
-    uint8_t punct_value;
+    char operator_value[3];
+    char punct_value;
   };
   Token *next;
   size_t size;
@@ -51,7 +51,7 @@ Reader *open_reader(FILE *file, const char *file_name);
 void close_reader(Reader *r);
 int reader_errors(Reader *r);
 
-const char *token_name(Token *t);
+const char *token_name(TokenType type);
 void delete_token(Token *t);
 void delete_tokens(Token *t);
 
