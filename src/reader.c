@@ -212,6 +212,12 @@ void delete_tokens(Token *t) {
   delete_token(t);
 }
 
+uint8_t *copy_string_token(Token *token) {
+  uint8_t *copy = allocate(token->size + 1);
+  memcpy(copy, token->string_value, token->size + 1);
+  return copy;
+}
+
 static int is_valid_name_char(int c) {
   return c == '_' || isalnum(c);
 }

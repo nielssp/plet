@@ -92,16 +92,16 @@ struct Node {
     } subscript_value;
     struct {
       Node *object;
-      uint8_t *name;
+      char *name;
     } dot_value;
     struct {
       Node *operand;
-      uint8_t operator[3];
+      char operator[4];
     } prefix_value;
     struct {
       Node *left;
       Node *right;
-      uint8_t operator[3];
+      char operator[4];
     } infix_value;
     struct {
       NameList *params;
@@ -113,8 +113,8 @@ struct Node {
       Node *alt;
     } if_value;
     struct {
-      uint8_t *key;
-      uint8_t *value;
+      char *key;
+      char *value;
       Node *collection;
       Node *body;
       Node *alt;
@@ -127,6 +127,7 @@ struct Node {
     struct {
       Node *left;
       Node *right;
+      char operator[4];
     } assign_value;
     NodeList *block_value;
   };
@@ -145,7 +146,7 @@ struct PropertyList {
 
 struct NameList {
   NameList *tail;
-  uint8_t *head;
+  char *head;
 };
 
 Module *create_module(const char *file_name);

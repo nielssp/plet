@@ -5,6 +5,7 @@
  */
 
 #include "reader.h"
+#include "parser.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -59,9 +60,8 @@ int main(int argc, char *argv[]) {
   }
   close_reader(reader);
   fclose(in);
-  for (Token *t = tokens; t; t = t->next) {
-    printf("%s ", token_name(t->type));
-  }
+  Module *module = parse(tokens, infile);
   delete_tokens(tokens);
+  delete_module(module);
   return 0;
 }

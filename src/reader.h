@@ -55,6 +55,8 @@ const char *token_name(TokenType type);
 void delete_token(Token *t);
 void delete_tokens(Token *t);
 
+uint8_t *copy_string_token(Token *token);
+
 Token *read_all(Reader *r, int template);
 
 #endif

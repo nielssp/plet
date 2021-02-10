@@ -10,6 +10,12 @@
 
 #include <string.h>
 #include <stdarg.h>
+#include <assert.h>
+
+#define ASSIGN_NODE(DEST, SRC) \
+  assert(!(DEST));\
+  (DEST) = allocate(sizeof(Node));\
+  *(DEST) = (SRC);
 
 typedef struct {
   Token *tokens;
@@ -18,7 +24,7 @@ typedef struct {
   Pos end;
 } Parser;
 
-struct Node parse_expression(Parser *parser);
+static Node parse_expression(Parser *parser);
 static Node parse_block(Parser *parser);
 static Node parse_template(Parser *parser);
 
@@ -98,6 +104,7 @@ static Node create_node(NodeType type, Parser *parser) {
     case N_ASSIGN:
       node.assign_value.left = NULL;
       node.assign_value.right = NULL;
+      node.assign_value.operator[0] = '\0';
       break;
     case N_BLOCK:
       node.block_value = NULL;
@@ -118,10 +125,6 @@ static void parser_error(Parser *parser, Token *token, const char *format, ...) 
   va_end(va);
   fprintf(stderr, "\n" SGR_RESET);
   parser->errors++;
-}
-
-static Token *peek(Parser *parser) {
-  return parser->tokens;
 }
 
 static int peek_type(TokenType type, Parser *parser) {
@@ -244,6 +247,15 @@ static char *parse_name(Parser *parser) {
   return copy_string("");
 }
 
+static Node parse_string(Parser *parser) {
+  Node node = create_node(N_STRING, parser);
+  Token *token = pop(parser);
+  node.string_value.size = token->size;
+  node.string_value.bytes = copy_string_token(token);
+  node.end = parser->end;
+  return node;
+}
+
 static Node parse_atom(Parser *parser) {
   if (peek_type(T_INT, parser)) {
     Node node = create_node(N_INT, parser);
@@ -256,21 +268,14 @@ static Node parse_atom(Parser *parser) {
     node.end = parser->end;
     return node;
   } else if (peek_type(T_STRING, parser)) {
-    Node node = create_node(N_STRING, parser);
-    node.string_value.size = peek(parser)->size;
-    memcpy(node.string_value.bytes, pop(parser)->string_value, node.string_value.size);;
-    node.end = parser->end;
-    return node;
+    return parse_string(parser);
   } else if (peek_type(T_NAME, parser)) {
-    Node node = create_node(N_NAME, parser);
-    node.name_value = copy_string(pop(parser)->name_value);
-    node.end = parser->end;
-    return node;
+    return parse_string(parser);
   } else if (parser->tokens) {
-    parser_error(parser, parser->tokens, "unexpected %s, expected an atom", token_name(parser->tokens->type));
+    parser_error(parser, parser->tokens, "unexpected %s, expected an expression", token_name(parser->tokens->type));
     return create_node(N_INT, parser);
   } else {
-    parser_error(parser, NULL, "unexpected end of token stream, expected an atom");
+    parser_error(parser, NULL, "unexpected end of token stream, expected an expression");
     return create_node(N_INT, parser);
   }
 }
@@ -353,16 +358,388 @@ static Node parse_delimited(Parser *parser) {
   }
 }
 
+static Node parse_apply_dot(Parser *parser) {
+  Node expr = parse_delimited(parser);
+  while (1) {
+    if (peek_punct('(', parser)) {
+      Node apply = create_node(N_APPLY, parser);
+      pop(parser);
+      ASSIGN_NODE(apply.apply_value.callee, expr);
+      if (!peek_punct(')', parser)) {
+        NodeList *last_arg = NULL;
+        while (1) {
+          Node arg = parse_expression(parser);
+          LL_APPEND(NodeList, apply.apply_value.args, last_arg, arg);
+          if (!peek_operator(",", parser)) {
+            break;
+          }
+          pop(parser);
+          // Allow comma after last element
+          if (peek_punct(')', parser)) {
+            break;
+          }
+        }
+      }
+      expect_punct(')', parser);
+      apply.end = parser->end;
+      expr = apply;
+    } else if (peek_punct('[', parser)) {
+      Node subscript = create_node(N_SUBSCRIPT, parser);
+      pop(parser);
+      ASSIGN_NODE(subscript.subscript_value.list, expr);
+      ASSIGN_NODE(subscript.subscript_value.index, parse_expression(parser));
+      expect_punct(']', parser);
+      subscript.end = parser->end;
+      expr = subscript;
+    } else if (peek_operator(".", parser)) {
+      Node dot = create_node(N_DOT, parser);
+      pop(parser);
+      ASSIGN_NODE(dot.dot_value.object, expr);
+      dot.dot_value.name = parse_name(parser);
+      dot.end = parser->end;
+      expr = dot;
+    } else {
+      break;
+    }
+  }
+  return expr;
+}
+
+static Node parse_negate(Parser *parser) {
+  if (peek_operator("-", parser)) {
+    Node prefix = create_node(N_PREFIX, parser);
+    strcpy(prefix.prefix_value.operator, "-");
+    pop(parser);
+    ASSIGN_NODE(prefix.prefix_value.operand, parse_negate(parser));
+    prefix.end = parser->end;
+    return prefix;
+  }
+  return parse_apply_dot(parser);
+}
+
+static Node parse_add_sub(Parser *parser) {
+  Node expr = parse_negate(parser);
+  while (peek_operator("+", parser) || peek_operator("-", parser)) {
+    Node infix = create_node(N_INFIX, parser);
+    infix.start = expr.start;
+    strcpy(infix.infix_value.operator, pop(parser)->operator_value);
+    ASSIGN_NODE(infix.infix_value.left, expr);
+    ASSIGN_NODE(infix.infix_value.right, parse_negate(parser));
+    infix.end = parser->end;
+    expr = infix;
+  }
+  return expr;
+}
+
+static Node parse_mul_div(Parser *parser) {
+  Node expr = parse_add_sub(parser);
+  while (peek_operator("*", parser) || peek_operator("/", parser) || peek_operator("%", parser)) {
+    Node infix = create_node(N_INFIX, parser);
+    infix.start = expr.start;
+    strcpy(infix.infix_value.operator, pop(parser)->operator_value);
+    ASSIGN_NODE(infix.infix_value.left, expr);
+    ASSIGN_NODE(infix.infix_value.right, parse_add_sub(parser));
+    infix.end = parser->end;
+    expr = infix;
+  }
+  return expr;
+}
+
+static Node parse_comparison(Parser *parser) {
+  Node expr = parse_mul_div(parser);
+  while (peek_operator("<", parser) || peek_operator(">", parser) || peek_operator("<=", parser)
+      || peek_operator(">=", parser) || peek_operator("==", parser) || peek_operator("!=", parser)) {
+    Node infix = create_node(N_INFIX, parser);
+    infix.start = expr.start;
+    strcpy(infix.infix_value.operator, pop(parser)->operator_value);
+    ASSIGN_NODE(infix.infix_value.left, expr);
+    ASSIGN_NODE(infix.infix_value.right, parse_mul_div(parser));
+    infix.end = parser->end;
+    expr = infix;
+  }
+  return expr;
+}
+
+static Node parse_logical_not(Parser *parser) {
+  if (peek_keyword("not", parser)) {
+    Node prefix = create_node(N_PREFIX, parser);
+    strcpy(prefix.prefix_value.operator, pop(parser)->name_value);
+    ASSIGN_NODE(prefix.prefix_value.operand, parse_logical_not(parser));
+    prefix.end = parser->end;
+    return prefix;
+  }
+  return parse_comparison(parser);
+}
+
+static Node parse_logical_and(Parser *parser) {
+  Node expr = parse_logical_not(parser);
+  while (peek_keyword("and", parser)) {
+    Node infix = create_node(N_INFIX, parser);
+    infix.start = expr.start;
+    strcpy(infix.infix_value.operator, pop(parser)->name_value);
+    ASSIGN_NODE(infix.infix_value.left, expr);
+    ASSIGN_NODE(infix.infix_value.right, parse_logical_not(parser));
+    infix.end = parser->end;
+    expr = infix;
+  }
+  return expr;
+}
+
+static Node parse_logical_or(Parser *parser) {
+  Node expr = parse_logical_and(parser);
+  while (peek_keyword("or", parser)) {
+    Node infix = create_node(N_INFIX, parser);
+    infix.start = expr.start;
+    strcpy(infix.infix_value.operator, pop(parser)->name_value);
+    ASSIGN_NODE(infix.infix_value.left, expr);
+    ASSIGN_NODE(infix.infix_value.right, parse_logical_and(parser));
+    infix.end = parser->end;
+    expr = infix;
+  }
+  return expr;
+}
+
+static Node parse_pipe_line(Parser *parser) {
+  Node expr = parse_logical_or(parser);
+  while (peek_operator("|", parser)) {
+    Node apply = create_node(N_APPLY, parser);
+    apply.start = expr.start;
+    pop(parser);
+    Node name = create_node(N_NAME, parser);
+    name.name_value = parse_name(parser);
+    ASSIGN_NODE(apply.apply_value.callee, name);
+    NodeList *last_arg = NULL;
+    LL_APPEND(NodeList, apply.apply_value.args, last_arg, expr);
+    if (peek_punct('(', parser)) {
+      pop(parser);
+      if (!peek_punct(')', parser)) {
+        while (1) {
+          Node arg = parse_expression(parser);
+          LL_APPEND(NodeList, apply.apply_value.args, last_arg, arg);
+          if (!peek_operator(",", parser)) {
+            break;
+          }
+          pop(parser);
+          // Allow comma after last element
+          if (peek_punct(')', parser)) {
+            break;
+          }
+        }
+      }
+      expect_punct(')', parser);
+    }
+    apply.end = parser->end;
+    expr = apply;
+  }
+  return expr;
+}
+
+static Node parse_fn(Parser *parser) {
+  Node fn = create_node(N_FN, parser);
+  expect_keyword("fn", parser);
+  if (peek_type(T_NAME, parser)) {
+    NameList *last_param = NULL;
+    LL_APPEND(NameList, fn.fn_value.params, last_param, copy_string(pop(parser)->name_value));
+    while (peek_operator(",", parser)) {
+      pop(parser);
+      if (peek_operator("->", parser)) {
+        break;
+      }
+      LL_APPEND(NameList, fn.fn_value.params, last_param, parse_name(parser));
+    }
+  }
+  expect_operator("->", parser);
+  ASSIGN_NODE(fn.fn_value.body, parse_expression(parser));
+  fn.end = parser->end;
+  return fn;
+}
+
+static Node parse_partial_dot(Parser *parser) {
+  Node fn = create_node(N_FN, parser);
+  fn.fn_value.params = allocate(sizeof(NameList));
+  fn.fn_value.params->tail = NULL;
+  fn.fn_value.params->head = copy_string("o");
+  Node expr = create_node(N_NAME, parser);
+  expr.name_value = copy_string("o");
+  while (peek_operator(".", parser)) {
+    Node dot = create_node(N_DOT, parser);
+    pop(parser);
+    ASSIGN_NODE(dot.dot_value.object, expr);
+    dot.dot_value.name = parse_name(parser);
+    expr = dot;
+  }
+  ASSIGN_NODE(fn.fn_value.body, expr);
+  fn.end = parser->end;
+  return fn;
+}
+
+static Node parse_expression(Parser *parser) {
+  if (peek_keyword("fn", parser)) {
+    return parse_fn(parser);
+  } else if (peek_operator(".", parser)) {
+    return parse_partial_dot(parser);
+  } else {
+    return parse_pipe_line(parser);
+  }
+}
+
+static Node parse_if(Parser *parser) {
+  Node stmt = create_node(N_IF, parser);
+  expect_keyword("if", parser);
+  ASSIGN_NODE(stmt.if_value.cond, parse_expression(parser));
+  ASSIGN_NODE(stmt.if_value.cons, parse_block(parser));
+  Node parent = stmt;
+  while (peek_keyword("else", parser)) {
+    pop(parser);
+    if (peek_keyword("if", parser)) {
+      pop(parser);
+      Node nested = create_node(N_IF, parser);
+      ASSIGN_NODE(parent.if_value.alt, nested);
+      parent = nested;
+      ASSIGN_NODE(parent.if_value.cond, parse_expression(parser));
+      ASSIGN_NODE(parent.if_value.cons, parse_block(parser));
+    } else {
+      ASSIGN_NODE(parent.if_value.alt, parse_block(parser));
+      break;
+    }
+  }
+  expect_end("if", parser);
+  stmt.end = parser->end;
+  return stmt;
+}
+
+static Node parse_for(Parser *parser) {
+  Node stmt = create_node(N_FOR, parser);
+  expect_keyword("for", parser);
+  char *name = parse_name(parser);
+  if (peek_operator(":", parser)) {
+    stmt.for_value.key = name;
+    pop(parser);
+    stmt.for_value.value = parse_name(parser);
+  } else {
+    stmt.for_value.value = name;
+  }
+  expect_keyword("in", parser);
+  ASSIGN_NODE(stmt.for_value.collection, parse_expression(parser));
+  ASSIGN_NODE(stmt.for_value.body, parse_block(parser));
+  if (peek_keyword("else", parser)) {
+    pop(parser);
+    ASSIGN_NODE(stmt.for_value.alt, parse_block(parser));
+  }
+  expect_end("for", parser);
+  stmt.end = parser->end;
+  return stmt;
+}
+
+static Node parse_switch(Parser *parser) {
+  Node stmt = create_node(N_SWITCH, parser);
+  expect_keyword("switch", parser);
+  ASSIGN_NODE(stmt.switch_value.expr, parse_expression(parser));
+  if (!peek_type(T_TEXT, parser)) {
+    expect_type(T_LF, parser);
+  }
+  skip_lf_and_text(parser);
+  PropertyList *last_case = NULL;
+  while (peek_keyword("case", parser)) {
+    pop(parser);
+    PropertyList *case_item = allocate(sizeof(PropertyList));
+    case_item->tail = NULL;
+    case_item->key = parse_expression(parser);
+    case_item->value = parse_block(parser);
+    if (last_case) {
+      last_case->tail = case_item;
+      last_case = case_item;
+    } else {
+      stmt.switch_value.cases = last_case = case_item;
+    }
+  }
+  if (peek_keyword("default", parser)) {
+    pop(parser);
+    ASSIGN_NODE(stmt.switch_value.default_case, parse_block(parser));
+  }
+  expect_end("switch", parser);
+  stmt.end = parser->end;
+  return stmt;
+}
+
+static Node parse_assign(Parser *parser) {
+  Node expr = parse_expression(parser);
+  if (peek_operator("=", parser) || peek_operator("+=", parser) || peek_operator("-=", parser)
+      || peek_operator("*=", parser) || peek_operator("/=", parser)) {
+    Node assign = create_node(N_ASSIGN, parser);
+    assign.start = expr.start;
+    char *op = pop(parser)->operator_value;
+    ASSIGN_NODE(assign.assign_value.left, expr);
+    ASSIGN_NODE(assign.assign_value.right, parse_expression(parser));
+    if (op[1]) {
+      assign.assign_value.operator[0] = op[0];
+      assign.assign_value.operator[1] = '\0';
+    }
+    assign.end = parser->end;
+    expr = assign;
+  }
+  return expr;
+}
+
+static Node parse_statement(Parser *parser) {
+  if (peek_keyword("if", parser)) {
+    return parse_if(parser);
+  } else if (peek_keyword("for", parser)) {
+    return parse_for(parser);
+  } else if (peek_keyword("switch", parser)) {
+    return parse_switch(parser);
+  } else {
+    return parse_assign(parser);
+  }
+}
+
+static Node parse_block(Parser *parser) {
+  Node block = create_node(N_BLOCK, parser);
+  if (peek_type(T_TEXT, parser)) {
+    Node string = parse_string(parser);
+    block.block_value = allocate(sizeof(NodeList));
+    block.block_value->tail = NULL;
+    block.block_value->head = string;
+  } else {
+    expect_type(T_LF, parser);
+  }
+  Node template = parse_template(parser);
+  if (block.block_value) {
+    block.block_value->tail = template.block_value;
+  } else {
+    block.block_value = template.block_value;
+  }
+  block.end = parser->end;
+  return block;
+}
+
 static Node parse_template(Parser *parser) {
   Node block = create_node(N_BLOCK, parser);
+  NodeList *last_item = NULL;
   while (1) {
+    if (peek_type(T_TEXT, parser)) {
+      LL_APPEND(NodeList, block.block_value, last_item, parse_string(parser));
+    } else if (peek_keyword("end", parser) || peek_keyword("else", parser) || peek_keyword("case", parser)
+        || peek_keyword("default", parser)) {
+      break;
+    } else if (peek_type(T_EOF, parser) || peek_type(T_END_QUOTE, parser)) {
+      break;
+    } else if (!peek_type(T_LF, parser)) {
+      LL_APPEND(NodeList, block.block_value, last_item, parse_statement(parser));
+      if (!peek_type(T_TEXT, parser) && !peek_type(T_EOF, parser)) {
+        expect_type(T_LF, parser);
+      }
+    } else {
+      pop(parser);
+    }
   }
+  return block;
 }
 
 Module *parse(Token *tokens, const char *file_name) {
   Module *m = create_module(file_name);
   Parser parser = (Parser) { .tokens = tokens, .module = m, .errors = 0, .end.line = 1, .end.column = 1 };
-  m->root = allocate(sizeof(Node));
-  *m->root = parse_template(&parser);
+  ASSIGN_NODE(m->root, parse_template(&parser));
+  expect_type(T_EOF, &parser);
   return m;
 }
