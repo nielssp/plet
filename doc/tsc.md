@@ -182,6 +182,7 @@ string
 array
 object
 time
+function
 
 any
 
@@ -232,7 +233,7 @@ push(array: array, element: any): array
 push_all(array: array, elements: array): array
 shift(array: array): any
 unshift(array: array, element: any): array
-delete(obj: object, key: string): obj
+delete(obj: object, key: string): any
 ```
 
 ### time

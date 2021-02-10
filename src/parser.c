@@ -273,9 +273,11 @@ static Node parse_atom(Parser *parser) {
     return parse_string(parser);
   } else if (parser->tokens) {
     parser_error(parser, parser->tokens, "unexpected %s, expected an expression", token_name(parser->tokens->type));
+    pop(parser);
     return create_node(N_INT, parser);
   } else {
     parser_error(parser, NULL, "unexpected end of token stream, expected an expression");
+    pop(parser);
     return create_node(N_INT, parser);
   }
 }

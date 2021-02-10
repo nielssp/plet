@@ -395,7 +395,7 @@ static int read_escape_sequence(Reader *r, Buffer *buffer, int double_quote) {
       }
       break;
     default:
-      reader_error(r, "undefined escape sequence: '%c'", c);
+      reader_error(r, "undefined escape sequence: '\\%c'", c);
       return 0;
   }
   return 1;
