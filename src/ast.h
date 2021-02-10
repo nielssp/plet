@@ -152,5 +152,7 @@ struct NameList {
 Module *create_module(const char *file_name);
 void delete_module(Module *module);
 
+void delete_node(Node node);
+
 #endif
 

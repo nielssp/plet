@@ -588,18 +588,18 @@ static Node parse_if(Parser *parser) {
   expect_keyword("if", parser);
   ASSIGN_NODE(stmt.if_value.cond, parse_expression(parser));
   ASSIGN_NODE(stmt.if_value.cons, parse_block(parser));
-  Node parent = stmt;
+  Node *parent = &stmt;
   while (peek_keyword("else", parser)) {
     pop(parser);
     if (peek_keyword("if", parser)) {
       pop(parser);
       Node nested = create_node(N_IF, parser);
-      ASSIGN_NODE(parent.if_value.alt, nested);
-      parent = nested;
-      ASSIGN_NODE(parent.if_value.cond, parse_expression(parser));
-      ASSIGN_NODE(parent.if_value.cons, parse_block(parser));
+      ASSIGN_NODE(parent->if_value.alt, nested);
+      parent = parent->if_value.alt;
+      ASSIGN_NODE(parent->if_value.cond, parse_expression(parser));
+      ASSIGN_NODE(parent->if_value.cons, parse_block(parser));
     } else {
-      ASSIGN_NODE(parent.if_value.alt, parse_block(parser));
+      ASSIGN_NODE(parent->if_value.alt, parse_block(parser));
       break;
     }
   }

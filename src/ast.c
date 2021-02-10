@@ -14,8 +14,6 @@
     free(VALUE);\
   }
 
-static void delete_node(Node node);
-
 Module *create_module(const char *file_name) {
   Module *module = allocate(sizeof(Module));
   module->file_name = copy_string(file_name);
