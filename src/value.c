@@ -10,7 +10,44 @@
 
 #include <string.h>
 
+#define MIN_CONTEXT_SIZE 4096
 #define INITIAL_ARRAY_CAPACITY 16
+
+Context *create_context() {
+  Context *context = allocate(sizeof(Context) + MIN_CONTEXT_SIZE);
+  context->next = NULL;
+  context->last = context;
+  context->capacity = MIN_CONTEXT_SIZE;
+  context->size = 0;
+  return context;
+}
+
+void delete_context(Context *context) {
+  if (context->next) {
+    delete_context(context->next);
+  }
+  free(context);
+}
+
+void *context_allocate(Context *context, size_t size) {
+  Context *last = context->last;
+  if (size < last->capacity - last->size) {
+    void *p = last->data + last->size;
+    last->size += size;
+    return p;
+  } else {
+    size_t new_size = size > MIN_CONTEXT_SIZE ? size : MIN_CONTEXT_SIZE;
+    Context *new = allocate(sizeof(Context) + new_size);
+    new->next = NULL;
+    new->last = new;
+    new->capacity = new_size;
+    new->size = size;
+    last->next = new;
+    last->last = new;
+    context->last = new;
+    return new->data;
+  }
+}
 
 int equals(Value a, Value b) {
   if (a.type != b.type) {
@@ -72,7 +109,7 @@ int equals(Value a, Value b) {
   return 0;
 }
 
-Value copy_value(Value value) {
+Value copy_value(Value value, Context *context) {
   switch (value.type) {
     case V_NIL:
     case V_TRUE:
@@ -80,19 +117,19 @@ Value copy_value(Value value) {
     case V_FLOAT:
       return value;
     case V_STRING:
-      return create_string(value.string_value->bytes, value.string_value->size);
+      return create_string(value.string_value->bytes, value.string_value->size, context);
     case V_ARRAY: {
-      Value copy = create_array();
+      Value copy = create_array(value.array_value->size, context);
       for (size_t i = 0; i < value.array_value->size; i++) {
-        array_push(copy.array_value, copy_value(value.array_value->cells[i]));
+        array_push(copy.array_value, copy_value(value.array_value->cells[i], context), context);
       }
       return copy;
     }
     case V_OBJECT: {
-      Value copy = create_object();
+      Value copy = create_object(value.object_value->size, context);
       for (size_t i = 0; i < value.object_value->size; i++) {
-        object_put(copy.object_value, copy_value(value.object_value->entries[i].key),
-            copy_value(value.object_value->entries[i].value));
+        object_put(copy.object_value, copy_value(value.object_value->entries[i].key, context),
+            copy_value(value.object_value->entries[i].value, context), context);
       }
       return copy;
     }
@@ -106,52 +143,28 @@ Value copy_value(Value value) {
   return nil_value;
 }
 
-void delete_value(Value value) {
-  switch (value.type) {
-    case V_NIL:
-    case V_TRUE:
-    case V_INT:
-    case V_FLOAT:
-      return;
-    case V_STRING:
-      free(value.string_value);
-      return;
-    case V_ARRAY:
-      free(value.array_value->cells);
-      free(value.array_value);
-      return;
-    case V_OBJECT:
-      free(value.object_value->entries);
-      free(value.object_value);
-      return;
-    case V_TIME:
-    case V_FUNCTION:
-      return;
-    case V_CLOSURE:
-      // TODO
-      return;
-  }
-}
-
-Value create_string(const uint8_t *bytes, size_t size) {
-  String *string = allocate(sizeof(String) + size);
+Value create_string(const uint8_t *bytes, size_t size, Context *context) {
+  String *string = context_allocate(context, sizeof(String) + size);
   string->size = size;
   memcpy(string->bytes, bytes, size);
   return (Value) { .type = V_STRING, .string_value = string };
 }
 
-Value create_array() {
-  Array *array = allocate(sizeof(Array));
-  array->capacity = INITIAL_ARRAY_CAPACITY;
+Value create_array(size_t capacity, Context *context) {
+  Array *array = context_allocate(context, sizeof(Array));
+  array->capacity = capacity < INITIAL_ARRAY_CAPACITY ? INITIAL_ARRAY_CAPACITY : capacity;
   array->size = 0;
-  array->cells = allocate(sizeof(Value) * array->capacity);
+  array->cells = context_allocate(context, array->capacity * sizeof(Value));
   return (Value) { .type = V_ARRAY, .array_value = array };
 }
 
-void array_push(Array *array, Value elem) {
+void array_push(Array *array, Value elem, Context *context) {
   if (array->size >= array->capacity) {
-    array->capacity <<= 1;
-    array->cells = reallocate(array->cells, sizeof(Value) * array->capacity);
+    //array->cells = reallocate(array->cells, sizeof(Value) * array->capacity);
+    size_t new_capacity = array->capacity << 1;
+    Value *new_cells = context_allocate(context, new_capacity * sizeof(Value));
+    memcpy(new_cells, array->cells, array->capacity * sizeof(Value));
+    array->capacity = new_capacity;
   }
   array->cells[array->size] = elem;
   array->size++;
@@ -166,20 +179,24 @@ Result array_pop(Array *array, Value *elem) {
   return 0;
 }
 
-Value create_object() {
+Value create_object(size_t capacity, Context *context) {
   Object *object = allocate(sizeof(Object));
-  object->capacity = INITIAL_ARRAY_CAPACITY;
+  object->capacity = capacity < INITIAL_ARRAY_CAPACITY ? INITIAL_ARRAY_CAPACITY : capacity;
   object->size = 0;
-  object->entries = allocate(sizeof(Entry) * object->capacity);
+  object->entries = context_allocate(context, object->capacity * sizeof(Entry));
   return (Value) { .type = V_OBJECT, .object_value = object };
 }
 
-void object_put(Object *object, Value key, Value value) {
+void object_put(Object *object, Value key, Value value, Context *context) {
   Value old;
   object_remove(object, key, &old);
   if (object->size >= object->capacity) {
     object->capacity <<= 1;
-    object->entries = reallocate(object->entries, sizeof(Entry) * object->capacity);
+    //object->entries = reallocate(object->entries, sizeof(Entry) * object->capacity);
+    size_t new_capacity = object->capacity << 1;
+    Entry *new_entries = context_allocate(context, new_capacity * sizeof(Entry));
+    memcpy(new_entries, object->entries, object->capacity * sizeof(Entry));
+    object->capacity = new_capacity;
   }
   object->entries[object->size] = (Entry) { .key = key, .value = value };
   object->size++;
@@ -209,5 +226,53 @@ Result object_remove(Object *object, Value key, Value *value) {
   return 0;
 }
 
-Value create_closure(const NameList *params, const Node *body, Env *env) {
+Value create_closure(const NameList *params, const Node body, Env *env, Context *context) {
+}
+
+static Node copy_node(Node node, Context *context) {
+  Node copy = node;
+  switch (node.type) {
+    case N_NAME:
+    case N_INT:
+    case N_FLOAT:
+    case N_STRING:
+    case N_LIST:
+    case N_OBJECT:
+    case N_APPLY:
+    case N_SUBSCRIPT:
+    case N_DOT:
+    case N_PREFIX:
+    case N_INFIX:
+    case N_FN:
+    case N_IF:
+    case N_FOR:
+    case N_SWITCH:
+    case N_ASSIGN:
+    case N_BLOCK:
+      break;
+  }
+  return copy;
+}
+
+static char *context_copy_string(const char *src, Context *context) {
+  size_t l = strlen(src) + 1;
+  char *dest = context_allocate(context, l);
+  memcpy(dest, src, l);
+  return dest;
+}
+
+static Module *copy_module(Module *module, Context *context) {
+  Module *copy = context_allocate(context, sizeof(Module));
+  copy->file_name = context_copy_string(module->file_name, context);
+  copy->root = NULL;
+  return copy;
+}
+
+static NodeList copy_node_list(NodeList *list, Context *context) {
+}
+
+static NodeList copy_property_list(PropertyList *list, Context *context) {
+}
+
+static NameList copy_name_list(NameList *list, Context *context) {
 }

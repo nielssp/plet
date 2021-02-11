@@ -17,6 +17,8 @@ typedef int Result;
 #define OK 1
 #define ERROR 0
 
+typedef struct Context Context;
+
 typedef struct Value Value;
 typedef struct String String;
 typedef struct Array Array;
@@ -26,6 +28,14 @@ typedef struct Closure Closure;
 
 typedef struct Tuple Tuple;
 typedef struct Enve Env;
+
+struct Context {
+  Context *next;
+  Context *last;
+  size_t capacity;
+  size_t size;
+  uint8_t data[];
+};
 
 typedef enum {
   V_NIL,
@@ -54,10 +64,6 @@ struct Value {
   };
 };
 
-int equals(Value a, Value b);
-Value copy_value(Value value);
-void delete_value(Value value);
-
 #define nil_value ((Value) { .type = V_NIL, .int_value = 0 })
 
 #define true_value ((Value) { .type = V_TRUE, .int_value = 0 })
@@ -71,19 +77,11 @@ struct String {
   uint8_t bytes[];
 };
 
-Value create_string(const uint8_t *bytes, size_t size);
-
 struct Array {
   Value *cells;
   size_t capacity;
   size_t size;
 };
-
-Value create_array();
-
-void array_push(Array *array, Value elem);
-
-Result array_pop(Array *array, Value *elem);
 
 struct Object {
   Entry *entries;
@@ -96,21 +94,11 @@ struct Entry {
   Value value;
 };
 
-Value create_object();
-
-void object_put(Object *object, Value key, Value value);
-
-Result object_get(Object *object, Value key, Value *value);
-
-Result object_remove(Object *object, Value key, Value *value);
-
 struct Closure {
   NameList *params;
-  Node *body;
+  Node body;
   Env *env;
 };
-
-Value create_closure(const NameList *params, const Node *body, Env *env);
 
 struct Tuple {
   size_t size;
@@ -122,5 +110,33 @@ struct Env {
   char *name;
   Value value;
 };
+
+Context *create_context();
+
+void delete_context(Context *context);
+
+void *context_allocate(Context *context, size_t size);
+
+int equals(Value a, Value b);
+
+Value copy_value(Value value, Context *context);
+
+Value create_string(const uint8_t *bytes, size_t size, Context *context);
+
+Value create_array(size_t capacity, Context *context);
+
+void array_push(Array *array, Value elem, Context *context);
+
+Result array_pop(Array *array, Value *elem);
+
+Value create_object(size_t capacity, Context *context);
+
+void object_put(Object *object, Value key, Value value, Context *context);
+
+Result object_get(Object *object, Value key, Value *value);
+
+Result object_remove(Object *object, Value key, Value *value);
+
+Value create_closure(const NameList *params, const Node body, Env *env, Context *context);
 
 #endif
