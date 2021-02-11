@@ -13,6 +13,11 @@
 #define MIN_CONTEXT_SIZE 4096
 #define INITIAL_ARRAY_CAPACITY 16
 
+static Node copy_node(const Node node, Context *context);
+static NodeList *copy_node_list(const NodeList *list, Context *context);
+static PropertyList *copy_property_list(const PropertyList *list, Context *context);
+static NameList *copy_name_list(const NameList *list, Context *context);
+
 Context *create_context() {
   Context *context = allocate(sizeof(Context) + MIN_CONTEXT_SIZE);
   context->next = NULL;
@@ -136,9 +141,10 @@ Value copy_value(Value value, Context *context) {
     case V_TIME:
     case V_FUNCTION:
       return value;
-    case V_CLOSURE:
-      // TODO: copy nodes and env
-      return nil_value;
+    case V_CLOSURE: {
+      // TODO: copy env
+      return create_closure(value.closure_value->params, value.closure_value->body, value.closure_value->env, context);
+    }
   }
   return nil_value;
 }
@@ -227,34 +233,17 @@ Result object_remove(Object *object, Value key, Value *value) {
 }
 
 Value create_closure(const NameList *params, const Node body, Env *env, Context *context) {
-}
-
-static Node copy_node(Node node, Context *context) {
-  Node copy = node;
-  switch (node.type) {
-    case N_NAME:
-    case N_INT:
-    case N_FLOAT:
-    case N_STRING:
-    case N_LIST:
-    case N_OBJECT:
-    case N_APPLY:
-    case N_SUBSCRIPT:
-    case N_DOT:
-    case N_PREFIX:
-    case N_INFIX:
-    case N_FN:
-    case N_IF:
-    case N_FOR:
-    case N_SWITCH:
-    case N_ASSIGN:
-    case N_BLOCK:
-      break;
-  }
-  return copy;
+  Closure *closure = context_allocate(context, sizeof(Closure));
+  closure->params = copy_name_list(params, context);
+  closure->body = copy_node(body, context);
+  closure->env = env;
+  return (Value) { .type = V_CLOSURE, .closure_value = closure };
 }
 
 static char *context_copy_string(const char *src, Context *context) {
+  if (!src) {
+    return NULL;
+  }
   size_t l = strlen(src) + 1;
   char *dest = context_allocate(context, l);
   memcpy(dest, src, l);
@@ -262,17 +251,119 @@ static char *context_copy_string(const char *src, Context *context) {
 }
 
 static Module *copy_module(Module *module, Context *context) {
+  if (!module) {
+    return NULL;
+  }
   Module *copy = context_allocate(context, sizeof(Module));
   copy->file_name = context_copy_string(module->file_name, context);
   copy->root = NULL;
   return copy;
 }
 
-static NodeList copy_node_list(NodeList *list, Context *context) {
+#define COPY_NODE_PTR(DEST, SRC) \
+  if (SRC) {\
+    DEST = context_allocate(context, sizeof(Node));\
+    *DEST = copy_node(*SRC, context);\
+  }
+
+static Node copy_node(const Node node, Context *context) {
+  Node copy = node;
+  copy.module = copy_module(node.module, context);
+  switch (node.type) {
+    case N_NAME:
+      copy.name_value = context_copy_string(node.name_value, context);
+      break;
+    case N_INT:
+    case N_FLOAT:
+      break;
+    case N_STRING:
+      copy.string_value.bytes = context_allocate(context, copy.string_value.size);
+      memcpy(copy.string_value.bytes, node.string_value.bytes, copy.string_value.size);
+      break;
+    case N_LIST:
+      copy.list_value = copy_node_list(node.list_value, context);
+      break;
+    case N_OBJECT:
+      copy.object_value = copy_property_list(node.object_value, context);
+      break;
+    case N_APPLY:
+      COPY_NODE_PTR(copy.apply_value.callee, node.apply_value.callee);
+      copy.apply_value.args = copy_node_list(node.apply_value.args, context);
+      break;
+    case N_SUBSCRIPT:
+      COPY_NODE_PTR(copy.subscript_value.list, node.subscript_value.list);
+      COPY_NODE_PTR(copy.subscript_value.index, node.subscript_value.index);
+      break;
+    case N_DOT:
+      COPY_NODE_PTR(copy.dot_value.object, node.dot_value.object);
+      copy.dot_value.name = context_copy_string(node.dot_value.name, context);
+      break;
+    case N_PREFIX:
+      COPY_NODE_PTR(copy.prefix_value.operand, node.prefix_value.operand);
+      break;
+    case N_INFIX:
+      COPY_NODE_PTR(copy.infix_value.left, node.infix_value.left);
+      COPY_NODE_PTR(copy.infix_value.right, node.infix_value.right);
+      break;
+    case N_FN:
+      copy.fn_value.params = copy_name_list(node.fn_value.params, context);
+      COPY_NODE_PTR(copy.fn_value.body, node.fn_value.body);
+      break;
+    case N_IF:
+      COPY_NODE_PTR(copy.if_value.cond, node.if_value.cond);
+      COPY_NODE_PTR(copy.if_value.cons, node.if_value.cons);
+      COPY_NODE_PTR(copy.if_value.alt, node.if_value.alt);
+      break;
+    case N_FOR:
+      copy.for_value.key = context_copy_string(node.for_value.key, context);
+      copy.for_value.value = context_copy_string(node.for_value.value, context);
+      COPY_NODE_PTR(copy.for_value.collection, node.for_value.collection);
+      COPY_NODE_PTR(copy.for_value.body, node.for_value.body);
+      COPY_NODE_PTR(copy.for_value.alt, node.for_value.alt);
+      break;
+    case N_SWITCH:
+      COPY_NODE_PTR(copy.switch_value.expr, node.switch_value.expr);
+      copy.switch_value.cases = copy_property_list(node.switch_value.cases, context);
+      COPY_NODE_PTR(copy.switch_value.default_case, node.switch_value.default_case);
+      break;
+    case N_ASSIGN:
+      COPY_NODE_PTR(copy.assign_value.left, node.assign_value.left);
+      COPY_NODE_PTR(copy.assign_value.right, node.assign_value.right);
+      break;
+    case N_BLOCK:
+      copy.block_value = copy_node_list(node.block_value, context);
+      break;
+  }
+  return copy;
 }
 
-static NodeList copy_property_list(PropertyList *list, Context *context) {
+static NodeList *copy_node_list(const NodeList *list, Context *context) {
+  if (!list) {
+    return NULL;
+  }
+  NodeList *copy = context_allocate(context, sizeof(NodeList));
+  copy->tail = copy_node_list(list->tail, context);
+  copy->head = copy_node(list->head, context);
+  return copy;
 }
 
-static NameList copy_name_list(NameList *list, Context *context) {
+static PropertyList *copy_property_list(const PropertyList *list, Context *context) {
+  if (!list) {
+    return NULL;
+  }
+  PropertyList *copy = context_allocate(context, sizeof(PropertyList));
+  copy->tail = copy_property_list(list->tail, context);
+  copy->key = copy_node(list->key, context);
+  copy->value = copy_node(list->value, context);
+  return copy;
+}
+
+static NameList *copy_name_list(const NameList *list, Context *context) {
+  if (!list) {
+    return NULL;
+  }
+  NameList *copy = context_allocate(context, sizeof(NameList));
+  copy->tail = copy_name_list(list->tail, context);
+  copy->head = context_copy_string(list->head, context);
+  return copy;
 }
