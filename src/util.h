@@ -8,21 +8,48 @@
 #define UTIL_H
 
 #include <stdlib.h>
+#include <stdint.h>
 
 #define SGR_RESET "\001\033[0m\002"
 #define SGR_RED "\001\033[31m\002"
 #define SGR_BOLD "\001\033[1m\002"
 #define ERROR_LABEL SGR_BOLD SGR_RED "error: " SGR_RESET SGR_BOLD
 
+typedef struct Arena Arena;
+
 typedef struct {
   int line;
   int column;
 } Pos;
 
+struct Arena {
+  Arena *next;
+  Arena *last;
+  size_t capacity;
+  size_t size;
+  uint8_t data[];
+};
+
+typedef struct {
+  uint8_t *data;
+  size_t capacity;
+  size_t size;
+} Buffer;
+
 void *allocate(size_t size);
 
 void *reallocate(void *old, size_t size);
 
+Arena *create_arena();
+
+void delete_arena(Arena *arena);
+
+void *arena_allocate(size_t size, Arena *arena);
+
 char *copy_string(const char *src);
+
+Buffer create_buffer();
+void delete_buffer(Buffer buffer);
+void buffer_put(Buffer *buffer, uint8_t byte);
 
 #endif

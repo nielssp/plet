@@ -4,13 +4,14 @@
  * See the LICENSE file or http://opensource.org/licenses/MIT for more information.
  */
 
-#include "reader.h"
 #include "parser.h"
+#include "reader.h"
+#include "interpreter.h"
 
-#include <stdio.h>
-#include <string.h>
 #include <errno.h>
 #include <getopt.h>
+#include <stdio.h>
+#include <string.h>
 
 const char *short_options = "hvo:";
 
@@ -36,7 +37,7 @@ int main(int argc, char *argv[]) {
         describe_option("v", "version", "Show version information.");
         return 0;
       case 'v':
-        puts("tsc 0.1");
+        puts("tsc 0.1.0");
         return 0;
     }
   }
@@ -50,7 +51,8 @@ int main(int argc, char *argv[]) {
     printf("error: %s: %s\n", infile, strerror(errno));
     return errno;
   }
-  Reader *reader = open_reader(in, infile);
+  SymbolMap *symbol_map = create_symbol_map();
+  Reader *reader = open_reader(in, infile, symbol_map);
   Token *tokens = read_all(reader, 0);
   if (reader_errors(reader)) {
     close_reader(reader);
@@ -61,7 +63,14 @@ int main(int argc, char *argv[]) {
   close_reader(reader);
   fclose(in);
   Module *module = parse(tokens, infile);
+
+  Arena *arena = create_arena();
+  Env *env = create_env(arena);
+  interpret(*module->root, env);
+  delete_arena(arena);
+
   delete_tokens(tokens);
   delete_module(module);
+  delete_symbol_map(symbol_map);
   return 0;
 }

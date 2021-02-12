@@ -6,14 +6,13 @@
 
 #include "reader.h"
 
+#include "hashmap.h"
 #include "util.h"
 
 #include <ctype.h>
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
-
-#define BUFFER_SIZE 32
 
 typedef struct ParenStack ParenStack;
 
@@ -22,9 +21,14 @@ struct ParenStack {
   uint8_t paren;
 };
 
+struct SymbolMap {
+  GenericHashMap map;
+};
+
 struct Reader {
   FILE *file;
   char *file_name;
+  SymbolMap *symbol_map;
   ParenStack *parens;
   Pos pos;
   int errors;
@@ -32,20 +36,55 @@ struct Reader {
   uint8_t buffer[3];
 };
 
-typedef struct {
-  uint8_t *data;
-  size_t capacity;
-  size_t size;
-} Buffer;
-
 const char *keywords[] = {
   "if", "else", "for", "in", "switch", "case", "default", "end", "fn", "and", "or", "not", "do", NULL
 };
 
-Reader *open_reader(FILE *file, const char *file_name) {
+static Hash symbol_hash(const void *p) {
+  Symbol name = *(Symbol *) p;
+  Hash h = INIT_HASH;
+  while (*name) {
+    h = HASH_ADD_BYTE(*name, h);
+    name++;
+  }
+  return h;
+}
+
+static int symbol_equals(const void *a, const void *b) {
+  return strcmp(*(const Symbol *) a, *(const Symbol *) b) == 0;
+}
+
+SymbolMap *create_symbol_map() {
+  SymbolMap *symbol_map = allocate(sizeof(SymbolMap));
+  init_generic_hash_map(&symbol_map->map, sizeof(Symbol), 0, symbol_hash, symbol_equals, NULL);
+  return symbol_map;
+}
+
+void delete_symbol_map(SymbolMap *symbol_map) {
+  char *symbol;
+  HashMapIterator it = generic_hash_map_iterate(&symbol_map->map);
+  while (generic_hash_map_next(&it, &symbol)) {
+    free(symbol);
+  }
+  delete_generic_hash_map(&symbol_map->map);
+  free(symbol_map);
+}
+
+Symbol get_symbol(const char *name, SymbolMap *symbol_map) {
+  Symbol symbol;
+  if (generic_hash_map_get(&symbol_map->map, &name, &symbol)) {
+    return symbol;
+  }
+  symbol = copy_string(name);
+  generic_hash_map_add(&symbol_map->map, &symbol);
+  return symbol;
+}
+
+Reader *open_reader(FILE *file, const char *file_name, SymbolMap *symbol_map) {
   Reader *r = allocate(sizeof(Reader));
   r->file = file;
   r->file_name = copy_string(file_name);
+  r->symbol_map = symbol_map;
   r->parens = NULL;
   r->pos.line = 1;
   r->pos.column = 1;
@@ -101,22 +140,6 @@ static void reader_error(Reader *r, const char *format, ...) {
   vfprintf(stderr, format, va);
   va_end(va);
   fprintf(stderr, "\n" SGR_RESET);
-}
-
-static Buffer create_buffer() {
-  return (Buffer) { .data = allocate(BUFFER_SIZE), .capacity = BUFFER_SIZE, .size = 0 };
-}
-
-static void delete_buffer(Buffer buffer) {
-  free(buffer.data);
-}
-
-static void buffer_put(Buffer *buffer, uint8_t byte) {
-  if (buffer->size >= buffer->capacity) {
-    buffer->capacity += BUFFER_SIZE;
-    buffer->data = reallocate(buffer->data, buffer->capacity);
-  }
-  buffer->data[buffer->size++] = byte;
 }
 
 static int peek_n(uint8_t n, Reader *r) {
@@ -189,9 +212,6 @@ void delete_token(Token *t) {
   switch (t->type) {
     case T_NAME:
     case T_KEYWORD:
-      if (t->name_value) {
-        free(t->name_value);
-      }
       break;
     case T_STRING:
     case T_TEXT:
@@ -240,7 +260,8 @@ static Token *read_name(Reader *r) {
   }
   token->size = buffer.size;
   buffer_put(&buffer, '\0');
-  token->name_value = (char *) buffer.data;
+  token->name_value = get_symbol((char *) buffer.data, r->symbol_map);
+  delete_buffer(buffer);
   for (const char **keyword = keywords; *keyword; keyword++) {
     if (strcmp(*keyword, token->name_value) == 0) {
       token->type = T_KEYWORD;
@@ -252,8 +273,7 @@ static Token *read_name(Reader *r) {
 }
 
 static int is_operator_char(int c) {
-  return c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '!' || c == '<'
-    || c == '>' || c == '=' || c == '|' || c == '.' || c == ',' || c == ':';
+  return !!strchr("+-*/%!<>=|.,:", c);
 }
 
 static Token *read_operator(Reader *r) {

@@ -8,6 +8,8 @@
 
 #include "util.h"
 
+#include <string.h>
+
 #define DELETE_NODE(VALUE) \
   if (VALUE) {\
     delete_node(*(VALUE));\
@@ -24,8 +26,6 @@ Module *create_module(const char *file_name) {
 void delete_node(Node node) {
   switch (node.type) {
     case N_NAME:
-      free(node.name_value);
-      break;
     case N_INT:
     case N_FLOAT:
       break;
@@ -56,7 +56,6 @@ void delete_node(Node node) {
       break;
     case N_DOT:
       DELETE_NODE(node.dot_value.object);
-      free(node.dot_value.name);
       break;
     case N_PREFIX:
       DELETE_NODE(node.prefix_value.operand);
@@ -66,7 +65,8 @@ void delete_node(Node node) {
       DELETE_NODE(node.infix_value.right);
       break;
     case N_FN:
-      LL_DELETE(NameList, node.fn_value.params, free);
+      delete_name_list(node.fn_value.params);
+      delete_name_list(node.fn_value.free_variables);
       DELETE_NODE(node.fn_value.body);
       break;
     case N_IF:
@@ -75,8 +75,6 @@ void delete_node(Node node) {
       DELETE_NODE(node.if_value.alt);
       break;
     case N_FOR:
-      free(node.for_value.key);
-      free(node.for_value.value);
       DELETE_NODE(node.for_value.collection);
       DELETE_NODE(node.for_value.body);
       DELETE_NODE(node.for_value.alt);
@@ -108,4 +106,57 @@ void delete_module(Module *module) {
   DELETE_NODE(module->root);
   free(module->file_name);
   free(module);
+}
+
+NameList *copy_name_list(NameList *list) {
+  if (!list) {
+    return NULL;
+  }
+  NameList *copy = allocate(sizeof(NameList));
+  copy->size = list->size;
+  copy->tail = copy_name_list(list->tail);
+  copy->head = list->head;
+  return copy;
+}
+
+NameList *name_list_put(Symbol name, NameList *list) {
+  for (NameList *elem = list; elem; elem = elem->tail) {
+    if (strcmp(elem->head, name) == 0) {
+      return list;
+    }
+  }
+  NameList *new = allocate(sizeof(NameList));
+  new->tail = list;
+  new->head = name;
+  new->size = list ? list->size + 1 : 0;
+  return new;
+}
+
+NameList *name_list_remove(Symbol name, NameList *list) {
+  if (!list) {
+    return NULL;
+  }
+  if (strcmp(list->head, name) == 0) {
+    NameList *tail = list->tail;
+    tail->size = list->size - 1;
+    free(list);
+    return tail;
+  }
+  for (NameList *elem = list; elem && elem->tail; elem = elem->tail) {
+    if (strcmp(elem->tail->head, name) == 0) {
+      NameList *delete = elem->tail;
+      elem->tail = delete->tail;
+      free(delete);
+      list->size--;
+    }
+  }
+  return list;
+}
+
+void delete_name_list(NameList *list) {
+  while (list) {
+    NameList *tail = list->tail;
+    free(list);
+    list = tail;
+  }
 }

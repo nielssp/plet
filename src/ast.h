@@ -7,10 +7,13 @@
 #ifndef AST_H
 #define AST_H
 
+#include "reader.h"
 #include "util.h"
 
+#include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
+
+#define LL_SIZE(HEAD) ((HEAD) ? (HEAD)->size : 0)
 
 #define LL_APPEND(TYPE, HEAD, LAST, ELEM) \
   do {\
@@ -20,8 +23,10 @@
     if (LAST) {\
       LAST->tail = _node;\
       LAST = _node;\
+      HEAD->size++;\
     } else {\
       HEAD = LAST = _node;\
+      HEAD->size = 1;\
     }\
   } while (0);
 
@@ -73,7 +78,7 @@ struct Node {
   Pos end;
   NodeType type;
   union {
-    char *name_value;
+    Symbol name_value;
     int64_t int_value;
     double float_value;
     struct {
@@ -92,7 +97,7 @@ struct Node {
     } subscript_value;
     struct {
       Node *object;
-      char *name;
+      Symbol name;
     } dot_value;
     struct {
       Node *operand;
@@ -105,6 +110,7 @@ struct Node {
     } infix_value;
     struct {
       NameList *params;
+      NameList *free_variables;
       Node *body;
     } fn_value;
     struct {
@@ -113,8 +119,8 @@ struct Node {
       Node *alt;
     } if_value;
     struct {
-      char *key;
-      char *value;
+      Symbol key;
+      Symbol value;
       Node *collection;
       Node *body;
       Node *alt;
@@ -134,25 +140,33 @@ struct Node {
 };
 
 struct NodeList {
+  size_t size;
   NodeList *tail;
   Node head;
 };
 
 struct PropertyList {
+  size_t size;
   PropertyList *tail;
   Node key;
   Node value;
 };
 
 struct NameList {
+  size_t size;
   NameList *tail;
-  char *head;
+  Symbol head;
 };
 
 Module *create_module(const char *file_name);
 void delete_module(Module *module);
 
 void delete_node(Node node);
+
+NameList *copy_name_list(NameList *list);
+NameList *name_list_put(Symbol name, NameList *list);
+NameList *name_list_remove(Symbol name, NameList *list);
+void delete_name_list(NameList *list);
 
 #endif
 

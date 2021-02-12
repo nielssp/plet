@@ -20,6 +20,7 @@
 typedef struct {
   Token *tokens;
   Module *module;
+  NameList *free_variables;
   int errors;
   Pos end;
 } Parser;
@@ -81,6 +82,7 @@ static Node create_node(NodeType type, Parser *parser) {
       break;
     case N_FN:
       node.fn_value.params = NULL;
+      node.fn_value.free_variables = NULL;
       node.fn_value.body = NULL;
       break;
     case N_IF:
@@ -239,12 +241,12 @@ static void skip_lf_and_text(Parser *parser) {
   }
 }
 
-static char *parse_name(Parser *parser) {
+static Symbol parse_name(Parser *parser) {
   Token *t = expect_type(T_NAME, parser);
   if (t) {
-    return copy_string(t->name_value);
+    return t->name_value;
   }
-  return copy_string("");
+  return "";
 }
 
 static Node parse_string(Parser *parser) {
@@ -270,7 +272,11 @@ static Node parse_atom(Parser *parser) {
   } else if (peek_type(T_STRING, parser)) {
     return parse_string(parser);
   } else if (peek_type(T_NAME, parser)) {
-    return parse_string(parser);
+    Node node = create_node(N_NAME, parser);
+    node.name_value = parse_name(parser);
+    parser->free_variables = name_list_put(node.name_value, parser->free_variables);
+    node.end = parser->end;
+    return node;
   } else if (parser->tokens) {
     parser_error(parser, parser->tokens, "unexpected %s, expected an expression", token_name(parser->tokens->type));
     pop(parser);
@@ -541,7 +547,7 @@ static Node parse_fn(Parser *parser) {
   expect_keyword("fn", parser);
   if (peek_type(T_NAME, parser)) {
     NameList *last_param = NULL;
-    LL_APPEND(NameList, fn.fn_value.params, last_param, copy_string(pop(parser)->name_value));
+    LL_APPEND(NameList, fn.fn_value.params, last_param, parse_name(parser));
     while (peek_operator(",", parser)) {
       pop(parser);
       if (peek_operator("->", parser)) {
@@ -551,7 +557,17 @@ static Node parse_fn(Parser *parser) {
     }
   }
   expect_operator("->", parser);
+  NameList *previous_name_list = parser->free_variables;
+  parser->free_variables = NULL;
   ASSIGN_NODE(fn.fn_value.body, parse_expression(parser));
+  for (NameList *name = fn.fn_value.params; name; name = name->tail) {
+    parser->free_variables = name_list_remove(name->head, parser->free_variables);
+  }
+  fn.fn_value.free_variables = parser->free_variables;
+  parser->free_variables = previous_name_list;
+  for (NameList *name = fn.fn_value.free_variables; name; name = name->tail) {
+    parser->free_variables = name_list_put(name->head, parser->free_variables);
+  }
   fn.end = parser->end;
   return fn;
 }
@@ -560,9 +576,9 @@ static Node parse_partial_dot(Parser *parser) {
   Node fn = create_node(N_FN, parser);
   fn.fn_value.params = allocate(sizeof(NameList));
   fn.fn_value.params->tail = NULL;
-  fn.fn_value.params->head = copy_string("o");
+  fn.fn_value.params->head = "o";
   Node expr = create_node(N_NAME, parser);
-  expr.name_value = copy_string("o");
+  expr.name_value = "o";
   while (peek_operator(".", parser)) {
     Node dot = create_node(N_DOT, parser);
     pop(parser);
@@ -613,7 +629,7 @@ static Node parse_if(Parser *parser) {
 static Node parse_for(Parser *parser) {
   Node stmt = create_node(N_FOR, parser);
   expect_keyword("for", parser);
-  char *name = parse_name(parser);
+  Symbol name = parse_name(parser);
   if (peek_operator(":", parser)) {
     stmt.for_value.key = name;
     pop(parser);
@@ -740,8 +756,10 @@ static Node parse_template(Parser *parser) {
 
 Module *parse(Token *tokens, const char *file_name) {
   Module *m = create_module(file_name);
-  Parser parser = (Parser) { .tokens = tokens, .module = m, .errors = 0, .end.line = 1, .end.column = 1 };
+  Parser parser = (Parser) { .tokens = tokens, .module = m, .free_variables = NULL, .errors = 0,
+    .end.line = 1, .end.column = 1 };
   ASSIGN_NODE(m->root, parse_template(&parser));
   expect_type(T_EOF, &parser);
+  delete_name_list(parser.free_variables);
   return m;
 }

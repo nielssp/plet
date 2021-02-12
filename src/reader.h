@@ -12,6 +12,10 @@
 #include <stdint.h>
 #include <stdio.h>
 
+typedef const char *Symbol;
+
+typedef struct SymbolMap SymbolMap;
+
 typedef struct Token Token;
 typedef struct Reader Reader;
 
@@ -34,7 +38,7 @@ struct Token {
   union {
     int64_t int_value;
     double float_value;
-    char *name_value;
+    Symbol name_value;
     uint8_t *string_value;
     char operator_value[3];
     char punct_value;
@@ -47,7 +51,12 @@ struct Token {
   TokenType type;
 };
 
-Reader *open_reader(FILE *file, const char *file_name);
+SymbolMap *create_symbol_map();
+void delete_symbol_map(SymbolMap *symbol_map);
+
+Symbol get_symbol(const char *name, SymbolMap *symbol_map);
+
+Reader *open_reader(FILE *file, const char *file_name, SymbolMap *symbol_map);
 void close_reader(Reader *r);
 int reader_errors(Reader *r);
 

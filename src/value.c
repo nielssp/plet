@@ -10,48 +10,41 @@
 
 #include <string.h>
 
-#define MIN_CONTEXT_SIZE 4096
 #define INITIAL_ARRAY_CAPACITY 16
 
-static Node copy_node(const Node node, Context *context);
-static NodeList *copy_node_list(const NodeList *list, Context *context);
-static PropertyList *copy_property_list(const PropertyList *list, Context *context);
-static NameList *copy_name_list(const NameList *list, Context *context);
+typedef struct RefStack RefStack;
+struct RefStack {
+  RefStack *next;
+  void *old;
+  void *new;
+};
 
-Context *create_context() {
-  Context *context = allocate(sizeof(Context) + MIN_CONTEXT_SIZE);
-  context->next = NULL;
-  context->last = context;
-  context->capacity = MIN_CONTEXT_SIZE;
-  context->size = 0;
-  return context;
+static Hash entry_hash(const void *entry) {
+  return value_hash(INIT_HASH, ((Entry *) entry)->key);
 }
 
-void delete_context(Context *context) {
-  if (context->next) {
-    delete_context(context->next);
-  }
-  free(context);
+static int entry_equals(const void *a, const void *b) {
+  return equals(((Entry *) a)->key, ((Entry *) b)->key);
 }
 
-void *context_allocate(Context *context, size_t size) {
-  Context *last = context->last;
-  if (size < last->capacity - last->size) {
-    void *p = last->data + last->size;
-    last->size += size;
-    return p;
-  } else {
-    size_t new_size = size > MIN_CONTEXT_SIZE ? size : MIN_CONTEXT_SIZE;
-    Context *new = allocate(sizeof(Context) + new_size);
-    new->next = NULL;
-    new->last = new;
-    new->capacity = new_size;
-    new->size = size;
-    last->next = new;
-    last->last = new;
-    context->last = new;
-    return new->data;
+Env *create_env(Arena *arena) {
+  Env *env = arena_allocate(sizeof(Env), arena);
+  env->arena = arena;
+  init_generic_hash_map(&env->global, sizeof(Entry), 0, entry_hash, entry_equals, arena);
+  return env;
+}
+
+void env_put(Symbol symbol, Value value, Env *env) {
+  generic_hash_map_set(&env->global, &(Entry) { .key = create_symbol(symbol), .value = value }, NULL, NULL);\
+}
+
+int env_get(Symbol name, Value *value, Env *env) {
+  Entry entry;
+  if (generic_hash_map_get(&env->global, &(Entry) { .key = create_symbol(name) }, &entry)) {
+    *value = entry.value;
+    return 1;
   }
+  return 0;
 }
 
 int equals(Value a, Value b) {
@@ -66,6 +59,8 @@ int equals(Value a, Value b) {
       return a.int_value == b.int_value;
     case V_FLOAT:
       return a.float_value == b.float_value;
+    case V_SYMBOL:
+      return a.symbol_value == b.symbol_value;
     case V_STRING:
       if (a.string_value == b.string_value) {
         return 1;
@@ -114,27 +109,98 @@ int equals(Value a, Value b) {
   return 0;
 }
 
-Value copy_value(Value value, Context *context) {
+Hash value_hash(Hash h, Value value) {
+  h = HASH_ADD_BYTE(value.type, h);
+  switch (value.type) {
+    case V_NIL:
+    case V_TRUE:
+      break;
+    case V_INT:
+      for (int i = 0; i < sizeof(int64_t); i++) {
+        h = HASH_ADD_BYTE(GET_BYTE(i, value.int_value), h);
+      }
+      break;
+    case V_FLOAT:
+      for (int i = 0; i < sizeof(double); i++) {
+        h = HASH_ADD_BYTE(GET_BYTE(i, value.int_value), h);
+      }
+      break;
+    case V_SYMBOL:
+      h = HASH_ADD_PTR(value.symbol_value, h);
+      break;
+    case V_STRING:
+      for (size_t i = 0; i < value.string_value->size; i++) {
+        h = HASH_ADD_BYTE(value.string_value->bytes[i], h);
+      }
+      break;
+    case V_ARRAY:
+      for (size_t i = 0; i < value.array_value->size; i++) {
+        h = value_hash(h, value.array_value->cells[i]);
+      }
+      break;
+    case V_OBJECT:
+      for (size_t i = 0; i < value.object_value->size; i++) {
+        h = value_hash(h, value.object_value->entries[i].key);
+        h = value_hash(h, value.object_value->entries[i].value);
+      }
+      break;
+    case V_TIME:
+      for (int i = 0; i < sizeof(time_t); i++) {
+        h = HASH_ADD_BYTE(GET_BYTE(i, value.int_value), h);
+      }
+      break;
+    case V_FUNCTION:
+      h = HASH_ADD_PTR(value.function_value, h);
+      break;
+    case V_CLOSURE:
+      h = HASH_ADD_PTR(value.closure_value, h);
+      break;
+  }
+  return h;
+}
+
+static void *get_existing_ref(RefStack *ref_stack, void *old) {
+  while (ref_stack) {
+    if (ref_stack->old == old) {
+      return ref_stack->new;
+    }
+    ref_stack = ref_stack->next;
+  }
+  return NULL;
+}
+
+static Value copy_value_detect_cycles(Value value, Arena *arena, RefStack *ref_stack) {
   switch (value.type) {
     case V_NIL:
     case V_TRUE:
     case V_INT:
     case V_FLOAT:
+    case V_SYMBOL:
       return value;
     case V_STRING:
-      return create_string(value.string_value->bytes, value.string_value->size, context);
+      return create_string(value.string_value->bytes, value.string_value->size, arena);
     case V_ARRAY: {
-      Value copy = create_array(value.array_value->size, context);
+      Array *existing = get_existing_ref(ref_stack, value.array_value);
+      if (existing) {
+        return (Value) { .type = V_ARRAY, .array_value = existing };
+      }
+      Value copy = create_array(value.array_value->size, arena);
+      RefStack nested = (RefStack) { .next = ref_stack, .old = value.array_value, .new = copy.array_value };
       for (size_t i = 0; i < value.array_value->size; i++) {
-        array_push(copy.array_value, copy_value(value.array_value->cells[i], context), context);
+        array_push(copy.array_value, copy_value_detect_cycles(value.array_value->cells[i], arena, &nested), arena);
       }
       return copy;
     }
     case V_OBJECT: {
-      Value copy = create_object(value.object_value->size, context);
+      Object *existing = get_existing_ref(ref_stack, value.object_value);
+      if (existing) {
+        return (Value) { .type = V_OBJECT, .object_value = existing };
+      }
+      Value copy = create_object(value.object_value->size, arena);
+      RefStack nested = (RefStack) { .next = ref_stack, .old = value.object_value, .new = copy.object_value };
       for (size_t i = 0; i < value.object_value->size; i++) {
-        object_put(copy.object_value, copy_value(value.object_value->entries[i].key, context),
-            copy_value(value.object_value->entries[i].value, context), context);
+        object_put(copy.object_value, copy_value_detect_cycles(value.object_value->entries[i].key, arena, &nested),
+            copy_value_detect_cycles(value.object_value->entries[i].value, arena, &nested), arena);
       }
       return copy;
     }
@@ -142,33 +208,45 @@ Value copy_value(Value value, Context *context) {
     case V_FUNCTION:
       return value;
     case V_CLOSURE: {
-      // TODO: copy env
-      return create_closure(value.closure_value->params, value.closure_value->body, value.closure_value->env, context);
+      Closure *existing = get_existing_ref(ref_stack, value.closure_value);
+      if (existing) {
+        return (Value) { .type = V_CLOSURE, .closure_value = existing };
+      }
+      Closure *copy = arena_allocate(sizeof(Closure), arena);
+      copy->params = value.closure_value->params;
+      copy->body = value.closure_value->body;
+      RefStack nested = (RefStack) { .next = ref_stack, .old = value.closure_value, .new = copy };
+      copy->env = copy_value_detect_cycles((Value) { .type = V_OBJECT, .object_value = value.closure_value->env },
+          arena, &nested).object_value;
+      return (Value) { .type = V_CLOSURE, .closure_value = copy };
     }
   }
   return nil_value;
 }
 
-Value create_string(const uint8_t *bytes, size_t size, Context *context) {
-  String *string = context_allocate(context, sizeof(String) + size);
+Value copy_value(Value value, Arena *arena) {
+  return copy_value_detect_cycles(value, arena, NULL);
+}
+
+Value create_string(const uint8_t *bytes, size_t size, Arena *arena) {
+  String *string = arena_allocate(sizeof(String) + size, arena);
   string->size = size;
   memcpy(string->bytes, bytes, size);
   return (Value) { .type = V_STRING, .string_value = string };
 }
 
-Value create_array(size_t capacity, Context *context) {
-  Array *array = context_allocate(context, sizeof(Array));
+Value create_array(size_t capacity, Arena *arena) {
+  Array *array = arena_allocate(sizeof(Array), arena);
   array->capacity = capacity < INITIAL_ARRAY_CAPACITY ? INITIAL_ARRAY_CAPACITY : capacity;
   array->size = 0;
-  array->cells = context_allocate(context, array->capacity * sizeof(Value));
+  array->cells = arena_allocate(array->capacity * sizeof(Value), arena);
   return (Value) { .type = V_ARRAY, .array_value = array };
 }
 
-void array_push(Array *array, Value elem, Context *context) {
+void array_push(Array *array, Value elem, Arena *arena) {
   if (array->size >= array->capacity) {
-    //array->cells = reallocate(array->cells, sizeof(Value) * array->capacity);
     size_t new_capacity = array->capacity << 1;
-    Value *new_cells = context_allocate(context, new_capacity * sizeof(Value));
+    Value *new_cells = arena_allocate(new_capacity * sizeof(Value), arena);
     memcpy(new_cells, array->cells, array->capacity * sizeof(Value));
     array->capacity = new_capacity;
   }
@@ -176,7 +254,7 @@ void array_push(Array *array, Value elem, Context *context) {
   array->size++;
 }
 
-Result array_pop(Array *array, Value *elem) {
+int array_pop(Array *array, Value *elem) {
   if (array->size) {
     array->size--;
     *elem = array->cells[array->size];
@@ -185,22 +263,21 @@ Result array_pop(Array *array, Value *elem) {
   return 0;
 }
 
-Value create_object(size_t capacity, Context *context) {
+Value create_object(size_t capacity, Arena *arena) {
   Object *object = allocate(sizeof(Object));
   object->capacity = capacity < INITIAL_ARRAY_CAPACITY ? INITIAL_ARRAY_CAPACITY : capacity;
   object->size = 0;
-  object->entries = context_allocate(context, object->capacity * sizeof(Entry));
+  object->entries = arena_allocate(object->capacity * sizeof(Entry), arena);
   return (Value) { .type = V_OBJECT, .object_value = object };
 }
 
-void object_put(Object *object, Value key, Value value, Context *context) {
+void object_put(Object *object, Value key, Value value, Arena *arena) {
   Value old;
   object_remove(object, key, &old);
   if (object->size >= object->capacity) {
     object->capacity <<= 1;
-    //object->entries = reallocate(object->entries, sizeof(Entry) * object->capacity);
     size_t new_capacity = object->capacity << 1;
-    Entry *new_entries = context_allocate(context, new_capacity * sizeof(Entry));
+    Entry *new_entries = arena_allocate(new_capacity * sizeof(Entry), arena);
     memcpy(new_entries, object->entries, object->capacity * sizeof(Entry));
     object->capacity = new_capacity;
   }
@@ -208,7 +285,7 @@ void object_put(Object *object, Value key, Value value, Context *context) {
   object->size++;
 }
 
-Result object_get(Object *object, Value key, Value *value) {
+int object_get(Object *object, Value key, Value *value) {
   for (size_t i = 0; i < object->size; i++) {
     if (equals(key, object->entries[i].key)) {
       *value = object->entries[i].value;
@@ -218,7 +295,7 @@ Result object_get(Object *object, Value key, Value *value) {
   return 0;
 }
 
-Result object_remove(Object *object, Value key, Value *value) {
+int object_remove(Object *object, Value key, Value *value) {
   for (size_t i = 0; i < object->size; i++) {
     if (equals(key, object->entries[i].key)) {
       *value = object->entries[i].value;
@@ -232,138 +309,34 @@ Result object_remove(Object *object, Value key, Value *value) {
   return 0;
 }
 
-Value create_closure(const NameList *params, const Node body, Env *env, Context *context) {
-  Closure *closure = context_allocate(context, sizeof(Closure));
-  closure->params = copy_name_list(params, context);
-  closure->body = copy_node(body, context);
-  closure->env = env;
+ObjectIterator iterate_object(Object *object) {
+  return (ObjectIterator) { .object = object, .next_index = 0 };
+}
+
+int object_iterator_next(ObjectIterator *it, Value *key, Value *value) {
+  if (it->next_index < it->object->size) {
+    if (key) {
+      *key = it->object->entries[it->next_index].key;
+    }
+    if (value) {
+      *value = it->object->entries[it->next_index].value;
+    }
+    it->next_index++;
+    return 1;
+  }
+  return 0;
+}
+
+Value create_closure(NameList *params, NameList *free_variables, Node body, Env *env, Arena *arena) {
+  Closure *closure = arena_allocate(sizeof(Closure), arena);
+  closure->params = params;
+  closure->body = body;
+  closure->env = create_object(0, arena).object_value;
+  for (NameList *name = free_variables; name; name = name->tail) {
+    Value value;
+    if (env_get(name->head, &value, env)) {
+      object_put(closure->env, create_symbol(name->head), value, arena);
+    }
+  }
   return (Value) { .type = V_CLOSURE, .closure_value = closure };
-}
-
-static char *context_copy_string(const char *src, Context *context) {
-  if (!src) {
-    return NULL;
-  }
-  size_t l = strlen(src) + 1;
-  char *dest = context_allocate(context, l);
-  memcpy(dest, src, l);
-  return dest;
-}
-
-static Module *copy_module(Module *module, Context *context) {
-  if (!module) {
-    return NULL;
-  }
-  Module *copy = context_allocate(context, sizeof(Module));
-  copy->file_name = context_copy_string(module->file_name, context);
-  copy->root = NULL;
-  return copy;
-}
-
-#define COPY_NODE_PTR(DEST, SRC) \
-  if (SRC) {\
-    DEST = context_allocate(context, sizeof(Node));\
-    *DEST = copy_node(*SRC, context);\
-  }
-
-static Node copy_node(const Node node, Context *context) {
-  Node copy = node;
-  copy.module = copy_module(node.module, context);
-  switch (node.type) {
-    case N_NAME:
-      copy.name_value = context_copy_string(node.name_value, context);
-      break;
-    case N_INT:
-    case N_FLOAT:
-      break;
-    case N_STRING:
-      copy.string_value.bytes = context_allocate(context, copy.string_value.size);
-      memcpy(copy.string_value.bytes, node.string_value.bytes, copy.string_value.size);
-      break;
-    case N_LIST:
-      copy.list_value = copy_node_list(node.list_value, context);
-      break;
-    case N_OBJECT:
-      copy.object_value = copy_property_list(node.object_value, context);
-      break;
-    case N_APPLY:
-      COPY_NODE_PTR(copy.apply_value.callee, node.apply_value.callee);
-      copy.apply_value.args = copy_node_list(node.apply_value.args, context);
-      break;
-    case N_SUBSCRIPT:
-      COPY_NODE_PTR(copy.subscript_value.list, node.subscript_value.list);
-      COPY_NODE_PTR(copy.subscript_value.index, node.subscript_value.index);
-      break;
-    case N_DOT:
-      COPY_NODE_PTR(copy.dot_value.object, node.dot_value.object);
-      copy.dot_value.name = context_copy_string(node.dot_value.name, context);
-      break;
-    case N_PREFIX:
-      COPY_NODE_PTR(copy.prefix_value.operand, node.prefix_value.operand);
-      break;
-    case N_INFIX:
-      COPY_NODE_PTR(copy.infix_value.left, node.infix_value.left);
-      COPY_NODE_PTR(copy.infix_value.right, node.infix_value.right);
-      break;
-    case N_FN:
-      copy.fn_value.params = copy_name_list(node.fn_value.params, context);
-      COPY_NODE_PTR(copy.fn_value.body, node.fn_value.body);
-      break;
-    case N_IF:
-      COPY_NODE_PTR(copy.if_value.cond, node.if_value.cond);
-      COPY_NODE_PTR(copy.if_value.cons, node.if_value.cons);
-      COPY_NODE_PTR(copy.if_value.alt, node.if_value.alt);
-      break;
-    case N_FOR:
-      copy.for_value.key = context_copy_string(node.for_value.key, context);
-      copy.for_value.value = context_copy_string(node.for_value.value, context);
-      COPY_NODE_PTR(copy.for_value.collection, node.for_value.collection);
-      COPY_NODE_PTR(copy.for_value.body, node.for_value.body);
-      COPY_NODE_PTR(copy.for_value.alt, node.for_value.alt);
-      break;
-    case N_SWITCH:
-      COPY_NODE_PTR(copy.switch_value.expr, node.switch_value.expr);
-      copy.switch_value.cases = copy_property_list(node.switch_value.cases, context);
-      COPY_NODE_PTR(copy.switch_value.default_case, node.switch_value.default_case);
-      break;
-    case N_ASSIGN:
-      COPY_NODE_PTR(copy.assign_value.left, node.assign_value.left);
-      COPY_NODE_PTR(copy.assign_value.right, node.assign_value.right);
-      break;
-    case N_BLOCK:
-      copy.block_value = copy_node_list(node.block_value, context);
-      break;
-  }
-  return copy;
-}
-
-static NodeList *copy_node_list(const NodeList *list, Context *context) {
-  if (!list) {
-    return NULL;
-  }
-  NodeList *copy = context_allocate(context, sizeof(NodeList));
-  copy->tail = copy_node_list(list->tail, context);
-  copy->head = copy_node(list->head, context);
-  return copy;
-}
-
-static PropertyList *copy_property_list(const PropertyList *list, Context *context) {
-  if (!list) {
-    return NULL;
-  }
-  PropertyList *copy = context_allocate(context, sizeof(PropertyList));
-  copy->tail = copy_property_list(list->tail, context);
-  copy->key = copy_node(list->key, context);
-  copy->value = copy_node(list->value, context);
-  return copy;
-}
-
-static NameList *copy_name_list(const NameList *list, Context *context) {
-  if (!list) {
-    return NULL;
-  }
-  NameList *copy = context_allocate(context, sizeof(NameList));
-  copy->tail = copy_name_list(list->tail, context);
-  copy->head = context_copy_string(list->head, context);
-  return copy;
 }
