@@ -265,7 +265,7 @@ void value_to_string(Value value, Buffer *buffer) {
       buffer_printf(buffer, "true");
       break;
     case V_INT:
-      buffer_printf(buffer, PRId64, value.int_value);
+      buffer_printf(buffer, "%" PRId64, value.int_value);
       break;
     case V_FLOAT:
       buffer_printf(buffer, "%lf", value.float_value);

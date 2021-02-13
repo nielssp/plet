@@ -722,7 +722,7 @@ static Node parse_assign(Parser *parser) {
     ASSIGN_NODE(assign.assign_value.left, expr);
     ASSIGN_NODE(assign.assign_value.right, parse_expression(parser));
     if (op[1]) {
-      switch (op[1]) {
+      switch (op[0]) {
         case '+':
           assign.assign_value.operator = I_ADD;
           break;

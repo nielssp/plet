@@ -149,7 +149,7 @@ static Value concatenate_strings(Value left, Value right, Env *env) {
   return result;
 }
 
-static Value eval_infix_add(Node node, Value left, Value right, Env *env) {
+static Value eval_add(Node node, Value left, Value right, Env *env) {
   if (left.type == V_STRING || right.type == V_STRING) {
     return concatenate_strings(left, right, env);
   } else if (left.type == V_ARRAY && right.type == V_ARRAY) {
@@ -191,7 +191,7 @@ static Value eval_infix_add(Node node, Value left, Value right, Env *env) {
   return nil_value;
 }
 
-static Value eval_infix_sub(Node node, Value left, Value right, Env *env) {
+static Value eval_sub(Node node, Value left, Value right, Env *env) {
   if (left.type == V_INT) {
     if (right.type == V_INT) {
       return create_int(left.int_value - right.int_value);
@@ -210,7 +210,7 @@ static Value eval_infix_sub(Node node, Value left, Value right, Env *env) {
   return nil_value;
 }
 
-static Value eval_infix_mul(Node node, Value left, Value right, Env *env) {
+static Value eval_mul(Node node, Value left, Value right, Env *env) {
   if (left.type == V_INT) {
     if (right.type == V_INT) {
       return create_int(left.int_value * right.int_value);
@@ -229,7 +229,7 @@ static Value eval_infix_mul(Node node, Value left, Value right, Env *env) {
   return nil_value;
 }
 
-static Value eval_infix_div(Node node, Value left, Value right, Env *env) {
+static Value eval_div(Node node, Value left, Value right, Env *env) {
   if (left.type == V_INT) {
     if (right.type == V_INT) {
       return create_int(left.int_value / right.int_value);
@@ -248,7 +248,7 @@ static Value eval_infix_div(Node node, Value left, Value right, Env *env) {
   return nil_value;
 }
 
-static Value eval_infix_mod(Node node, Value left, Value right, Env *env) {
+static Value eval_mod(Node node, Value left, Value right, Env *env) {
   if (left.type == V_INT && right.type == V_INT) {
     return create_int(left.int_value % right.int_value);
   }
@@ -306,15 +306,15 @@ static Value eval_infix(Node node, Env *env) {
     case I_NONE:
       return nil_value;
     case I_ADD:
-      return eval_infix_add(node, left, interpret(*node.infix_value.right, env), env);
+      return eval_add(node, left, interpret(*node.infix_value.right, env), env);
     case I_SUB:
-      return eval_infix_sub(node, left, interpret(*node.infix_value.right, env), env);
+      return eval_sub(node, left, interpret(*node.infix_value.right, env), env);
     case I_MUL:
-      return eval_infix_mul(node, left, interpret(*node.infix_value.right, env), env);
+      return eval_mul(node, left, interpret(*node.infix_value.right, env), env);
     case I_DIV:
-      return eval_infix_div(node, left, interpret(*node.infix_value.right, env), env);
+      return eval_div(node, left, interpret(*node.infix_value.right, env), env);
     case I_MOD:
-      return eval_infix_mod(node, left, interpret(*node.infix_value.right, env), env);
+      return eval_mod(node, left, interpret(*node.infix_value.right, env), env);
     case I_LT:
       return compare_values(node, left, interpret(*node.infix_value.right, env), "<", env) == C_LT
         ? true_value
@@ -359,7 +359,7 @@ static Value eval_infix(Node node, Env *env) {
   return nil_value;
 }
 
-Value eval_if(Node node, Env *env) {
+static Value eval_if(Node node, Env *env) {
   Value cond = interpret(*node.if_value.cond, env);
   if (is_truthy(cond)) {
     return interpret(*node.if_value.cons, env);
@@ -367,7 +367,7 @@ Value eval_if(Node node, Env *env) {
   return interpret(*node.if_value.alt, env);
 }
 
-Value eval_for(Node node, Env *env) {
+static Value eval_for(Node node, Env *env) {
   Value collection = interpret(*node.for_value.collection, env);
   if (collection.type == V_ARRAY) {
     if (collection.array_value->size == 0) {
@@ -446,15 +446,37 @@ static Value eval_switch(Node node, Env *env) {
   if (node.switch_value.default_case) {
     return interpret(*node.switch_value.default_case, env);
   }
-  // TODO: error or warning for non-exhaustive match?
   return nil_value;
 }
 
-Value eval_assign(Node node, Env *env) {
+static Value eval_assign_operator(Node node, Value existing, Value value, Env *env) {
+  switch (node.assign_value.operator) {
+    case I_ADD:
+      return eval_add(node, existing, value, env);
+    case I_SUB:
+      return eval_sub(node, existing, value, env);
+    case I_MUL:
+      return eval_mul(node, existing, value, env);
+    case I_DIV:
+      return eval_div(node, existing, value, env);
+    default:
+      return value;
+  }
+}
+
+static Value eval_assign(Node node, Env *env) {
   Value value = interpret(*node.assign_value.right, env);
   switch (node.assign_value.left->type) {
     case N_NAME: {
-      if (node.assign_value.operator) 
+      if (node.assign_value.operator != I_NONE) {
+        Value existing;
+        if (!env_get(node.assign_value.left->name_value, &existing, env)) {
+          eval_error(*node.assign_value.left, "undefined variable: %s",
+              node.assign_value.left->name_value);
+          return nil_value;
+        }
+        value = eval_assign_operator(node, existing, value, env);
+      }
       env_put(node.assign_value.left->name_value, value, env);
       break;
     }
@@ -462,6 +484,14 @@ Value eval_assign(Node node, Env *env) {
       Value object = interpret(*node.assign_value.left->subscript_value.list, env);
       Value index = interpret(*node.assign_value.left->subscript_value.index, env);
       if (object.type == V_OBJECT) {
+        if (node.assign_value.operator != I_NONE) {
+          Value existing;
+          if (!object_get(object.object_value, index, &existing)) {
+            eval_error(*node.assign_value.left, "property not found");
+            return nil_value;
+          }
+          value = eval_assign_operator(node, existing, value, env);
+        }
         object_put(object.object_value, index, value, env->arena);
       } else if (object.type == V_ARRAY) {
         if (index.type != V_INT) {
@@ -469,6 +499,10 @@ Value eval_assign(Node node, Env *env) {
         } else if (index.int_value < 0 || index.int_value >= object.array_value->size) {
           eval_error(*node.assign_value.left->subscript_value.index, "array index out of range");
         } else {
+          if (node.assign_value.operator != I_NONE) {
+            value = eval_assign_operator(node, object.array_value->cells[index.int_value],
+                value, env);
+          }
           object.array_value->cells[index.int_value] = value;
         }
       } else {
@@ -479,7 +513,16 @@ Value eval_assign(Node node, Env *env) {
     case N_DOT: {
       Value object = interpret(*node.assign_value.left->dot_value.object, env);
       if (object.type == V_OBJECT) {
-        Value key = create_symbol(node.dot_value.name);
+        Value key = create_symbol(node.assign_value.left->dot_value.name);
+        if (node.assign_value.operator != I_NONE) {
+          Value existing;
+          if (!object_get(object.object_value, key, &existing)) {
+            eval_error(*node.assign_value.left, "undefined object property: %s",
+                key.symbol_value);
+            return nil_value;
+          }
+          value = eval_assign_operator(node, existing, value, env);
+        }
         object_put(object.object_value, key, value, env->arena);
       } else {
         eval_error(*node.assign_value.left->dot_value.object, "value is not an object");

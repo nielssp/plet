@@ -66,7 +66,12 @@ int main(int argc, char *argv[]) {
 
   Arena *arena = create_arena();
   Env *env = create_env(arena);
-  interpret(*module->root, env);
+  Value output = interpret(*module->root, env);
+  if (output.type == V_STRING) {
+    for (size_t i = 0 ; i < output.string_value->size; i++) {
+      putchar((char) output.string_value->bytes[i]);
+    }
+  }
   delete_arena(arena);
 
   delete_tokens(tokens);
