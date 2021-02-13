@@ -1,2 +1,4 @@
-tsc
+/tsc
+/test_all
 *.o
+vgcore.*

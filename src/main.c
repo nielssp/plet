@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
   char *infile = argv[optind];
   FILE *in = fopen(infile, "r");
   if (!in) {
-    printf("error: %s: %s\n", infile, strerror(errno));
+    fprintf(stderr, "error: %s: %s\n", infile, strerror(errno));
     return errno;
   }
   SymbolMap *symbol_map = create_symbol_map();

@@ -104,6 +104,7 @@ static Node create_node(NodeType type, Parser *parser) {
     case N_ASSIGN:
       node.assign_value.left = NULL;
       node.assign_value.right = NULL;
+      node.assign_value.operator = I_NONE;
       break;
     case N_BLOCK:
       node.block_value = NULL;
@@ -328,8 +329,10 @@ static Node parse_delimited(Parser *parser) {
         if (last_property) {
           last_property->tail = property;
           last_property = property;
+          object.object_value->size++;
         } else {
           object.object_value = last_property = property;
+          object.object_value->size = 1;
         }
         if (!peek_operator(",", parser)) {
           break;

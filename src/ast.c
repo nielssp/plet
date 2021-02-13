@@ -139,7 +139,9 @@ NameList *name_list_remove(Symbol name, NameList *list) {
   }
   if (strcmp(list->head, name) == 0) {
     NameList *tail = list->tail;
-    tail->size = list->size - 1;
+    if (tail) {
+      tail->size = list->size - 1;
+    }
     free(list);
     return tail;
   }

@@ -234,8 +234,8 @@ void delete_tokens(Token *t) {
 }
 
 uint8_t *copy_string_token(Token *token) {
-  uint8_t *copy = allocate(token->size + 1);
-  memcpy(copy, token->string_value, token->size + 1);
+  uint8_t *copy = allocate(token->size);
+  memcpy(copy, token->string_value, token->size);
   return copy;
 }
 
@@ -445,7 +445,6 @@ static Token *read_string(Reader *r) {
     }
   }
   token->size = buffer.size;
-  buffer_put(&buffer, '\0');
   token->string_value = buffer.data;
   token->end = r->pos;
   return token;
@@ -473,7 +472,6 @@ static Token *read_verbatim(Reader *r) {
     }
   }
   token->size = buffer.size;
-  buffer_put(&buffer, '\0');
   token->string_value = buffer.data;
   token->end = r->pos;
   return token;

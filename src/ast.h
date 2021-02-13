@@ -67,6 +67,7 @@ typedef enum {
 } PrefixOperator;
 
 typedef enum {
+  I_NONE,
   I_ADD,
   I_SUB,
   I_MUL,

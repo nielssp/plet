@@ -28,6 +28,8 @@ static int entry_equals(const void *a, const void *b) {
   return equals(((Entry *) a)->key, ((Entry *) b)->key);
 }
 
+String *empty_string = &(String) { .size = 0 };
+
 Env *create_env(Arena *arena) {
   Env *env = arena_allocate(sizeof(Env), arena);
   env->arena = arena;
@@ -316,6 +318,9 @@ const char *value_name(ValueType type) {
 }
 
 Value create_string(const uint8_t *bytes, size_t size, Arena *arena) {
+  if (!size) {
+    return (Value) { .type = V_STRING, .string_value = empty_string };
+  }
   String *string = arena_allocate(sizeof(String) + size, arena);
   string->size = size;
   memcpy(string->bytes, bytes, size);
