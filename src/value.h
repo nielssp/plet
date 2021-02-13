@@ -122,6 +122,10 @@ Hash value_hash(Hash h, Value value);
 
 Value copy_value(Value value, Arena *arena);
 
+void value_to_string(Value value, Buffer *buffer);
+
+const char *value_name(ValueType type);
+
 Value create_string(const uint8_t *bytes, size_t size, Arena *arena);
 
 Value create_array(size_t capacity, Arena *arena);

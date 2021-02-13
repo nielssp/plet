@@ -8,6 +8,7 @@
 
 #include "util.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 #define DELETE_NODE(VALUE) \

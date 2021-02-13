@@ -126,14 +126,136 @@ static Value eval_prefix(Node node, Env *env) {
   return nil_value;
 }
 
+static Value concatenate_strings(Value left, Value right, Env *env) {
+  Buffer buffer = create_buffer(0);
+  value_to_string(left, &buffer);
+  value_to_string(right, &buffer);
+  Value result = create_string(buffer.data, buffer.size, env->arena);
+  delete_buffer(buffer);
+  return result;
+}
+
+static Value eval_infix_add(Node node, Value left, Value right, Env *env) {
+  if (left.type == V_STRING || right.type == V_STRING) {
+    return concatenate_strings(left, right, env);
+  } else if (left.type == V_ARRAY && right.type == V_ARRAY) {
+    Value result = create_array(left.array_value->size + right.array_value->size, env->arena);
+    for (size_t i = 0; i < left.array_value->size; i++) {
+      array_push(result.array_value, left.array_value->cells[i], env->arena);
+    }
+    for (size_t i = 0; i < right.array_value->size; i++) {
+      array_push(result.array_value, right.array_value->cells[i], env->arena);
+    }
+    return result;
+  } else if (left.type == V_OBJECT && right.type == V_OBJECT) {
+    Value result = create_object(left.object_value->size + right.object_value->size, env->arena);
+    Value key, value;
+    ObjectIterator it = iterate_object(left.object_value);
+    while (object_iterator_next(&it, &key, &value)) {
+      object_put(result.object_value, key, value, env->arena);
+    }
+    it = iterate_object(right.object_value);
+    while (object_iterator_next(&it, &key, &value)) {
+      object_put(result.object_value, key, value, env->arena);
+    }
+    return result;
+  } else if (left.type == V_INT) {
+    if (right.type == V_INT) {
+      return create_int(left.int_value + right.int_value);
+    } else if (right.type == V_FLOAT) {
+      return create_float(left.int_value + right.float_value);
+    }
+  } else if (left.type == V_FLOAT) {
+    if (right.type == V_INT) {
+      return create_float(left.float_value + right.int_value);
+    } else if (right.type == V_FLOAT) {
+      return create_float(left.float_value + right.float_value);
+    }
+  }
+  eval_error(node, "'+'-operator undefined for types %s and %s", value_name(left.type),
+      value_name(right.type));
+  return nil_value;
+}
+
+static Value eval_infix_sub(Node node, Value left, Value right, Env *env) {
+  if (left.type == V_INT) {
+    if (right.type == V_INT) {
+      return create_int(left.int_value - right.int_value);
+    } else if (right.type == V_FLOAT) {
+      return create_float(left.int_value - right.float_value);
+    }
+  } else if (left.type == V_FLOAT) {
+    if (right.type == V_INT) {
+      return create_float(left.float_value - right.int_value);
+    } else if (right.type == V_FLOAT) {
+      return create_float(left.float_value - right.float_value);
+    }
+  }
+  eval_error(node, "'-'-operator undefined for types %s and %s", value_name(left.type),
+      value_name(right.type));
+  return nil_value;
+}
+
+static Value eval_infix_mul(Node node, Value left, Value right, Env *env) {
+  if (left.type == V_INT) {
+    if (right.type == V_INT) {
+      return create_int(left.int_value * right.int_value);
+    } else if (right.type == V_FLOAT) {
+      return create_float(left.int_value * right.float_value);
+    }
+  } else if (left.type == V_FLOAT) {
+    if (right.type == V_INT) {
+      return create_float(left.float_value * right.int_value);
+    } else if (right.type == V_FLOAT) {
+      return create_float(left.float_value * right.float_value);
+    }
+  }
+  eval_error(node, "'*'-operator undefined for types %s and %s", value_name(left.type),
+      value_name(right.type));
+  return nil_value;
+}
+
+static Value eval_infix_div(Node node, Value left, Value right, Env *env) {
+  if (left.type == V_INT) {
+    if (right.type == V_INT) {
+      return create_int(left.int_value / right.int_value);
+    } else if (right.type == V_FLOAT) {
+      return create_float(left.int_value / right.float_value);
+    }
+  } else if (left.type == V_FLOAT) {
+    if (right.type == V_INT) {
+      return create_float(left.float_value / right.int_value);
+    } else if (right.type == V_FLOAT) {
+      return create_float(left.float_value / right.float_value);
+    }
+  }
+  eval_error(node, "'/'-operator undefined for types %s and %s", value_name(left.type),
+      value_name(right.type));
+  return nil_value;
+}
+
+static Value eval_infix_mod(Node node, Value left, Value right, Env *env) {
+  if (left.type == V_INT && right.type == V_INT) {
+    return create_int(left.int_value % right.int_value);
+  }
+  eval_error(node, "'%'-operator undefined for types %s and %s", value_name(left.type),
+      value_name(right.type));
+  return nil_value;
+}
+
 static Value eval_infix(Node node, Env *env) {
   Value left = interpret(*node.infix_value.left, env);
   switch (node.infix_value.operator) {
     case I_ADD:
+      return eval_infix_add(node, left, interpret(*node.infix_value.right, env), env);
     case I_SUB:
+      return eval_infix_sub(node, left, interpret(*node.infix_value.right, env), env);
     case I_MUL:
+      return eval_infix_mul(node, left, interpret(*node.infix_value.right, env), env);
     case I_DIV:
+      return eval_infix_div(node, left, interpret(*node.infix_value.right, env), env);
     case I_MOD:
+      return eval_infix_mod(node, left, interpret(*node.infix_value.right, env), env);
     case I_LT:
     case I_LEQ:
     case I_GT:
@@ -162,6 +284,94 @@ static Value eval_infix(Node node, Env *env) {
       return interpret(*node.infix_value.right, env);
   }
   return nil_value;
+}
+
+Value eval_if(Node node, Env *env) {
+  Value cond = interpret(*node.if_value.cond, env);
+  if (is_truthy(cond)) {
+    return interpret(*node.if_value.cons, env);
+  }
+  return interpret(*node.if_value.alt, env);
+}
+
+Value eval_for(Node node, Env *env) {
+  Value collection = interpret(*node.for_value.collection, env);
+  if (collection.type == V_ARRAY) {
+    if (collection.array_value->size == 0) {
+      if (node.for_value.alt) {
+        return interpret(*node.for_value.alt, env);
+      }
+      return nil_value;
+    }
+    for (size_t i = 0; i < collection.array_value->size; i++) {
+      if (node.for_value.key) {
+        env_put(node.for_value.key, create_int(i), env);
+      }
+      env_put(node.for_value.value, collection.array_value->cells[i], env);
+      interpret(*node.for_value.body, env);
+    }
+    // TODO: concatenate or something
+    return nil_value;
+  } else if (collection.type == V_OBJECT) {
+    if (collection.object_value->size == 0) {
+      if (node.for_value.alt) {
+        return interpret(*node.for_value.alt, env);
+      }
+      return nil_value;
+    }
+    Value key, value;
+    ObjectIterator it = iterate_object(collection.object_value);
+    while (object_iterator_next(&it, &key, &value)) {
+      if (node.for_value.key) {
+        env_put(node.for_value.key, key, env);
+      }
+      env_put(node.for_value.value, value, env);
+      interpret(*node.for_value.body, env);
+    }
+    // TODO: concatenate or something
+    return nil_value;
+  } else if (collection.type == V_STRING) {
+    if (collection.string_value->size == 0) {
+      if (node.for_value.alt) {
+        return interpret(*node.for_value.alt, env);
+      }
+      return nil_value;
+    }
+    for (size_t i = 0; i < collection.string_value->size; i++) {
+      if (node.for_value.key) {
+        env_put(node.for_value.key, create_int(i), env);
+      }
+      env_put(node.for_value.value, create_int(collection.string_value->bytes[i]), env);
+      interpret(*node.for_value.body, env);
+    }
+    // TODO: concatenate or something
+    return nil_value;
+  } else {
+    eval_error(*node.for_value.collection, "value is not iterable");
+    if (node.for_value.alt) {
+      return interpret(*node.for_value.alt, env);
+    }
+    return nil_value;
+  }
+}
+
+static Value eval_switch(Node node, Env *env) {
+  Value a = interpret(*node.switch_value.expr, env);
+  while (node.switch_value.cases) {
+    Value b = interpret(node.switch_value.cases->key, env);
+    if (equals(a, b)) {
+      return interpret(node.switch_value.cases->value, env);
+    }
+    node.switch_value.cases = node.switch_value.cases->tail;
+  }
+  if (node.switch_value.default_case) {
+    return interpret(*node.switch_value.default_case, env);
+  }
+  // TOOD: error or warning for non-exhaustive match?
+  return nil_value;
+}
+
+Value assign(Node node, Env *env) {
 }
 
 Value interpret(Node node, Env *env) {
@@ -210,14 +420,18 @@ Value interpret(Node node, Env *env) {
     case N_FN:
       return create_closure(node.fn_value.params, node.fn_value.free_variables, *node.fn_value.body, env, env->arena);
     case N_IF:
+      return eval_if(node, env);
     case N_FOR:
+      return eval_for(node, env);
     case N_SWITCH:
+      return eval_switch(node, env);
     case N_ASSIGN:
       eval_error(node, "not implemented");
       return nil_value;
     case N_BLOCK: {
       Value value = nil_value;
       // TODO: return concatenated string
+      // Maybe single output buffer in Env?
       while (node.block_value) {
         value = interpret(node.block_value->head, env);
         node.block_value = node.block_value->tail;

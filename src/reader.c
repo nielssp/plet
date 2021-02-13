@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 typedef struct ParenStack ParenStack;
@@ -244,7 +245,7 @@ static int is_valid_name_char(int c) {
 
 static Token *read_name(Reader *r) {
   Token *token = create_token(T_NAME, r);
-  Buffer buffer = create_buffer();
+  Buffer buffer = create_buffer(0);
   while (1) {
     int c = peek(r);
     if (c == EOF || !is_valid_name_char(c)) {
@@ -423,7 +424,7 @@ static int read_escape_sequence(Reader *r, Buffer *buffer, int double_quote) {
 
 static Token *read_string(Reader *r) {
   Token *token = create_token(T_STRING, r);
-  Buffer buffer = create_buffer();
+  Buffer buffer = create_buffer(0);
   pop(r);
   while (1) {
     int c = peek(r);
@@ -452,7 +453,7 @@ static Token *read_string(Reader *r) {
 
 static Token *read_verbatim(Reader *r) {
   Token *token = create_token(T_STRING, r);
-  Buffer buffer = create_buffer();
+  Buffer buffer = create_buffer(0);
   pop(r);
   pop(r);
   pop(r);
@@ -481,7 +482,7 @@ static Token *read_verbatim(Reader *r) {
 static Token *read_number(Reader *r) {
   int c;
   Token *token = create_token(T_INT, r);
-  Buffer buffer = create_buffer();
+  Buffer buffer = create_buffer(0);
   while (1) {
     c = peek(r);
     if (c == EOF || !isdigit(c)) {
@@ -542,7 +543,7 @@ static Token *read_next_token(Reader *r) {
   uint8_t top_paren = get_top_paren(r);
   if (!top_paren || top_paren == '"') {
     Token *token = create_token(T_TEXT, r);
-    Buffer buffer = create_buffer();
+    Buffer buffer = create_buffer(0);
     while (1) {
       int c = peek(r);
       if (c == EOF) {

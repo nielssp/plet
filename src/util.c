@@ -7,6 +7,7 @@
 #include "util.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define MIN_ARENA_SIZE 4096
@@ -76,8 +77,11 @@ char *copy_string(const char *src) {
   return dest;
 }
 
-Buffer create_buffer() {
-  return (Buffer) { .data = allocate(INITIAL_BUFFER_SIZE), .capacity = INITIAL_BUFFER_SIZE, .size = 0 };
+Buffer create_buffer(size_t capacity) {
+  if (capacity < INITIAL_BUFFER_SIZE) {
+    capacity = INITIAL_BUFFER_SIZE;
+  }
+  return (Buffer) { .data = allocate(capacity), .capacity = capacity, .size = 0 };
 }
 
 void delete_buffer(Buffer buffer) {
@@ -90,4 +94,40 @@ void buffer_put(Buffer *buffer, uint8_t byte) {
     buffer->data = reallocate(buffer->data, buffer->capacity);
   }
   buffer->data[buffer->size++] = byte;
+}
+
+void buffer_vprintf(Buffer *buffer, const char *format, va_list va) {
+  int n;
+  va_list va2;
+  size_t size;
+  size = buffer->capacity - buffer->size;
+  if (size <= 0) {
+    buffer->capacity <<= 1;
+    buffer->data = reallocate(buffer->data, buffer->capacity);
+  }
+  while (1) {
+    uint8_t *dest = buffer->data + buffer->size;
+    va_copy(va2, va);
+    n = vsnprintf((char *) dest, size, format, va2);
+    va_end(va2);
+    if (n < 0) {
+      return;
+    }
+    if (n < size) {
+      buffer->size += n;
+      break;
+    }
+    size = n + 1;
+    while (size + buffer->size > buffer->capacity) {
+      buffer->capacity <<= 1;
+    }
+    buffer->data = reallocate(buffer->data, buffer->capacity);
+  }
+}
+
+void buffer_printf(Buffer *buffer, const char *format, ...) {
+  va_list va;
+  va_start(va, format);
+  buffer_vprintf(buffer, format, va);
+  va_end(va);
 }

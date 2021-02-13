@@ -8,6 +8,7 @@
 
 #include "util.h"
 
+#include <inttypes.h>
 #include <string.h>
 
 #define INITIAL_ARRAY_CAPACITY 16
@@ -254,6 +255,66 @@ Value copy_value(Value value, Arena *arena) {
   return copy_value_detect_cycles(value, arena, NULL);
 }
 
+void value_to_string(Value value, Buffer *buffer) {
+  switch (value.type) {
+    case V_NIL:
+      break;
+    case V_TRUE:
+      buffer_printf(buffer, "true");
+      break;
+    case V_INT:
+      buffer_printf(buffer, PRId64, value.int_value);
+      break;
+    case V_FLOAT:
+      buffer_printf(buffer, "%lf", value.float_value);
+      break;
+    case V_SYMBOL:
+      buffer_printf(buffer, "%s", value.symbol_value);
+      break;
+    case V_STRING:
+      for (size_t i = 0; i < value.string_value->size; i++) {
+        buffer_put(buffer, value.string_value->bytes[i]);
+      }
+      break;
+    case V_ARRAY:
+    case V_OBJECT:
+      break;
+    case V_TIME:
+      // TODO: ISO 8601
+      break;
+    case V_FUNCTION:
+    case V_CLOSURE:
+      break;
+  }
+}
+
+const char *value_name(ValueType type) {
+  switch (type) {
+    case V_NIL:
+      return "nil";
+    case V_TRUE:
+      return "true";
+    case V_INT:
+      return "int";
+    case V_FLOAT:
+      return "float";
+    case V_SYMBOL:
+      return "symbol";
+    case V_STRING:
+      return "string";
+    case V_ARRAY:
+      return "array";
+    case V_OBJECT:
+      return "object";
+    case V_TIME:
+      return "time";
+    case V_FUNCTION:
+    case V_CLOSURE:
+      return "function";
+  }
+  return "";
+}
+
 Value create_string(const uint8_t *bytes, size_t size, Arena *arena) {
   String *string = arena_allocate(sizeof(String) + size, arena);
   string->size = size;
@@ -290,7 +351,7 @@ int array_pop(Array *array, Value *elem) {
 }
 
 Value create_object(size_t capacity, Arena *arena) {
-  Object *object = allocate(sizeof(Object));
+  Object *object = arena_allocate(sizeof(Object), arena);
   object->capacity = capacity < INITIAL_ARRAY_CAPACITY ? INITIAL_ARRAY_CAPACITY : capacity;
   object->size = 0;
   object->entries = arena_allocate(object->capacity * sizeof(Entry), arena);

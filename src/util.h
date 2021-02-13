@@ -7,12 +7,14 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-#include <stdlib.h>
+#include <stdarg.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #define SGR_RESET "\001\033[0m\002"
 #define SGR_RED "\001\033[31m\002"
 #define SGR_BOLD "\001\033[1m\002"
+#define SGR_BOLD_GREEN "\001\033[1;32m\002"
 #define ERROR_LABEL SGR_BOLD SGR_RED "error: " SGR_RESET SGR_BOLD
 
 typedef struct Arena Arena;
@@ -48,8 +50,10 @@ void *arena_allocate(size_t size, Arena *arena);
 
 char *copy_string(const char *src);
 
-Buffer create_buffer();
+Buffer create_buffer(size_t capacity);
 void delete_buffer(Buffer buffer);
 void buffer_put(Buffer *buffer, uint8_t byte);
+void buffer_vprintf(Buffer *buffer, const char *format, va_list va);
+void buffer_printf(Buffer *buffer, const char *format, ...);
 
 #endif
