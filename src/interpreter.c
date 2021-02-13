@@ -109,8 +109,7 @@ static Value eval_dot(Node node, Env *env) {
     eval_error(*node.dot_value.object, "value is not an object");
     return nil_value;
   }
-  size_t symbol_length = strlen(node.dot_value.name);
-  Value key = create_string((uint8_t *) node.dot_value.name, symbol_length, env->arena);
+  Value key = create_symbol(node.dot_value.name);
   Value value;
   if (object_get(object.object_value, key, &value)) {
     return value;
@@ -480,8 +479,7 @@ Value eval_assign(Node node, Env *env) {
     case N_DOT: {
       Value object = interpret(*node.assign_value.left->dot_value.object, env);
       if (object.type == V_OBJECT) {
-        size_t symbol_length = strlen(node.dot_value.name);
-        Value key = create_string((uint8_t *) node.dot_value.name, symbol_length, env->arena);
+        Value key = create_symbol(node.dot_value.name);
         object_put(object.object_value, key, value, env->arena);
       } else {
         eval_error(*node.assign_value.left->dot_value.object, "value is not an object");
@@ -522,8 +520,13 @@ Value interpret(Node node, Env *env) {
     case N_OBJECT: {
       Value object = create_object(LL_SIZE(node.object_value), env->arena);
       while (node.object_value) {
-        object_put(object.object_value, interpret(node.object_value->key, env),
-            interpret(node.object_value->value, env), env->arena);
+        if (node.object_value->key.type == N_NAME) {
+          object_put(object.object_value, create_symbol(node.object_value->key.name_value),
+              interpret(node.object_value->value, env), env->arena);
+        } else {
+          object_put(object.object_value, interpret(node.object_value->key, env),
+              interpret(node.object_value->value, env), env->arena);
+        }
         node.object_value = node.object_value->tail;
       }
       return object;
