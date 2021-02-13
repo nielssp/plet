@@ -61,6 +61,27 @@ typedef enum {
   N_BLOCK
 } NodeType;
 
+typedef enum {
+  P_NOT,
+  P_NEG
+} PrefixOperator;
+
+typedef enum {
+  I_ADD,
+  I_SUB,
+  I_MUL,
+  I_DIV,
+  I_MOD,
+  I_LT,
+  I_LEQ,
+  I_GT,
+  I_GEQ,
+  I_EQ,
+  I_NEQ,
+  I_AND,
+  I_OR
+} InfixOperator;
+
 typedef struct Module Module;
 typedef struct Node Node;
 typedef struct NodeList NodeList;
@@ -101,12 +122,12 @@ struct Node {
     } dot_value;
     struct {
       Node *operand;
-      char operator[4];
+      PrefixOperator operator;
     } prefix_value;
     struct {
       Node *left;
       Node *right;
-      char operator[4];
+      InfixOperator operator;
     } infix_value;
     struct {
       NameList *params;
@@ -133,7 +154,7 @@ struct Node {
     struct {
       Node *left;
       Node *right;
-      char operator[4];
+      InfixOperator operator;
     } assign_value;
     NodeList *block_value;
   };

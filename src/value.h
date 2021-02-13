@@ -116,6 +116,8 @@ int env_get(Symbol name, Value *value, Env *env);
 
 int equals(Value a, Value b);
 
+int is_truthy(Value value);
+
 Hash value_hash(Hash h, Value value);
 
 Value copy_value(Value value, Arena *arena);

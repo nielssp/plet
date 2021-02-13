@@ -8,6 +8,7 @@
 
 #include <alloca.h>
 #include <stdarg.h>
+#include <string.h>
 
 static void eval_error(Node node, const char *format, ...) {
   va_list va;
@@ -87,6 +88,82 @@ static Value eval_subscript(Node node, Env *env) {
   }
 }
 
+static Value eval_dot(Node node, Env *env) {
+  Value object = interpret(*node.dot_value.object, env);
+  if (object.type != V_OBJECT) {
+    eval_error(*node.dot_value.object, "value is not an object");
+    return nil_value;
+  }
+  size_t symbol_length = strlen(node.dot_value.name);
+  Value key = create_string((uint8_t *) node.dot_value.name, symbol_length, env->arena);
+  Value value;
+  if (object_get(object.object_value, key, &value)) {
+    return value;
+  }
+  eval_error(node, "object does not have property: %s", node.dot_value.name);
+  return nil_value;
+}
+
+static Value eval_prefix(Node node, Env *env) {
+  Value operand = interpret(*node.prefix_value.operand, env);
+  switch (node.prefix_value.operator) {
+    case P_NOT:
+      if (is_truthy(operand)) {
+        return nil_value;
+      } else {
+        return true_value;
+      }
+    case P_NEG:
+      if (operand.type == V_INT) {
+        return create_int(-operand.int_value);
+      } else if (operand.type == V_FLOAT) {
+        return create_float(-operand.float_value);
+      } else {
+        eval_error(*node.prefix_value.operand, "value is not a number");
+        return nil_value;
+      }
+  }
+  return nil_value;
+}
+
+static Value eval_infix(Node node, Env *env) {
+  Value left = interpret(*node.infix_value.left, env);
+  switch (node.infix_value.operator) {
+    case I_ADD:
+    case I_SUB:
+    case I_MUL:
+    case I_DIV:
+    case I_MOD:
+    case I_LT:
+    case I_LEQ:
+    case I_GT:
+    case I_GEQ:
+      eval_error(node, "not implemented");
+      return nil_value;
+    case I_EQ:
+      if (equals(left, interpret(*node.infix_value.right, env))) {
+        return true_value;
+      }
+      return nil_value;
+    case I_NEQ:
+      if (equals(left, interpret(*node.infix_value.right, env))) {
+        return nil_value;
+      }
+      return true_value;
+    case I_AND:
+      if (is_truthy(left)) {
+        return interpret(*node.infix_value.right, env);
+      }
+      return nil_value;
+    case I_OR:
+      if (is_truthy(left)) {
+        return left;
+      }
+      return interpret(*node.infix_value.right, env);
+  }
+  return nil_value;
+}
+
 Value interpret(Node node, Env *env) {
   switch (node.type) {
     case N_NAME: {
@@ -125,9 +202,13 @@ Value interpret(Node node, Env *env) {
     case N_SUBSCRIPT:
       return eval_subscript(node, env);
     case N_DOT:
+      return eval_dot(node, env);
     case N_PREFIX:
+      return eval_prefix(node, env);
     case N_INFIX:
+      return eval_infix(node, env);
     case N_FN:
+      return create_closure(node.fn_value.params, node.fn_value.free_variables, *node.fn_value.body, env, env->arena);
     case N_IF:
     case N_FOR:
     case N_SWITCH:

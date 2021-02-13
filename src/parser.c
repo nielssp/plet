@@ -73,12 +73,10 @@ static Node create_node(NodeType type, Parser *parser) {
       break;
     case N_PREFIX:
       node.prefix_value.operand = NULL;
-      node.prefix_value.operator[0] = '\0';
       break;
     case N_INFIX:
       node.infix_value.left = NULL;
       node.infix_value.right = NULL;
-      node.infix_value.operator[0] = '\0';
       break;
     case N_FN:
       node.fn_value.params = NULL;
@@ -106,7 +104,6 @@ static Node create_node(NodeType type, Parser *parser) {
     case N_ASSIGN:
       node.assign_value.left = NULL;
       node.assign_value.right = NULL;
-      node.assign_value.operator[0] = '\0';
       break;
     case N_BLOCK:
       node.block_value = NULL;
@@ -416,7 +413,7 @@ static Node parse_apply_dot(Parser *parser) {
 static Node parse_negate(Parser *parser) {
   if (peek_operator("-", parser)) {
     Node prefix = create_node(N_PREFIX, parser);
-    strcpy(prefix.prefix_value.operator, "-");
+    prefix.prefix_value.operator = P_NEG;
     pop(parser);
     ASSIGN_NODE(prefix.prefix_value.operand, parse_negate(parser));
     prefix.end = parser->end;
@@ -430,7 +427,12 @@ static Node parse_add_sub(Parser *parser) {
   while (peek_operator("+", parser) || peek_operator("-", parser)) {
     Node infix = create_node(N_INFIX, parser);
     infix.start = expr.start;
-    strcpy(infix.infix_value.operator, pop(parser)->operator_value);
+    char *op = pop(parser)->operator_value;
+    if (op[0] == '+') {
+      infix.infix_value.operator = I_ADD;
+    } else {
+      infix.infix_value.operator = I_SUB;
+    }
     ASSIGN_NODE(infix.infix_value.left, expr);
     ASSIGN_NODE(infix.infix_value.right, parse_negate(parser));
     infix.end = parser->end;
@@ -444,7 +446,14 @@ static Node parse_mul_div(Parser *parser) {
   while (peek_operator("*", parser) || peek_operator("/", parser) || peek_operator("%", parser)) {
     Node infix = create_node(N_INFIX, parser);
     infix.start = expr.start;
-    strcpy(infix.infix_value.operator, pop(parser)->operator_value);
+    char *op = pop(parser)->operator_value;
+    if (op[0] == '*') {
+      infix.infix_value.operator = I_MUL;
+    } else if (op[0] == '/') {
+      infix.infix_value.operator = I_DIV;
+    } else {
+      infix.infix_value.operator = I_MOD;
+    }
     ASSIGN_NODE(infix.infix_value.left, expr);
     ASSIGN_NODE(infix.infix_value.right, parse_add_sub(parser));
     infix.end = parser->end;
@@ -459,7 +468,24 @@ static Node parse_comparison(Parser *parser) {
       || peek_operator(">=", parser) || peek_operator("==", parser) || peek_operator("!=", parser)) {
     Node infix = create_node(N_INFIX, parser);
     infix.start = expr.start;
-    strcpy(infix.infix_value.operator, pop(parser)->operator_value);
+    char *op = pop(parser)->operator_value;
+    if (op[0] == '<') {
+      if (op[1] == '=') {
+        infix.infix_value.operator = I_LEQ;
+      } else {
+        infix.infix_value.operator = I_LT;
+      }
+    } else if (op[0] == '>') {
+      if (op[1] == '=') {
+        infix.infix_value.operator = I_GEQ;
+      } else {
+        infix.infix_value.operator = I_GT;
+      }
+    } else if (op[0] == '=') {
+      infix.infix_value.operator = I_EQ;
+    } else {
+      infix.infix_value.operator = I_NEQ;
+    }
     ASSIGN_NODE(infix.infix_value.left, expr);
     ASSIGN_NODE(infix.infix_value.right, parse_mul_div(parser));
     infix.end = parser->end;
@@ -471,7 +497,8 @@ static Node parse_comparison(Parser *parser) {
 static Node parse_logical_not(Parser *parser) {
   if (peek_keyword("not", parser)) {
     Node prefix = create_node(N_PREFIX, parser);
-    strcpy(prefix.prefix_value.operator, pop(parser)->name_value);
+    prefix.prefix_value.operator = P_NOT;
+    pop(parser);
     ASSIGN_NODE(prefix.prefix_value.operand, parse_logical_not(parser));
     prefix.end = parser->end;
     return prefix;
@@ -484,7 +511,8 @@ static Node parse_logical_and(Parser *parser) {
   while (peek_keyword("and", parser)) {
     Node infix = create_node(N_INFIX, parser);
     infix.start = expr.start;
-    strcpy(infix.infix_value.operator, pop(parser)->name_value);
+    pop(parser);
+    infix.infix_value.operator = I_AND;
     ASSIGN_NODE(infix.infix_value.left, expr);
     ASSIGN_NODE(infix.infix_value.right, parse_logical_not(parser));
     infix.end = parser->end;
@@ -498,7 +526,8 @@ static Node parse_logical_or(Parser *parser) {
   while (peek_keyword("or", parser)) {
     Node infix = create_node(N_INFIX, parser);
     infix.start = expr.start;
-    strcpy(infix.infix_value.operator, pop(parser)->name_value);
+    pop(parser);
+    infix.infix_value.operator = I_OR;
     ASSIGN_NODE(infix.infix_value.left, expr);
     ASSIGN_NODE(infix.infix_value.right, parse_logical_and(parser));
     infix.end = parser->end;
@@ -690,8 +719,22 @@ static Node parse_assign(Parser *parser) {
     ASSIGN_NODE(assign.assign_value.left, expr);
     ASSIGN_NODE(assign.assign_value.right, parse_expression(parser));
     if (op[1]) {
-      assign.assign_value.operator[0] = op[0];
-      assign.assign_value.operator[1] = '\0';
+      switch (op[1]) {
+        case '+':
+          assign.assign_value.operator = I_ADD;
+          break;
+        case '-':
+          assign.assign_value.operator = I_SUB;
+          break;
+        case '*':
+          assign.assign_value.operator = I_MUL;
+          break;
+        case '/':
+          assign.assign_value.operator = I_DIV;
+          break;
+        default:
+          break;
+      }
     }
     assign.end = parser->end;
     expr = assign;

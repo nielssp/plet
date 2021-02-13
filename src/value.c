@@ -109,6 +109,32 @@ int equals(Value a, Value b) {
   return 0;
 }
 
+int is_truthy(Value value) {
+  switch (value.type) {
+    case V_NIL:
+      return 0;
+    case V_TRUE:
+      return 1;
+    case V_INT:
+      return value.int_value != 0;
+    case V_FLOAT:
+      return value.float_value != 0.0;
+    case V_SYMBOL:
+      return 1;
+    case V_STRING:
+      return value.string_value->size > 0;
+    case V_ARRAY:
+      return value.array_value->size > 0;
+    case V_OBJECT:
+      return value.object_value->size > 0;
+    case V_TIME:
+    case V_FUNCTION:
+    case V_CLOSURE:
+      return 1;
+  }
+  return 0;
+}
+
 Hash value_hash(Hash h, Value value) {
   h = HASH_ADD_BYTE(value.type, h);
   switch (value.type) {
