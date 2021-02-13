@@ -52,17 +52,18 @@ static Value eval_apply(Node node, Env *env) {
       if (key.type == V_SYMBOL) {
         env_put(key.symbol_value, value, closure_env);
       }
-      int i = 0;
-      while (callee.closure_value->params) {
-        Value arg;
-        if (i < args->size) {
-          arg = args->values[i];
-        } else {
-          arg = nil_value;
-        }
-        env_put(callee.closure_value->params->head, arg, closure_env);
-        callee.closure_value->params = callee.closure_value->params->tail;
+    }
+    int i = 0;
+    while (callee.closure_value->params) {
+      Value arg;
+      if (i < args->size) {
+        arg = args->values[i];
+      } else {
+        arg = nil_value;
       }
+      env_put(callee.closure_value->params->head, arg, closure_env);
+      callee.closure_value->params = callee.closure_value->params->tail;
+      i++;
     }
     return interpret(callee.closure_value->body, closure_env);
   } else {
