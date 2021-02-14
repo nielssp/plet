@@ -131,3 +131,83 @@ void buffer_printf(Buffer *buffer, const char *format, ...) {
   buffer_vprintf(buffer, format, va);
   va_end(va);
 }
+
+size_t get_line_in_file(int line, char **output, FILE *f) {
+  int lines = 1;
+  size_t length = 0;
+  long offset = 0;
+  int c = getc(f);
+  while (c != EOF) {
+    if (line == lines) {
+      if (c == '\n') {
+        break;
+      }
+      length++;
+    } else if (c == '\n') {
+      lines++;
+      offset = ftell(f);
+    }
+    c = getc(f);
+  }
+  if (length == 0) {
+    *output = NULL;
+    return 0;
+  }
+  char *line_buf = allocate(length + 1);
+  fseek(f, offset, SEEK_SET);
+  size_t r = fread(line_buf, 1, length, f);
+  line_buf[r] = 0;
+  *output = line_buf;
+  return r;
+}
+
+void print_error_line(const char *file_name, Pos start, Pos end) {
+  FILE *f = fopen(file_name, "r");
+  if (!f) {
+    return;
+  }
+  char *line;
+  size_t line_length = get_line_in_file(start.line, &line, f);
+  fclose(f);
+  if (!line) {
+    return;
+  }
+  int line_num_length = fprintf(stderr, "% 5d | ", start.line);
+  if (start.column <= line_length) {
+    fwrite(line, 1, start.column - 1, stderr);
+    fprintf(stderr, SGR_BOLD_RED);
+    if ((start.line == end.line && end.column - start.column > 1) || start.line < end.line) {
+      size_t length = start.line == end.line ? end.column - start.column : line_length - start.column + 1;
+      fwrite(line + start.column - 1, 1, length, stderr);
+      fprintf(stderr, SGR_RESET);
+      if (start.column + length < line_length) {
+        fwrite(line + start.column + length - 1, 1, line_length - start.column - length + 1, stderr);
+      }
+    } else {
+      fwrite(line + start.column - 1, 1, 1, stderr);
+      fprintf(stderr, SGR_RESET);
+      if (start.column < line_length) {
+        fwrite(line + start.column, 1, line_length - start.column, stderr);
+      }
+    }
+    fprintf(stderr, "\n");
+  } else {
+    fprintf(stderr, "%s\n", line);
+    free(line);
+    return;
+  }
+  free(line);
+  for (size_t i = 1; i < start.column + line_num_length; i++) {
+    fprintf(stderr, " ");
+  }
+  fprintf(stderr, SGR_BOLD_RED);
+  if ((start.line == end.line && end.column - start.column > 1) || start.line < end.line) {
+    size_t length = start.line == end.line ? end.column - start.column : line_length - start.column + 1;
+    for (size_t i = 0; i < length; i++) {
+      fprintf(stderr, "~");
+    }
+  } else {
+    fprintf(stderr, "^");
+  }
+  fprintf(stderr, SGR_RESET "\n");
+}

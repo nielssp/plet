@@ -10,10 +10,12 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #define SGR_RESET "\001\033[0m\002"
 #define SGR_RED "\001\033[31m\002"
 #define SGR_BOLD "\001\033[1m\002"
+#define SGR_BOLD_RED "\001\033[1;31m\002"
 #define SGR_BOLD_GREEN "\001\033[1;32m\002"
 #define ERROR_LABEL SGR_BOLD SGR_RED "error: " SGR_RESET SGR_BOLD
 
@@ -55,5 +57,8 @@ void delete_buffer(Buffer buffer);
 void buffer_put(Buffer *buffer, uint8_t byte);
 void buffer_vprintf(Buffer *buffer, const char *format, va_list va);
 void buffer_printf(Buffer *buffer, const char *format, ...);
+
+size_t get_line_in_file(int line, char **output, FILE *f);
+void print_error_line(const char *file_name, Pos start, Pos end);
 
 #endif

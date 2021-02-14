@@ -123,8 +123,11 @@ static void parser_error(Parser *parser, Token *token, const char *format, ...) 
   va_start(va, format);
   vfprintf(stderr, format, va);
   va_end(va);
-  fprintf(stderr, "\n" SGR_RESET);
+  fprintf(stderr, SGR_RESET "\n");
   parser->errors++;
+  if (parser->module->file_name && token) {
+    print_error_line(parser->module->file_name, token->start, token->end);
+  }
 }
 
 static int peek_type(TokenType type, Parser *parser) {
@@ -547,6 +550,7 @@ static Node parse_pipe_line(Parser *parser) {
     pop(parser);
     Node name = create_node(N_NAME, parser);
     name.name_value = parse_name(parser);
+    name.end = parser->end;
     ASSIGN_NODE(apply.apply_value.callee, name);
     NodeList *last_arg = NULL;
     LL_APPEND(NodeList, apply.apply_value.args, last_arg, expr);

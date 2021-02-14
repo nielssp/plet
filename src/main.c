@@ -57,12 +57,14 @@ int main(int argc, char *argv[]) {
   if (reader_errors(reader)) {
     close_reader(reader);
     delete_tokens(tokens);
+    delete_symbol_map(symbol_map);
     fclose(in);
     return 1;
   }
   close_reader(reader);
   fclose(in);
   Module *module = parse(tokens, infile);
+  delete_tokens(tokens);
 
   Arena *arena = create_arena();
   Env *env = create_env(arena);
@@ -74,7 +76,6 @@ int main(int argc, char *argv[]) {
   }
   delete_arena(arena);
 
-  delete_tokens(tokens);
   delete_module(module);
   delete_symbol_map(symbol_map);
   return 0;

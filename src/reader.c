@@ -140,7 +140,10 @@ static void reader_error(Reader *r, const char *format, ...) {
   va_start(va, format);
   vfprintf(stderr, format, va);
   va_end(va);
-  fprintf(stderr, "\n" SGR_RESET);
+  fprintf(stderr, SGR_RESET "\n");
+  if (r->file_name) {
+    print_error_line(r->file_name, r->pos, r->pos);
+  }
 }
 
 static int peek_n(uint8_t n, Reader *r) {

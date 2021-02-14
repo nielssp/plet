@@ -7,6 +7,7 @@
 #include "interpreter.h"
 
 #include <alloca.h>
+#include <inttypes.h>
 #include <stdarg.h>
 #include <string.h>
 
@@ -23,7 +24,10 @@ static void eval_error(Node node, const char *format, ...) {
   va_start(va, format);
   vfprintf(stderr, format, va);
   va_end(va);
-  fprintf(stderr, "\n" SGR_RESET);
+  fprintf(stderr, SGR_RESET "\n");
+  if (node.module->file_name) {
+    print_error_line(node.module->file_name, node.start, node.end);
+  }
 }
 
 static Value eval_apply(Node node, Env *env) {
@@ -36,7 +40,7 @@ static Value eval_apply(Node node, Env *env) {
   Value callee;
   if (node.apply_value.callee->type == N_NAME) {
     if (!env_get(node.apply_value.callee->name_value, &callee, env)) {
-      eval_error(node, "undefined function: %s", node.apply_value.callee->name_value);
+      eval_error(*node.apply_value.callee, "undefined function: %s", node.apply_value.callee->name_value);
       return nil_value;
     }
   } else {
@@ -67,7 +71,7 @@ static Value eval_apply(Node node, Env *env) {
     }
     return interpret(callee.closure_value->body, closure_env);
   } else {
-    eval_error(*node.apply_value.callee, "value is not a function");
+    eval_error(*node.apply_value.callee, "value of type %s is not a function", value_name(callee.type));
     return nil_value;
   }
 }
@@ -83,23 +87,23 @@ static Value eval_subscript(Node node, Env *env) {
     return nil_value;
   }
   if (index.type != V_INT) {
-    eval_error(*node.subscript_value.index, "expected an integer");
+    eval_error(*node.subscript_value.index, "value of type %s is not a valid array index", value_name(index.type));
     return nil_value;
   }
   if (object.type == V_ARRAY) {
     if (index.int_value < 0 || index.int_value >= object.array_value->size) {
-      eval_error(*node.subscript_value.index, "array index out of range");
+      eval_error(*node.subscript_value.index, "array index out of range: %" PRId64, index.int_value);
       return nil_value;
     }
     return object.array_value->cells[index.int_value];
   } else if (object.type == V_STRING) {
     if (index.int_value < 0 || index.int_value >= object.string_value->size) {
-      eval_error(*node.subscript_value.index, "string index out of range");
+      eval_error(*node.subscript_value.index, "string index out of range: %" PRId64, index.int_value);
       return nil_value;
     }
     return create_int(object.string_value->bytes[index.int_value]);
   } else {
-    eval_error(*node.subscript_value.list, "value is not indexable");
+    eval_error(*node.subscript_value.list, "value of type %s is not indexable", value_name(object.type));
     return nil_value;
   }
 }
@@ -107,7 +111,7 @@ static Value eval_subscript(Node node, Env *env) {
 static Value eval_dot(Node node, Env *env) {
   Value object = interpret(*node.dot_value.object, env);
   if (object.type != V_OBJECT) {
-    eval_error(*node.dot_value.object, "value is not an object");
+    eval_error(*node.dot_value.object, "value of type %s is not an object", value_name(object.type));
     return nil_value;
   }
   Value key = create_symbol(node.dot_value.name);
@@ -115,7 +119,7 @@ static Value eval_dot(Node node, Env *env) {
   if (object_get(object.object_value, key, &value)) {
     return value;
   }
-  eval_error(node, "object does not have property: %s", node.dot_value.name);
+  eval_error(node, "undefined object property: %s", node.dot_value.name);
   return nil_value;
 }
 
@@ -134,7 +138,7 @@ static Value eval_prefix(Node node, Env *env) {
       } else if (operand.type == V_FLOAT) {
         return create_float(-operand.float_value);
       } else {
-        eval_error(*node.prefix_value.operand, "value is not a number");
+        eval_error(*node.prefix_value.operand, "value of type is not a number", value_name(operand.type));
         return nil_value;
       }
   }
@@ -427,7 +431,7 @@ static Value eval_for(Node node, Env *env) {
     delete_buffer(buffer);
     return result;
   } else {
-    eval_error(*node.for_value.collection, "value is not iterable");
+    eval_error(*node.for_value.collection, "value of type %s is not iterable", value_name(collection.type));
     if (node.for_value.alt) {
       return interpret(*node.for_value.alt, env);
     }
@@ -488,7 +492,7 @@ static Value eval_assign(Node node, Env *env) {
         if (node.assign_value.operator != I_NONE) {
           Value existing;
           if (!object_get(object.object_value, index, &existing)) {
-            eval_error(*node.assign_value.left, "property not found");
+            eval_error(*node.assign_value.left, "undefined object property");
             return nil_value;
           }
           value = eval_assign_operator(node, existing, value, env);
@@ -496,9 +500,11 @@ static Value eval_assign(Node node, Env *env) {
         object_put(object.object_value, index, value, env->arena);
       } else if (object.type == V_ARRAY) {
         if (index.type != V_INT) {
-          eval_error(*node.assign_value.left->subscript_value.index, "expected an integer");
+          eval_error(*node.assign_value.left->subscript_value.index,
+              "value of type %s is not a valid array index", value_name(index.type));
         } else if (index.int_value < 0 || index.int_value >= object.array_value->size) {
-          eval_error(*node.assign_value.left->subscript_value.index, "array index out of range");
+          eval_error(*node.assign_value.left->subscript_value.index,
+              "array index out of range: %" PRId64, index.int_value);
         } else {
           if (node.assign_value.operator != I_NONE) {
             value = eval_assign_operator(node, object.array_value->cells[index.int_value],
@@ -507,7 +513,8 @@ static Value eval_assign(Node node, Env *env) {
           object.array_value->cells[index.int_value] = value;
         }
       } else {
-        eval_error(*node.assign_value.left->subscript_value.list, "value is not indexable");
+        eval_error(*node.assign_value.left->subscript_value.list, "value of type %s is not indexable",
+            value_name(object.type));
       }
       break;
     }
@@ -526,12 +533,13 @@ static Value eval_assign(Node node, Env *env) {
         }
         object_put(object.object_value, key, value, env->arena);
       } else {
-        eval_error(*node.assign_value.left->dot_value.object, "value is not an object");
+        eval_error(*node.assign_value.left->dot_value.object, "value of type %s is not an object",
+            value_name(object.type));
       }
       break;
     }
     default:
-      eval_error(*node.assign_value.left, "not a valid assignment");
+      eval_error(*node.assign_value.left, "left side of assignment is invalid");
       break;
   }
   return nil_value;
