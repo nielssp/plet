@@ -584,7 +584,7 @@ static Token *read_next_token(Reader *r) {
     return token;
   } else {
     int is_command = (top_paren == '{' && (!r->parens->next || (r->parens->next && r->parens->next->paren == '"')));
-    skip_ws(r, !!r->parens->next);
+    skip_ws(r, !is_command);
     int c = peek(r);
     if (c == '\n') {
       Token *token = create_token(T_LF, r);
@@ -627,6 +627,7 @@ static Token *read_next_token(Reader *r) {
             }
           }
         }
+        delete_token(token);
         return read_next_token(r);
       }
       push_paren(r, token->punct_value);
@@ -656,6 +657,13 @@ static Token *read_next_token(Reader *r) {
       return read_operator(r);
     } else if (isdigit(c)) {
       return read_number(r);
+    } else if (c == '#') {
+      // Single line comment
+      while (c != EOF && c != '\n') {
+        pop(r);
+        c = peek(r);
+      }
+      return read_next_token(r);
     } else {
       return read_name(r);
     }

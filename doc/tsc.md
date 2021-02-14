@@ -5,20 +5,24 @@
 ```
 tokenStream ::= {text | comment | command}
 
-command ::= commandStart {token | paren | bracket | brace | lf | comment | skip} commandEnd
+command ::= commandStart {commandToken | lf | skip} commandEnd
+
+commandToken = token | paren | bracket | brace | comment | commentSingle
 
 commandStart = "{"  -- ignored
 commandEnd = "}"  -- ignored
 
-comment ::= "{" "#" {any \ "#" "}"} "#" "}"   -- ignored
+comment ::= "{#" {any \ "#}"} "#}"   -- ignored
+
+commentSingle ::= '#' {any \ lf}   -- ignored
 
 lf ::= "\n"
 skip ::= " " | "\t" | "\r"    -- ignored
 skipLf ::= skip | lf         -- ignored
 
-paren ::= "(" {token | paren | bracket | brace | comment | skipLf} ")"
-bracket ::= "[" {token | paren | bracket | brace | comment |  skipLf} "]"
-brace ::= "{" {token | paren | bracket | brace | comment | skipLf} "}"
+paren ::= "(" {commandToken | skipLf} ")"
+bracket ::= "[" {commandToken |  skipLf} "]"
+brace ::= "{" {commandToken | skipLf} "}"
 
 quote ::= '"' {quoteText | command} '"'
 
