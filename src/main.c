@@ -53,18 +53,10 @@ int main(int argc, char *argv[]) {
   }
   SymbolMap *symbol_map = create_symbol_map();
   Reader *reader = open_reader(in, infile, symbol_map);
-  Token *tokens = read_all(reader, 0);
-  if (reader_errors(reader)) {
-    close_reader(reader);
-    delete_tokens(tokens);
-    delete_symbol_map(symbol_map);
-    fclose(in);
-    return 1;
-  }
+  TokenStream tokens = read_all(reader, 0);
+  Module *module = parse(tokens, infile);
   close_reader(reader);
   fclose(in);
-  Module *module = parse(tokens, infile);
-  delete_tokens(tokens);
 
   Arena *arena = create_arena();
   Env *env = create_env(arena);

@@ -18,7 +18,7 @@
   *(DEST) = (SRC);
 
 typedef struct {
-  Token *tokens;
+  TokenStream tokens;
   Module *module;
   NameList *free_variables;
   int errors;
@@ -33,11 +33,7 @@ static Node create_node(NodeType type, Parser *parser) {
   Node node;
   node.type = type;
   node.module = parser->module;
-  if (parser->tokens) {
-    node.start = parser->tokens->start;
-  } else {
-    node.start = parser->end;
-  }
+  node.start = peek_token(parser->tokens)->start;
   node.end = node.start;
   switch (type) {
     case N_NAME:
@@ -131,27 +127,27 @@ static void parser_error(Parser *parser, Token *token, const char *format, ...) 
 }
 
 static int peek_type(TokenType type, Parser *parser) {
-  return parser->tokens && parser->tokens->type == type;
+  return peek_token(parser->tokens)->type == type;
 }
 
 static int peek_keyword(const char *keyword, Parser *parser) {
-  return parser->tokens && parser->tokens->type == T_KEYWORD && strcmp(parser->tokens->name_value, keyword) == 0;
+  Token *t = peek_token(parser->tokens);
+  return t->type == T_KEYWORD && strcmp(t->name_value, keyword) == 0;
 }
 
 static int peek_operator(const char *operator, Parser *parser) {
-  return parser->tokens && parser->tokens->type == T_OPERATOR && strcmp(parser->tokens->operator_value, operator) == 0;
+  Token *t = peek_token(parser->tokens);
+  return t->type == T_OPERATOR && strcmp(t->operator_value, operator) == 0;
 }
 
 static int peek_punct(const char punct, Parser *parser) {
-  return parser->tokens && parser->tokens->type == T_PUNCT && parser->tokens->punct_value == punct;
+  Token *t = peek_token(parser->tokens);
+  return t->type == T_PUNCT && t->punct_value == punct;
 }
 
 static Token *pop(Parser *parser) {
-  Token *t = parser->tokens;
-  if (t) {
-    parser->end = t->end;
-    parser->tokens = t->next;
-  }
+  Token *t = pop_token(parser->tokens);
+  parser->end = t->end;
   return t;
 }
 
@@ -159,11 +155,8 @@ static Token *expect_type(TokenType type, Parser *parser) {
   if (peek_type(type, parser)) {
     return pop(parser);
   }
-  if (!parser->tokens) {
-    parser_error(parser, NULL, "unexpected end of token stream, expected %s", token_name(type));
-  } else {
-    parser_error(parser, parser->tokens, "unexpected %s, expected %s", token_name(parser->tokens->type), token_name(type));
-  }
+  Token *t = peek_token(parser->tokens);
+  parser_error(parser, t, "unexpected %s, expected %s", token_name(t->type), token_name(type));
   return NULL;
 }
 
@@ -171,12 +164,11 @@ static Token *expect_keyword(const char *keyword, Parser *parser) {
   if (peek_keyword(keyword, parser)) {
     return pop(parser);
   }
-  if (!parser->tokens) {
-    parser_error(parser, NULL, "unexpected end of token stream, expected \"%s\"", keyword);
-  } else if (parser->tokens->type == T_KEYWORD) {
-    parser_error(parser, parser->tokens, "unexpected \"%s\", expected \"%s\"", parser->tokens->name_value, keyword);
+  Token *t = peek_token(parser->tokens);
+  if (t->type == T_KEYWORD) {
+    parser_error(parser, t, "unexpected \"%s\", expected \"%s\"", t->name_value, keyword);
   } else {
-    parser_error(parser, parser->tokens, "unexpected %s, expected \"%s\"", token_name(parser->tokens->type), keyword);
+    parser_error(parser, t, "unexpected %s, expected \"%s\"", token_name(t->type), keyword);
   }
   return NULL;
 }
@@ -185,12 +177,11 @@ static Token *expect_operator(const char *operator, Parser *parser) {
   if (peek_operator(operator, parser)) {
     return pop(parser);
   }
-  if (!parser->tokens) {
-    parser_error(parser, NULL, "unexpected end of token stream, expected \"%s\"", operator);
-  } else if (parser->tokens->type == T_OPERATOR) {
-    parser_error(parser, parser->tokens, "unexpected \"%s\", expected \"%s\"", parser->tokens->operator_value, operator);
+  Token *t = peek_token(parser->tokens);
+  if (t->type == T_OPERATOR) {
+    parser_error(parser, t, "unexpected \"%s\", expected \"%s\"", t->operator_value, operator);
   } else {
-    parser_error(parser, parser->tokens, "unexpected %s, expected \"%s\"", token_name(parser->tokens->type), operator);
+    parser_error(parser, t, "unexpected %s, expected \"%s\"", token_name(t->type), operator);
   }
   return NULL;
 }
@@ -199,12 +190,11 @@ static Token *expect_punct(const char punct, Parser *parser) {
   if (peek_punct(punct, parser)) {
     return pop(parser);
   }
-  if (!parser->tokens) {
-    parser_error(parser, NULL, "unexpected end of token stream, expected '%c'", punct);
-  } else if (parser->tokens->type == T_OPERATOR) {
-    parser_error(parser, parser->tokens, "unexpected '%c', expected '%c'", parser->tokens->punct_value, punct);
+  Token *t = peek_token(parser->tokens);
+  if (t->type == T_OPERATOR) {
+    parser_error(parser, t, "unexpected '%c', expected '%c'", t->punct_value, punct);
   } else {
-    parser_error(parser, parser->tokens, "unexpected %s, expected '%c'", token_name(parser->tokens->type), punct);
+    parser_error(parser, t, "unexpected %s, expected '%c'", token_name(t->type), punct);
   }
   return NULL;
 }
@@ -214,12 +204,11 @@ static int expect_end(const char *keyword, Parser *parser) {
     pop(parser);
     return !!expect_keyword(keyword, parser);
   }
-  if (!parser->tokens) {
-    parser_error(parser, NULL, "unexpected end of token stream, expected \"end %s\"", keyword);
-  } else if (parser->tokens->type == T_KEYWORD) {
-    parser_error(parser, NULL, "unexpected \"%s\", expected \"end %s\"", parser->tokens->name_value, keyword);
+  Token *t = peek_token(parser->tokens);
+  if (t->type == T_KEYWORD) {
+    parser_error(parser, t, "unexpected \"%s\", expected \"end %s\"", t->name_value, keyword);
   } else {
-    parser_error(parser, parser->tokens, "unexpected %s, expected \"end %s\"", token_name(parser->tokens->type), keyword);
+    parser_error(parser, t, "unexpected %s, expected \"end %s\"", token_name(t->type), keyword);
   }
   return 0;
 }
@@ -278,12 +267,9 @@ static Node parse_atom(Parser *parser) {
     parser->free_variables = name_list_put(node.name_value, parser->free_variables);
     node.end = parser->end;
     return node;
-  } else if (parser->tokens) {
-    parser_error(parser, parser->tokens, "unexpected %s, expected an expression", token_name(parser->tokens->type));
-    pop(parser);
-    return create_node(N_INT, parser);
   } else {
-    parser_error(parser, NULL, "unexpected end of token stream, expected an expression");
+    Token *t = peek_token(parser->tokens);
+    parser_error(parser, t, "unexpected %s, expected an expression", token_name(t->type));
     pop(parser);
     return create_node(N_INT, parser);
   }
@@ -804,7 +790,7 @@ static Node parse_template(Parser *parser) {
   return block;
 }
 
-Module *parse(Token *tokens, const char *file_name) {
+Module *parse(TokenStream tokens, const char *file_name) {
   Module *m = create_module(file_name);
   Parser parser = (Parser) { .tokens = tokens, .module = m, .free_variables = NULL, .errors = 0,
     .end.line = 1, .end.column = 1 };

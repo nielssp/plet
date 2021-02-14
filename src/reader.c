@@ -6,7 +6,6 @@
 
 #include "reader.h"
 
-#include "hashmap.h"
 #include "util.h"
 
 #include <ctype.h>
@@ -22,15 +21,13 @@ struct ParenStack {
   uint8_t paren;
 };
 
-struct SymbolMap {
-  GenericHashMap map;
-};
-
 struct Reader {
   FILE *file;
   char *file_name;
   SymbolMap *symbol_map;
   ParenStack *parens;
+  Token *tokens;
+  Token *last;
   Pos pos;
   int errors;
   int la;
@@ -41,52 +38,14 @@ const char *keywords[] = {
   "if", "else", "for", "in", "switch", "case", "default", "end", "fn", "and", "or", "not", "do", NULL
 };
 
-static Hash symbol_hash(const void *p) {
-  Symbol name = *(Symbol *) p;
-  Hash h = INIT_HASH;
-  while (*name) {
-    h = HASH_ADD_BYTE(*name, h);
-    name++;
-  }
-  return h;
-}
-
-static int symbol_equals(const void *a, const void *b) {
-  return strcmp(*(const Symbol *) a, *(const Symbol *) b) == 0;
-}
-
-SymbolMap *create_symbol_map() {
-  SymbolMap *symbol_map = allocate(sizeof(SymbolMap));
-  init_generic_hash_map(&symbol_map->map, sizeof(Symbol), 0, symbol_hash, symbol_equals, NULL);
-  return symbol_map;
-}
-
-void delete_symbol_map(SymbolMap *symbol_map) {
-  char *symbol;
-  HashMapIterator it = generic_hash_map_iterate(&symbol_map->map);
-  while (generic_hash_map_next(&it, &symbol)) {
-    free(symbol);
-  }
-  delete_generic_hash_map(&symbol_map->map);
-  free(symbol_map);
-}
-
-Symbol get_symbol(const char *name, SymbolMap *symbol_map) {
-  Symbol symbol;
-  if (generic_hash_map_get(&symbol_map->map, &name, &symbol)) {
-    return symbol;
-  }
-  symbol = copy_string(name);
-  generic_hash_map_add(&symbol_map->map, &symbol);
-  return symbol;
-}
-
 Reader *open_reader(FILE *file, const char *file_name, SymbolMap *symbol_map) {
   Reader *r = allocate(sizeof(Reader));
   r->file = file;
   r->file_name = copy_string(file_name);
   r->symbol_map = symbol_map;
   r->parens = NULL;
+  r->tokens = NULL;
+  r->last = NULL;
   r->pos.line = 1;
   r->pos.column = 1;
   r->la = 0;
@@ -130,6 +89,7 @@ static void clear_parens(Reader *r) {
 
 void close_reader(Reader *r) {
   clear_parens(r);
+  delete_tokens(r->tokens);
   free(r->file_name);
   free(r);
 }
@@ -192,48 +152,6 @@ static Token *create_token(TokenType type, Reader *r) {
   t->type = type;
   t->error = 0;
   return t;
-}
-
-const char *token_name(TokenType type) {
-  switch (type) {
-    case T_NAME: return "name";
-    case T_KEYWORD: return "keyword";
-    case T_OPERATOR: return "operator";
-    case T_STRING: return "string";
-    case T_INT: return "integer";
-    case T_FLOAT: return "float";
-    case T_TEXT: return "text";
-    case T_LF: return "newline";
-    case T_END_QUOTE: return "end quote";
-    case T_START_QUOTE: return "start quote";
-    case T_PUNCT: return "punctuation";
-    case T_EOF: return "eof";
-    default: return "unknwon";
-  }
-}
-
-void delete_token(Token *t) {
-  switch (t->type) {
-    case T_NAME:
-    case T_KEYWORD:
-      break;
-    case T_STRING:
-    case T_TEXT:
-      if (t->string_value) {
-        free(t->string_value);
-      }
-      break;
-    default:
-      break;
-  }
-  free(t);
-}
-
-void delete_tokens(Token *t) {
-  if (t->next) {
-    delete_tokens(t->next);
-  }
-  delete_token(t);
 }
 
 uint8_t *copy_string_token(Token *token) {
@@ -673,31 +591,38 @@ static Token *read_next_token(Reader *r) {
   }
 }
 
-Token *read_all(Reader *r, int template) {
-  Token *first = NULL, *last = NULL;
+static Token *reader_peek_token(Reader *reader) {
+  if (!reader->last) {
+    reader->tokens = reader->last = read_next_token(reader);
+    if (reader->last->error) {
+      reader->errors++;
+    }
+  }
+  return reader->last;
+}
+
+static Token *reader_pop_token(Reader *reader) {
+  Token *t = reader_peek_token(reader);
+  if (t->type != T_EOF) {
+    Token *next = read_next_token(reader);
+    if (next->error) {
+      reader->errors++;
+    }
+    reader->last->next = next;
+    reader->last = next;
+  }
+  return t;
+}
+
+TokenStream read_all(Reader *r, int template) {
+  delete_tokens(r->tokens);
   r->errors = 0;
+  r->tokens = r->last = NULL;
   clear_parens(r);
   if (!template) {
     push_paren(r, '{');
   }
-  while (1) {
-    Token *token = read_next_token(r);
-    if (!first) {
-      first = token;
-    } else {
-      last->next = token;
-    }
-    last = token;
-    if (token->error) {
-      r->errors++;
-      if (r->errors > 20) {
-        reader_error(r, "too many errors");
-        break;
-      }
-    }
-    if (token->type == T_EOF) {
-      break;
-    }
-  }
-  return first;
+  return (TokenStream) { .peek = (TokenStreamPeek) reader_peek_token,
+    .pop = (TokenStreamPop) reader_pop_token,
+    .context = r };
 }

@@ -8,9 +8,9 @@
 #define PARSER_H
 
 #include "ast.h"
-#include "reader.h"
+#include "token.h"
 
-Module *parse(Token *tokens, const char *file_name);
+Module *parse(TokenStream tokens, const char *file_name);
 
 #endif
 
