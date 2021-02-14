@@ -8,14 +8,17 @@ OBJECTS := $(SOURCES:.c=.o)
 TESTS := $(filter-out src/main.c, $(SOURCES)) $(wildcard tests/*.c)
 TEST_OBJECTS := $(TESTS:.c=.o)
 
+.PHONY: all
 all: $(TARGET)
+
+.PHONY: debug
+debug: CFLAGS += -DDEBUG -g
+debug: all
 
 $(TARGET): $(OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-debug: CFLAGS += -DDEBUG -g
-debug: $(TARGET)
-
+.PHONY: test
 test: CFLAGS += -DDEBUG -g
 test: test_all
 	valgrind --leak-check=full ./test_all
