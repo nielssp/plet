@@ -7,7 +7,7 @@
 #ifndef AST_H
 #define AST_H
 
-#include "reader.h"
+#include "token.h"
 #include "util.h"
 
 #include <stddef.h>

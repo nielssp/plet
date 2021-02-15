@@ -4,11 +4,11 @@
  * See the LICENSE file or http://opensource.org/licenses/MIT for more information.
  */
 
-#include "test.h"
+#ifndef CORE_H
+#define CORE_H
 
-int main(void) {
-  run_test_suite(test_hashmap);
-  run_test_suite(test_util);
-  run_test_suite(test_value);
-  return 0;
-}
+#include "value.h"
+
+void import_core(Env *env, SymbolMap *symbol_map);
+
+#endif

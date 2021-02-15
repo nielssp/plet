@@ -24,5 +24,6 @@
 
 void test_hashmap(void);
 void test_util(void);
+void test_value(void);
 
 #endif

@@ -180,7 +180,7 @@ void print_error_line(const char *file_name, Pos start, Pos end) {
       size_t length = start.line == end.line ? end.column - start.column : line_length - start.column + 1;
       fwrite(line + start.column - 1, 1, length, stderr);
       fprintf(stderr, SGR_RESET);
-      if (start.column + length < line_length) {
+      if (start.column + length <= line_length) {
         fwrite(line + start.column + length - 1, 1, line_length - start.column - length + 1, stderr);
       }
     } else {

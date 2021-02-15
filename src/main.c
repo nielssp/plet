@@ -4,9 +4,10 @@
  * See the LICENSE file or http://opensource.org/licenses/MIT for more information.
  */
 
+#include "core.h"
+#include "interpreter.h"
 #include "parser.h"
 #include "reader.h"
-#include "interpreter.h"
 
 #include <errno.h>
 #include <getopt.h>
@@ -63,6 +64,7 @@ int main(int argc, char *argv[]) {
 
   Arena *arena = create_arena();
   Env *env = create_env(arena, modules);
+  import_core(env, symbol_map);
   Value output = interpret(*module->root, env);
   if (output.type == V_STRING) {
     for (size_t i = 0 ; i < output.string_value->size; i++) {
