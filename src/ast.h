@@ -41,6 +41,12 @@
     }\
   } while (0);
 
+#define DELETE_NODE(VALUE) \
+  if (VALUE) {\
+    delete_node(*(VALUE));\
+    free(VALUE);\
+  }
+
 typedef enum {
   N_NAME,
   N_INT,
@@ -83,19 +89,15 @@ typedef enum {
   I_OR
 } InfixOperator;
 
-typedef struct Module Module;
 typedef struct Node Node;
 typedef struct NodeList NodeList;
 typedef struct PropertyList PropertyList;
 typedef struct NameList NameList;
 
-struct Module {
-  char *file_name;
-  Node *root;
-};
-
 struct Node {
-  Module *module;
+  struct {
+    char *file_name;
+  } module;
   Pos start;
   Pos end;
   NodeType type;
@@ -179,9 +181,6 @@ struct NameList {
   NameList *tail;
   Symbol head;
 };
-
-Module *create_module(const char *file_name);
-void delete_module(Module *module);
 
 void delete_node(Node node);
 

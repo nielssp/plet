@@ -7,9 +7,9 @@
 #ifndef VALUE_H
 #define VALUE_H
 
-#include "reader.h"
 #include "ast.h"
 #include "hashmap.h"
+#include "module.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -28,6 +28,7 @@ typedef struct Tuple Tuple;
 
 typedef struct {
   Arena *arena;
+  ModuleMap *modules;
   GenericHashMap global;
 } Env;
 
@@ -108,7 +109,7 @@ struct Tuple {
   Value values[];
 };
 
-Env *create_env(Arena *arena);
+Env *create_env(Arena *arena, ModuleMap *modules);
 
 void env_put(Symbol name, Value value, Env *env);
 

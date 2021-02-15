@@ -32,7 +32,7 @@ static Node parse_template(Parser *parser);
 static Node create_node(NodeType type, Parser *parser) {
   Node node;
   node.type = type;
-  node.module = parser->module;
+  node.module.file_name = parser->module->file_name;
   node.start = peek_token(parser->tokens)->start;
   node.end = node.start;
   switch (type) {

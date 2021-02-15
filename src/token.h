@@ -59,7 +59,7 @@ typedef struct {
   void *context;
 } TokenStream;
 
-SymbolMap *create_symbol_map();
+SymbolMap *create_symbol_map(void);
 void delete_symbol_map(SymbolMap *symbol_map);
 
 Symbol get_symbol(const char *name, SymbolMap *symbol_map);

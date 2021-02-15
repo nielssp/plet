@@ -29,7 +29,7 @@ static int symbol_equals(const void *a, const void *b) {
   return strcmp(*(const Symbol *) a, *(const Symbol *) b) == 0;
 }
 
-SymbolMap *create_symbol_map() {
+SymbolMap *create_symbol_map(void) {
   SymbolMap *symbol_map = allocate(sizeof(SymbolMap));
   init_generic_hash_map(&symbol_map->map, sizeof(Symbol), 0, symbol_hash, symbol_equals, NULL);
   return symbol_map;

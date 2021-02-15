@@ -31,7 +31,7 @@ void *reallocate(void *old, size_t size) {
   return new;
 }
 
-Arena *create_arena() {
+Arena *create_arena(void) {
   Arena *arena = allocate(sizeof(Arena) + MIN_ARENA_SIZE);
   arena->next = NULL;
   arena->last = arena;

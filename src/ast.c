@@ -11,19 +11,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DELETE_NODE(VALUE) \
-  if (VALUE) {\
-    delete_node(*(VALUE));\
-    free(VALUE);\
-  }
-
-Module *create_module(const char *file_name) {
-  Module *module = allocate(sizeof(Module));
-  module->file_name = copy_string(file_name);
-  module->root = NULL;
-  return module;
-}
-
 void delete_node(Node node) {
   switch (node.type) {
     case N_NAME:
@@ -101,12 +88,6 @@ void delete_node(Node node) {
       LL_DELETE(NodeList, node.block_value, delete_node);
       break;
   }
-}
-
-void delete_module(Module *module) {
-  DELETE_NODE(module->root);
-  free(module->file_name);
-  free(module);
 }
 
 NameList *copy_name_list(NameList *list) {

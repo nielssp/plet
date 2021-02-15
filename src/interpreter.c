@@ -20,13 +20,13 @@ typedef enum {
 
 static void eval_error(Node node, const char *format, ...) {
   va_list va;
-  fprintf(stderr, SGR_BOLD "%s:%d:%d: " ERROR_LABEL, node.module->file_name, node.start.line, node.start.column);
+  fprintf(stderr, SGR_BOLD "%s:%d:%d: " ERROR_LABEL, node.module.file_name, node.start.line, node.start.column);
   va_start(va, format);
   vfprintf(stderr, format, va);
   va_end(va);
   fprintf(stderr, SGR_RESET "\n");
-  if (node.module->file_name) {
-    print_error_line(node.module->file_name, node.start, node.end);
+  if (node.module.file_name) {
+    print_error_line(node.module.file_name, node.start, node.end);
   }
 }
 
@@ -49,7 +49,7 @@ static Value eval_apply(Node node, Env *env) {
   if (callee.type == V_FUNCTION) {
     return callee.function_value(args, env);
   } else if (callee.type == V_CLOSURE) {
-    Env *closure_env = create_env(env->arena);
+    Env *closure_env = create_env(env->arena, env->modules);
     ObjectIterator it = iterate_object(callee.closure_value->env);
     Value key, value;
     while (object_iterator_next(&it, &key, &value)) {

@@ -44,7 +44,7 @@ void *allocate(size_t size);
 
 void *reallocate(void *old, size_t size);
 
-Arena *create_arena();
+Arena *create_arena(void);
 
 void delete_arena(Arena *arena);
 

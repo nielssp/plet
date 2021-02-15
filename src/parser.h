@@ -7,7 +7,7 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "ast.h"
+#include "module.h"
 #include "token.h"
 
 Module *parse(TokenStream tokens, const char *file_name);

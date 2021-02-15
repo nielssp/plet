@@ -30,9 +30,10 @@ static int entry_equals(const void *a, const void *b) {
 
 String *empty_string = &(String) { .size = 0 };
 
-Env *create_env(Arena *arena) {
+Env *create_env(Arena *arena, ModuleMap *modules) {
   Env *env = arena_allocate(sizeof(Env), arena);
   env->arena = arena;
+  env->modules = modules;
   init_generic_hash_map(&env->global, sizeof(Entry), 0, entry_hash, entry_equals, arena);
   return env;
 }

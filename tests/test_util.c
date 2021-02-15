@@ -10,7 +10,7 @@
 
 #include <string.h>
 
-void test_arena(void) {
+static void test_arena(void) {
   Arena *arena = create_arena();
   for (int i = 0; i < 1000; i++) {
     char *s = arena_allocate(7, arena);
@@ -23,7 +23,7 @@ void test_arena(void) {
   delete_arena(arena);
 }
 
-void test_buffer_printf(void) {
+static void test_buffer_printf(void) {
   Buffer buffer1 = create_buffer(0);
   for (int i = 0; i < 1000; i++) {
     buffer_printf(&buffer1, "test");

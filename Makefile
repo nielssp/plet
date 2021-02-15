@@ -1,5 +1,5 @@
 TARGET = tsc
-CFLAGS = -Wall -pedantic -std=c11
+CFLAGS = -Wall -pedantic -std=c11 -Wstrict-prototypes -Wmissing-prototypes -Wshadow
 LDFLAGS =
 
 SOURCES := $(wildcard src/*.c)
@@ -21,7 +21,7 @@ $(TARGET): $(OBJECTS)
 .PHONY: test
 test: CFLAGS += -DDEBUG -g
 test: test_all
-	valgrind --leak-check=full ./test_all
+	valgrind --leak-check=full --error-exitcode=1 ./test_all
 
 test_all: $(TEST_OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
