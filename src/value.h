@@ -30,6 +30,8 @@ typedef struct {
   Arena *arena;
   ModuleMap *modules;
   SymbolMap *symbol_map;
+  char *error;
+  int error_arg;
   GenericHashMap global;
 } Env;
 
@@ -119,7 +121,22 @@ void env_put(Symbol name, Value value, Env *env);
 #define env_def_fn(name, func, env) \
   env_put(get_symbol((name), (env)->symbol_map), (Value) { .type = V_FUNCTION, .function_value = (func) }, (env))
 
+#define check_args(length, args, env) \
+  do {\
+    if ((args)->size < (length)) {\
+      env_error((env), -1, "Too few arguments for function, %d expected", (length));\
+      return nil_value;\
+    } else if ((args)->size > (length)) {\
+      env_error((env), (length), "Too many arguments for function, %d expected", (length));\
+      return nil_value;\
+    }\
+  } while (0)
+
 int env_get(Symbol name, Value *value, Env *env);
+
+void env_error(Env *env, int arg, const char *format, ...);
+
+void env_clear_error(Env *env);
 
 int equals(Value a, Value b);
 

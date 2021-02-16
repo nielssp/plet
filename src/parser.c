@@ -360,6 +360,7 @@ static Node parse_apply_dot(Parser *parser) {
   while (1) {
     if (peek_punct('(', parser)) {
       Node apply = create_node(N_APPLY, parser);
+      apply.start = expr.start;
       pop(parser);
       ASSIGN_NODE(apply.apply_value.callee, expr);
       if (!peek_punct(')', parser)) {
@@ -382,6 +383,7 @@ static Node parse_apply_dot(Parser *parser) {
       expr = apply;
     } else if (peek_punct('[', parser)) {
       Node subscript = create_node(N_SUBSCRIPT, parser);
+      subscript.start = expr.start;
       pop(parser);
       ASSIGN_NODE(subscript.subscript_value.list, expr);
       ASSIGN_NODE(subscript.subscript_value.index, parse_expression(parser));
@@ -390,6 +392,7 @@ static Node parse_apply_dot(Parser *parser) {
       expr = subscript;
     } else if (peek_operator(".", parser)) {
       Node dot = create_node(N_DOT, parser);
+      dot.start = expr.start;
       pop(parser);
       ASSIGN_NODE(dot.dot_value.object, expr);
       dot.dot_value.name = parse_name(parser);

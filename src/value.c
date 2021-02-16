@@ -35,6 +35,8 @@ Env *create_env(Arena *arena, ModuleMap *modules, SymbolMap *symbol_map) {
   env->arena = arena;
   env->modules = modules;
   env->symbol_map = symbol_map;
+  env->error = NULL;
+  env->error_arg = -1;
   init_generic_hash_map(&env->global, sizeof(Entry), 0, entry_hash, entry_equals, arena);
   return env;
 }
@@ -50,6 +52,24 @@ int env_get(Symbol name, Value *value, Env *env) {
     return 1;
   }
   return 0;
+}
+
+void env_error(Env *env, int arg, const char *format, ...) {
+  va_list va;
+  env->error_arg = arg;
+  Buffer buffer = create_buffer(0);
+  va_start(va, format);
+  buffer_vprintf(&buffer, format, va);
+  va_end(va);
+  buffer_put(&buffer, '\0');
+  env->error = arena_allocate(buffer.size, env->arena);
+  memcpy(env->error, buffer.data, buffer.size);
+  delete_buffer(buffer);
+}
+
+void env_clear_error(Env *env) {
+  env->error = NULL;
+  env->error_arg = -1;
 }
 
 int equals(Value a, Value b) {

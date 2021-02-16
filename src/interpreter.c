@@ -33,9 +33,10 @@ static void eval_error(Node node, const char *format, ...) {
 static Value eval_apply(Node node, Env *env) {
   Tuple *args = alloca(sizeof(Tuple) + LL_SIZE(node.apply_value.args) * sizeof(Value));
   args->size = LL_SIZE(node.apply_value.args);
+  NodeList *arg_nodes = node.apply_value.args;
   for (int i = 0; i < args->size; i++) {
-    args->values[i] = interpret(node.apply_value.args->head, env);
-    node.apply_value.args = node.apply_value.args->tail;
+    args->values[i] = interpret(arg_nodes->head, env);
+    arg_nodes = arg_nodes->tail;
   }
   Value callee;
   if (node.apply_value.callee->type == N_NAME) {
@@ -47,7 +48,22 @@ static Value eval_apply(Node node, Env *env) {
     callee = interpret(*node.apply_value.callee, env);
   }
   if (callee.type == V_FUNCTION) {
-    return callee.function_value(args, env);
+    env_clear_error(env);
+    Value return_value = callee.function_value(args, env);
+    if (env->error) {
+      if (env->error_arg < 0 || env->error_arg >= args->size) {
+        eval_error(node, "%s", env->error);
+      } else {
+        arg_nodes = node.apply_value.args;
+        while (env->error_arg > 0) {
+          arg_nodes = arg_nodes->tail;
+          env->error_arg--;
+        }
+        eval_error(arg_nodes->head, "%s", env->error);
+      }
+      env_clear_error(env);
+    }
+    return return_value;
   } else if (callee.type == V_CLOSURE) {
     int i = 0;
     while (callee.closure_value->params) {
