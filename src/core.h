@@ -9,6 +9,6 @@
 
 #include "value.h"
 
-void import_core(Env *env, SymbolMap *symbol_map);
+void import_core(Env *env);
 
 #endif

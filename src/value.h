@@ -29,6 +29,7 @@ typedef struct Tuple Tuple;
 typedef struct {
   Arena *arena;
   ModuleMap *modules;
+  SymbolMap *symbol_map;
   GenericHashMap global;
 } Env;
 
@@ -101,7 +102,7 @@ struct Entry {
 struct Closure {
   NameList *params;
   Node body;
-  Object *env;
+  Env *env;
 };
 
 struct Tuple {
@@ -109,14 +110,14 @@ struct Tuple {
   Value values[];
 };
 
-Env *create_env(Arena *arena, ModuleMap *modules);
+Env *create_env(Arena *arena, ModuleMap *modules, SymbolMap *symbol_map);
 
 void env_put(Symbol name, Value value, Env *env);
 
-#define env_def(name, value, env, symbol_map) env_put(get_symbol((name), (symbol_map)), (value), (env))
+#define env_def(name, value, env) env_put(get_symbol((name), (env)->symbol_map), (value), (env))
 
-#define env_def_fn(name, func, env, symbol_map) \
-  env_put(get_symbol((name), (symbol_map)), (Value) { .type = V_FUNCTION, .function_value = (func) }, (env))
+#define env_def_fn(name, func, env) \
+  env_put(get_symbol((name), (env)->symbol_map), (Value) { .type = V_FUNCTION, .function_value = (func) }, (env))
 
 int env_get(Symbol name, Value *value, Env *env);
 

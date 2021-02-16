@@ -49,14 +49,6 @@ static Value eval_apply(Node node, Env *env) {
   if (callee.type == V_FUNCTION) {
     return callee.function_value(args, env);
   } else if (callee.type == V_CLOSURE) {
-    Env *closure_env = create_env(env->arena, env->modules);
-    ObjectIterator it = iterate_object(callee.closure_value->env);
-    Value key, value;
-    while (object_iterator_next(&it, &key, &value)) {
-      if (key.type == V_SYMBOL) {
-        env_put(key.symbol_value, value, closure_env);
-      }
-    }
     int i = 0;
     while (callee.closure_value->params) {
       Value arg;
@@ -65,11 +57,11 @@ static Value eval_apply(Node node, Env *env) {
       } else {
         arg = nil_value;
       }
-      env_put(callee.closure_value->params->head, arg, closure_env);
+      env_put(callee.closure_value->params->head, arg, callee.closure_value->env);
       callee.closure_value->params = callee.closure_value->params->tail;
       i++;
     }
-    return interpret(callee.closure_value->body, closure_env);
+    return interpret(callee.closure_value->body, callee.closure_value->env);
   } else {
     eval_error(*node.apply_value.callee, "value of type %s is not a function", value_name(callee.type));
     return nil_value;

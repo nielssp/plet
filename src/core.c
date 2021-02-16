@@ -18,11 +18,11 @@ static Value string(const Tuple *args, Env *env) {
   return nil_value;
 }
 
-void import_core(Env *env, SymbolMap *symbol_map) {
-  env_def("nil", nil_value, env, symbol_map);
-  env_def("false", nil_value, env, symbol_map);
-  env_def("true", true_value, env, symbol_map);
-  env_def_fn("import", import, env, symbol_map);
-  env_def_fn("type", type, env, symbol_map);
-  env_def_fn("string", string, env, symbol_map);
+void import_core(Env *env) {
+  env_def("nil", nil_value, env);
+  env_def("false", nil_value, env);
+  env_def("true", true_value, env);
+  env_def_fn("import", import, env);
+  env_def_fn("type", type, env);
+  env_def_fn("string", string, env);
 }

@@ -30,10 +30,11 @@ static int entry_equals(const void *a, const void *b) {
 
 String *empty_string = &(String) { .size = 0 };
 
-Env *create_env(Arena *arena, ModuleMap *modules) {
+Env *create_env(Arena *arena, ModuleMap *modules, SymbolMap *symbol_map) {
   Env *env = arena_allocate(sizeof(Env), arena);
   env->arena = arena;
   env->modules = modules;
+  env->symbol_map = symbol_map;
   init_generic_hash_map(&env->global, sizeof(Entry), 0, entry_hash, entry_equals, arena);
   return env;
 }
@@ -199,6 +200,19 @@ static void *get_existing_ref(RefStack *ref_stack, void *old) {
   return NULL;
 }
 
+static Value copy_value_detect_cycles(Value value, Arena *arena, RefStack *ref_stack);
+
+static Env *copy_env(Env *env, Arena *arena, RefStack *ref_stack) {
+  Env *copy = create_env(arena, env->modules, env->symbol_map);
+  HashMapIterator it = generic_hash_map_iterate(&env->global);
+  Entry entry;
+  while (generic_hash_map_next(&it, &entry)) {
+    generic_hash_map_set(&copy->global, &(Entry) { .key = copy_value_detect_cycles(entry.key, arena, ref_stack),
+        .value = copy_value_detect_cycles(entry.value, arena, ref_stack) }, NULL, NULL);\
+  }
+  return copy;
+}
+
 static Value copy_value_detect_cycles(Value value, Arena *arena, RefStack *ref_stack) {
   switch (value.type) {
     case V_NIL:
@@ -246,8 +260,7 @@ static Value copy_value_detect_cycles(Value value, Arena *arena, RefStack *ref_s
       copy->params = value.closure_value->params;
       copy->body = value.closure_value->body;
       RefStack nested = (RefStack) { .next = ref_stack, .old = value.closure_value, .new = copy };
-      copy->env = copy_value_detect_cycles((Value) { .type = V_OBJECT, .object_value = value.closure_value->env },
-          arena, &nested).object_value;
+      copy->env = copy_env(value.closure_value->env, arena, &nested);
       return (Value) { .type = V_CLOSURE, .closure_value = copy };
     }
   }
@@ -424,11 +437,11 @@ Value create_closure(NameList *params, NameList *free_variables, Node body, Env 
   Closure *closure = arena_allocate(sizeof(Closure), arena);
   closure->params = params;
   closure->body = body;
-  closure->env = create_object(0, arena).object_value;
+  closure->env = create_env(arena, env->modules, env->symbol_map);
   for (NameList *name = free_variables; name; name = name->tail) {
     Value value;
     if (env_get(name->head, &value, env)) {
-      object_put(closure->env, create_symbol(name->head), value, arena);
+      env_put(name->head, value, closure->env);
     }
   }
   return (Value) { .type = V_CLOSURE, .closure_value = closure };
