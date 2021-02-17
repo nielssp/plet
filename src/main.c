@@ -65,6 +65,7 @@ int main(int argc, char *argv[]) {
   Arena *arena = create_arena();
   Env *env = create_env(arena, modules, symbol_map);
   import_core(env);
+  import_strings(env);
   Value output = interpret(*module->root, env);
   if (output.type == V_STRING) {
     for (size_t i = 0 ; i < output.string_value->size; i++) {

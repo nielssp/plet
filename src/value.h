@@ -124,12 +124,18 @@ void env_put(Symbol name, Value value, Env *env);
 #define check_args(length, args, env) \
   do {\
     if ((args)->size < (length)) {\
-      env_error((env), -1, "Too few arguments for function, %d expected", (length));\
+      env_error((env), -1, "too few arguments for function, %d expected", (length));\
       return nil_value;\
     } else if ((args)->size > (length)) {\
-      env_error((env), (length), "Too many arguments for function, %d expected", (length));\
+      env_error((env), (length), "too many arguments for function, %d expected", (length));\
       return nil_value;\
     }\
+  } while (0)
+
+#define arg_type_error(index, expected_type, args, env) \
+  do {\
+    env_error((env), index, "unexpected argument of type %s, %s expected", value_name(args->values[index].type), value_name(expected_type));\
+    return nil_value;\
   } while (0)
 
 int env_get(Symbol name, Value *value, Env *env);
@@ -151,6 +157,8 @@ void value_to_string(Value value, Buffer *buffer);
 const char *value_name(ValueType type);
 
 Value create_string(const uint8_t *bytes, size_t size, Arena *arena);
+
+Value allocate_string(size_t size, Arena *arena);
 
 Value create_array(size_t capacity, Arena *arena);
 

@@ -10,6 +10,10 @@
 
 static Value import(const Tuple *args, Env *env) {
   check_args(1, args, env);
+  Value name = args->values[0];
+  if (name.type != V_STRING) {
+    arg_type_error(0, V_STRING, args, env);
+  }
   return nil_value;
 }
 
