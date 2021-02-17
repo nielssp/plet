@@ -123,10 +123,35 @@ static void json_encode_value(Value value, Buffer *buffer) {
       buffer_printf(buffer, "\"");
       for (size_t i = 0; i < value.string_value->size; i++) {
         uint8_t byte = value.string_value->bytes[i];
-        if (byte < 32 || byte > 126) {
-          buffer_printf(buffer, "\\x%02x", byte);
-        } else {
-          buffer_put(buffer, byte);
+        switch (byte) {
+          case '"':
+            buffer_printf(buffer, "\\\"");
+            break;
+          case '\\':
+            buffer_printf(buffer, "\\\\");
+            break;
+          case '\x08':
+            buffer_printf(buffer, "\\b");
+            break;
+          case '\f':
+            buffer_printf(buffer, "\\f");
+            break;
+          case '\n':
+            buffer_printf(buffer, "\\n");
+            break;
+          case '\r':
+            buffer_printf(buffer, "\\r");
+            break;
+          case '\t':
+            buffer_printf(buffer, "\\t");
+            break;
+          default:
+            if (byte < 32 || byte > 126) {
+              buffer_printf(buffer, "\\x%02x", byte);
+            } else {
+              buffer_put(buffer, byte);
+            }
+            break;
         }
       }
       buffer_printf(buffer, "\"");
