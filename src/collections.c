@@ -259,12 +259,36 @@ static int compare_values(const void *pa, const void *pb) {
     case V_SYMBOL:
       return strcmp(a.symbol_value, b.symbol_value);
     case V_STRING:
-    case V_ARRAY:
+      return 0; // TODO: ICU
+    case V_ARRAY: {
+      size_t length = a.array_value->size > b.array_value->size ? a.array_value->size : b.array_value->size;
+      for (size_t i = 0; i < length; i++) {
+        int subresult = compare_values(&a.array_value->cells[i], &b.array_value->cells[i]);
+        if (subresult) {
+          return subresult;
+        }
+      }
+      if (a.array_value->size > b.array_value->size) {
+        return 1;
+      }
+      if (a.array_value->size < b.array_value->size) {
+        return -1;
+      }
+      return 0;
+    }
     case V_OBJECT:
+      return 0;
     case V_TIME:
+      if (a.time_value < b.time_value) {
+        return -1;
+      } else if (a.time_value > b.time_value) {
+        return 1;
+      } else {
+        return 0;
+      }
     case V_FUNCTION:
     case V_CLOSURE:
-      return 0; //TODO
+      return 0;
   }
   return 0;
 }
@@ -349,8 +373,8 @@ static int sort_by_compare(const void *pa, const void *pb, void *pc) {
   func_args->size = 1;
   func_args->values[0] = a;
   Value result_a, result_b;
-  // TODO: don't apply function to the same element multiple time, maybe map all
-  // first?
+  // TODO: don't apply function to the same element multiple times, maybe start
+  // by applying function to all elements, then sort by results aftwerwards?
   if (!apply(context->func, func_args, &result_a, context->env)) {
     return 0;
   }
@@ -412,6 +436,95 @@ static Value sort_by_desc(const Tuple *args, Env *env) {
   return dest;
 }
 
+static Value take(const Tuple *args, Env *env) {
+  check_args(2, args, env);
+  Value src = args->values[0];
+  if (src.type != V_ARRAY) {
+    arg_type_error(0, V_ARRAY, args, env);
+    return nil_value;
+  }
+  Value n = args->values[1];
+  if (n.type != V_INT) {
+    arg_type_error(1, V_INT, args, env);
+    return nil_value;
+  }
+  if (n.int_value > src.array_value->size) {
+    n.int_value = src.array_value->size;
+  }
+  Value dest = create_array(n.int_value, env->arena);
+  if (n.int_value > 0) {
+    dest.array_value->size = n.int_value;
+    memcpy(dest.array_value->cells, src.array_value->cells, dest.array_value->size * sizeof(Value));
+  }
+  return dest;
+}
+
+static Value drop(const Tuple *args, Env *env) {
+  check_args(2, args, env);
+  Value src = args->values[0];
+  if (src.type != V_ARRAY) {
+    arg_type_error(0, V_ARRAY, args, env);
+    return nil_value;
+  }
+  Value n = args->values[1];
+  if (n.type != V_INT) {
+    arg_type_error(1, V_INT, args, env);
+    return nil_value;
+  }
+  if (n.int_value > src.array_value->size) {
+    n.int_value = src.array_value->size;
+  }
+  Value dest = create_array(src.array_value->size - n.int_value, env->arena);
+  if (n.int_value < src.array_value->size) {
+    dest.array_value->size = src.array_value->size - n.int_value;
+    memcpy(dest.array_value->cells, src.array_value->cells + n.int_value, dest.array_value->size * sizeof(Value));
+  }
+  return dest;
+}
+
+static Value pop(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  Value src = args->values[0];
+  if (src.type != V_ARRAY) {
+    arg_type_error(0, V_ARRAY, args, env);
+    return nil_value;
+  }
+  Value element;
+  if (array_pop(src.array_value, &element)) {
+    return element;
+  }
+  return nil_value;
+}
+
+static Value push(const Tuple *args, Env *env) {
+  check_args(2, args, env);
+  Value src = args->values[0];
+  if (src.type != V_ARRAY) {
+    arg_type_error(0, V_ARRAY, args, env);
+    return nil_value;
+  }
+  array_push(src.array_value, args->values[1], env->arena);
+  return src;
+}
+
+static Value push_all(const Tuple *args, Env *env) {
+  check_args(2, args, env);
+  Value src = args->values[0];
+  if (src.type != V_ARRAY) {
+    arg_type_error(0, V_ARRAY, args, env);
+    return nil_value;
+  }
+  Value elements = args->values[1];
+  if (src.type != V_ARRAY) {
+    arg_type_error(1, V_ARRAY, args, env);
+    return nil_value;
+  }
+  for (size_t i = 0; i < elements.array_value->size; i++) {
+    array_push(src.array_value, elements.array_value->cells[i], env->arena);
+  }
+  return src;
+}
+
 void import_collections(Env *env) {
   env_def_fn("length", length, env);
   env_def_fn("keys", keys, env);
@@ -424,4 +537,9 @@ void import_collections(Env *env) {
   env_def_fn("sort_with", sort_with, env);
   env_def_fn("sort_by", sort_by, env);
   env_def_fn("sort_by_desc", sort_by_desc, env);
+  env_def_fn("take", take, env);
+  env_def_fn("drop", drop, env);
+  env_def_fn("pop", pop, env);
+  env_def_fn("push", push, env);
+  env_def_fn("push_all", push_all, env);
 }
