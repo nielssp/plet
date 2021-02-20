@@ -4,12 +4,11 @@
  * See the LICENSE file or http://opensource.org/licenses/MIT for more information.
  */
 
-#ifndef INTERPRETER_H
-#define INTERPRETER_H
+#ifndef COLLECTIONS_H
+#define COLLECTIONS_H
 
 #include "value.h"
 
-int apply(Value func, const Tuple *args, Value *return_value, Env *env);
-Value interpret(Node node, Env *env);
+void import_collections(Env *env);
 
 #endif

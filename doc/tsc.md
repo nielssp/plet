@@ -221,8 +221,9 @@ json(var: any): string
 length(collection: array|object|string): int
 keys(obj: object): array
 values(obj: object): array
-map(collection: array|object, f: func): array
+map(collection: array|object, f: func): array|object
 map_keys(obj: object, f: func): object
+flat_map(collection: array, f: func): array
 filter(collection: array|object, predicate: func): array
 exclude(collection: array|object, predicate: func): array
 sort(array: array): array

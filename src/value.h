@@ -124,17 +124,23 @@ void env_put(Symbol name, Value value, Env *env);
 #define check_args(length, args, env) \
   do {\
     if ((args)->size < (length)) {\
-      env_error((env), -1, "too few arguments for function, %d expected", (length));\
+      env_error((env), -1, "%s: too few arguments for function, %d expected", __func__, (length));\
       return nil_value;\
     } else if ((args)->size > (length)) {\
-      env_error((env), (length), "too many arguments for function, %d expected", (length));\
+      env_error((env), (length), "%s: too many arguments for function, %d expected", __func__, (length));\
       return nil_value;\
     }\
   } while (0)
 
 #define arg_type_error(index, expected_type, args, env) \
   do {\
-    env_error((env), index, "unexpected argument of type %s, %s expected", value_name(args->values[index].type), value_name(expected_type));\
+    env_error((env), index, "%s: unexpected argument of type %s, %s expected", __func__, value_name(args->values[index].type), value_name(expected_type));\
+    return nil_value;\
+  } while (0)
+
+#define arg_error(index, expected, args, env) \
+  do {\
+    env_error((env), index, "%s: unexpected argument of type %s, %s expected", __func__, value_name(args->values[index].type), expected);\
     return nil_value;\
   } while (0)
 

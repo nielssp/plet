@@ -30,6 +30,33 @@ static void eval_error(Node node, const char *format, ...) {
   }
 }
 
+int apply(Value func, const Tuple *args, Value *return_value, Env *env) {
+  if (func.type == V_FUNCTION) {
+    env_clear_error(env);
+    *return_value = func.function_value(args, env);
+    return !env->error;
+  } else if (func.type == V_CLOSURE) {
+    int i = 0;
+    NameList *params = func.closure_value->params;
+    while (params) {
+      Value arg;
+      if (i < args->size) {
+        arg = args->values[i];
+      } else {
+        arg = nil_value;
+      }
+      env_put(params->head, arg, func.closure_value->env);
+      params = params->tail;
+      i++;
+    }
+    *return_value =  interpret(func.closure_value->body, func.closure_value->env);
+    return 1;
+  } else {
+    env_error(env, -1, "value of type %s is not a function", value_name(func.type));
+    return 0;
+  }
+}
+
 static Value eval_apply(Node node, Env *env) {
   Tuple *args = alloca(sizeof(Tuple) + LL_SIZE(node.apply_value.args) * sizeof(Value));
   args->size = LL_SIZE(node.apply_value.args);
@@ -66,15 +93,16 @@ static Value eval_apply(Node node, Env *env) {
     return return_value;
   } else if (callee.type == V_CLOSURE) {
     int i = 0;
-    while (callee.closure_value->params) {
+    NameList *params = callee.closure_value->params;
+    while (params) {
       Value arg;
       if (i < args->size) {
         arg = args->values[i];
       } else {
         arg = nil_value;
       }
-      env_put(callee.closure_value->params->head, arg, callee.closure_value->env);
-      callee.closure_value->params = callee.closure_value->params->tail;
+      env_put(params->head, arg, callee.closure_value->env);
+      params = params->tail;
       i++;
     }
     return interpret(callee.closure_value->body, callee.closure_value->env);
