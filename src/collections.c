@@ -7,42 +7,17 @@
 #include "collections.h"
 
 #include "interpreter.h"
+#include "util/sort_r.h"
 
 #include <alloca.h>
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(_GNU_SOURCE) || defined(__GNU__) || defined(__linux__)
-#define SORT_R(BASE, NMEMB, SIZE, COMPAR, ARG) \
-  qsort_r((BASE), (NMEMB), (SIZE), (COMPAR), (ARG))
-#elif defined(__APPLE__) || defined(__MACH__) || defined(__DARWIN__) || \
-    defined (__FREEBSD__) || defined(__BSD__) || \
-    defined (OpenBSD3_1) || defined (OpenBSD3_9)
-#define SORT_R(BASE, NMEMB, SIZE, COMPAR, ARG) \
-  do {\
-    SortData data = {(ARG), (COMPAR)};\
-    qsort_r((BASE), (NMEMB), (SIZE), &data, &sort_arg_swap);\
-  } while (0)
-#elif (defined _WIN32 || defined _WIN64 || defined __WINDOWS__)
-#define SORT_R(BASE, NMEMB, SIZE, COMPAR, ARG) \
-  do {\
-    SortData data = {(ARG), (COMPAR)};\
-    qsort_r(*(BASE), (NMEMB), (SIZE), &data, &sort_arg_swap);\
-  } while (0)
-#else
-#error No substitute for qsort_r found
-#endif
-
 typedef struct {
-  void *arg;
-  int (*compar)(const void *a1, const void *a2, void *aarg);
-} SortData;
-
-static int sort_arg_swap(void *p, const void *a, const void *b)
-{
-  SortData *data = (SortData *) p;
-  return (data->compar)(a, b, data->arg);
-}
+  Value func;
+  Env *env;
+  int reverse;
+} CompareContext;
 
 static Value length(const Tuple *args, Env *env) {
   check_args(1, args, env);
@@ -308,6 +283,135 @@ static Value sort(const Tuple *args, Env *env) {
   return dest;
 }
 
+static int sort_with_compare(const void *pa, const void *pb, void *pc) {
+  Value a = *(Value *) pa;
+  Value b = *(Value *) pb;
+  CompareContext *context = (CompareContext *) pc;
+  Tuple *func_args = alloca(sizeof(Tuple) + 2 * sizeof(Value));
+  func_args->size = 2;
+  func_args->values[0] = a;
+  func_args->values[1] = b;
+  Value result;
+  if (!apply(context->func, func_args, &result, context->env)) {
+    return 0;
+  }
+  if (result.type == V_INT) {
+    if (result.int_value < 0) {
+      return -1;
+    } else if (result.int_value > 0) {
+      return 1;
+    } else {
+      return 0;
+    }
+  } else if (result.type == V_FLOAT) {
+    if (result.float_value < 0) {
+      return -1;
+    } else if (result.float_value > 0) {
+      return 1;
+    } else {
+      return 0;
+    }
+  } else {
+    env_error(context->env, -1, "invalid comparator return value of type %s", value_name(result.type));
+    return 0;
+  }
+}
+
+static Value sort_with(const Tuple *args, Env *env) {
+  check_args(2, args, env);
+  Value src = args->values[0];
+  if (src.type != V_ARRAY) {
+    arg_type_error(0, V_ARRAY, args, env);
+    return nil_value;
+  }
+  Value func = args->values[1];
+  if (func.type != V_FUNCTION && func.type != V_CLOSURE) {
+    arg_type_error(1, V_FUNCTION, args, env);
+    return nil_value;
+  }
+  Value dest = create_array(src.array_value->size, env->arena);
+  memcpy(dest.array_value->cells, src.array_value->cells, src.array_value->size * sizeof(Value));
+  dest.array_value->size = src.array_value->size;
+  CompareContext context = {func, env, 0};
+  sort_r(dest.array_value->cells, dest.array_value->size, sizeof(Value), sort_with_compare, &context);
+  if (env->error) {
+    env->error_arg = 1;
+    return nil_value;
+  }
+  return dest;
+}
+
+static int sort_by_compare(const void *pa, const void *pb, void *pc) {
+  Value a = *(Value *) pa;
+  Value b = *(Value *) pb;
+  CompareContext *context = (CompareContext *) pc;
+  Tuple *func_args = alloca(sizeof(Tuple) + 2 * sizeof(Value));
+  func_args->size = 1;
+  func_args->values[0] = a;
+  Value result_a, result_b;
+  // TODO: don't apply function to the same element multiple time, maybe map all
+  // first?
+  if (!apply(context->func, func_args, &result_a, context->env)) {
+    return 0;
+  }
+  func_args->values[0] = b;
+  if (!apply(context->func, func_args, &result_b, context->env)) {
+    return 0;
+  }
+  if (context->reverse) {
+    return -compare_values(&result_a, &result_b);
+  }
+  return compare_values(&result_a, &result_b);
+}
+
+static Value sort_by(const Tuple *args, Env *env) {
+  check_args(2, args, env);
+  Value src = args->values[0];
+  if (src.type != V_ARRAY) {
+    arg_type_error(0, V_ARRAY, args, env);
+    return nil_value;
+  }
+  Value func = args->values[1];
+  if (func.type != V_FUNCTION && func.type != V_CLOSURE) {
+    arg_type_error(1, V_FUNCTION, args, env);
+    return nil_value;
+  }
+  Value dest = create_array(src.array_value->size, env->arena);
+  memcpy(dest.array_value->cells, src.array_value->cells, src.array_value->size * sizeof(Value));
+  dest.array_value->size = src.array_value->size;
+  CompareContext context = {func, env, 0};
+  sort_r(dest.array_value->cells, dest.array_value->size, sizeof(Value), sort_by_compare, &context);
+  if (env->error) {
+    env->error_arg = 1;
+    return nil_value;
+  }
+  return dest;
+}
+
+static Value sort_by_desc(const Tuple *args, Env *env) {
+  check_args(2, args, env);
+  Value src = args->values[0];
+  if (src.type != V_ARRAY) {
+    arg_type_error(0, V_ARRAY, args, env);
+    return nil_value;
+  }
+  Value func = args->values[1];
+  if (func.type != V_FUNCTION && func.type != V_CLOSURE) {
+    arg_type_error(1, V_FUNCTION, args, env);
+    return nil_value;
+  }
+  Value dest = create_array(src.array_value->size, env->arena);
+  memcpy(dest.array_value->cells, src.array_value->cells, src.array_value->size * sizeof(Value));
+  dest.array_value->size = src.array_value->size;
+  CompareContext context = {func, env, 1};
+  sort_r(dest.array_value->cells, dest.array_value->size, sizeof(Value), sort_by_compare, &context);
+  if (env->error) {
+    env->error_arg = 1;
+    return nil_value;
+  }
+  return dest;
+}
+
 void import_collections(Env *env) {
   env_def_fn("length", length, env);
   env_def_fn("keys", keys, env);
@@ -317,4 +421,7 @@ void import_collections(Env *env) {
   env_def_fn("filter", filter, env);
   env_def_fn("exclude", exclude, env);
   env_def_fn("sort", sort, env);
+  env_def_fn("sort_with", sort_with, env);
+  env_def_fn("sort_by", sort_by, env);
+  env_def_fn("sort_by_desc", sort_by_desc, env);
 }
