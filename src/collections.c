@@ -13,6 +13,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef WITH_UNICODE
+#include <unicode/ucol.h>
+#endif
+
 typedef struct {
   Value func;
   Env *env;
@@ -231,9 +235,10 @@ static Value exclude(const Tuple *args, Env *env) {
   }
 }
 
-static int compare_values(const void *pa, const void *pb) {
+static int compare_values(const void *pa, const void *pb, void *pc) {
   Value a = *(Value *) pa;
   Value b = *(Value *) pb;
+  CompareContext *context = (CompareContext *) pc;
   if (a.type != b.type) {
     return a.type - b.type;
   }
@@ -254,12 +259,44 @@ static int compare_values(const void *pa, const void *pb) {
       }
     case V_SYMBOL:
       return strcmp(a.symbol_value, b.symbol_value);
-    case V_STRING:
-      return 0; // TODO: ICU
+    case V_STRING: {
+#ifdef WITH_UNICODE
+      UErrorCode status = U_ZERO_ERROR;
+      char *locale = NULL; // TODO
+      UCollator *coll = ucol_open(locale, &status);
+      UCollationResult result = UCOL_EQUAL;
+      if (U_SUCCESS(status)) {
+        result = ucol_strcollUTF8(coll, (char *) a.string_value->bytes, a.string_value->size,
+            (char *) b.string_value->bytes, b.string_value->size, &status);
+      }
+      ucol_close(coll);
+      if (U_FAILURE(status)) {
+        env_error(context->env, -1, "collator error: %s", u_errorName(status));
+        return 0;
+      }
+      return result;
+#else
+      size_t length = a.string_value->size > b.string_value->size ? a.string_value->size : b.string_value->size;
+      for (size_t i = 0; i < length; i++) {
+        if (a.string_value->bytes[i] < b.string_value->bytes[i]) {
+          return -1;
+        } else if (a.string_value->bytes[i] > b.string_value->bytes[i]) {
+          return 1;
+        }
+      }
+      if (a.string_value->size > b.string_value->size) {
+        return 1;
+      }
+      if (a.string_value->size < b.string_value->size) {
+        return -1;
+      }
+      return 0;
+#endif
+    }
     case V_ARRAY: {
       size_t length = a.array_value->size > b.array_value->size ? a.array_value->size : b.array_value->size;
       for (size_t i = 0; i < length; i++) {
-        int subresult = compare_values(&a.array_value->cells[i], &b.array_value->cells[i]);
+        int subresult = compare_values(&a.array_value->cells[i], &b.array_value->cells[i], pc);
         if (subresult) {
           return subresult;
         }
@@ -299,7 +336,8 @@ static Value sort(const Tuple *args, Env *env) {
   Value dest = create_array(src.array_value->size, env->arena);
   memcpy(dest.array_value->cells, src.array_value->cells, src.array_value->size * sizeof(Value));
   dest.array_value->size = src.array_value->size;
-  qsort(dest.array_value->cells, dest.array_value->size, sizeof(Value), compare_values);
+  CompareContext context = {nil_value, env, 0};
+  sort_r(dest.array_value->cells, dest.array_value->size, sizeof(Value), compare_values, &context);
   return dest;
 }
 
@@ -379,9 +417,9 @@ static int sort_by_compare(const void *pa, const void *pb, void *pc) {
     return 0;
   }
   if (context->reverse) {
-    return -compare_values(&result_a, &result_b);
+    return -compare_values(&result_a, &result_b, pc);
   }
-  return compare_values(&result_a, &result_b);
+  return compare_values(&result_a, &result_b, pc);
 }
 
 static Value sort_by(const Tuple *args, Env *env) {
