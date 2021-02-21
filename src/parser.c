@@ -800,5 +800,6 @@ Module *parse(TokenStream tokens, const char *file_name) {
   ASSIGN_NODE(m->root, parse_template(&parser));
   expect_type(T_EOF, &parser);
   delete_name_list(parser.free_variables);
+  m->parse_error = parser.errors;
   return m;
 }

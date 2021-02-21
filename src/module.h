@@ -15,6 +15,7 @@ typedef struct ModuleMap ModuleMap;
 struct Module {
   char *file_name;
   Node *root;
+  int parse_error;
 };
 
 Module *create_module(const char *file_name);

@@ -58,28 +58,33 @@ int main(int argc, char *argv[]) {
   SymbolMap *symbol_map = create_symbol_map();
   Reader *reader = open_reader(in, infile, symbol_map);
   TokenStream tokens = read_all(reader, 0);
-  Module *module = parse(tokens, infile);
-  close_reader(reader);
-  fclose(in);
+  if (!reader_errors(reader)) {
+    Module *module = parse(tokens, infile);
+    close_reader(reader);
+    fclose(in);
 
-  ModuleMap *modules = create_module_map();
-  add_module(module, modules);
+    if (!module->parse_error) {
+      ModuleMap *modules = create_module_map();
+      add_module(module, modules);
 
-  Arena *arena = create_arena();
-  Env *env = create_env(arena, modules, symbol_map);
-  import_core(env);
-  import_strings(env);
-  import_collections(env);
-  import_datetime(env);
-  Value output = interpret(*module->root, env);
-  if (output.type == V_STRING) {
-    for (size_t i = 0 ; i < output.string_value->size; i++) {
-      putchar((char) output.string_value->bytes[i]);
+      Arena *arena = create_arena();
+      Env *env = create_env(arena, modules, symbol_map);
+      import_core(env);
+      import_strings(env);
+      import_collections(env);
+      import_datetime(env);
+      Value output = interpret(*module->root, env);
+      if (output.type == V_STRING) {
+        for (size_t i = 0 ; i < output.string_value->size; i++) {
+          putchar((char) output.string_value->bytes[i]);
+        }
+      }
+      delete_arena(arena);
+      delete_module_map(modules);
     }
+  } else {
+    close_reader(reader);
   }
-  delete_arena(arena);
-
-  delete_module_map(modules);
   delete_symbol_map(symbol_map);
   return 0;
 }

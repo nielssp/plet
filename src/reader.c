@@ -622,6 +622,20 @@ TokenStream read_all(Reader *r, int template) {
   if (!template) {
     push_paren(r, '{');
   }
+  if (peek(r) == 0xef && peek_n(2, r) == 0xbb && peek_n(3, r) == 0xbf) {
+    // UTF-8 BOM
+    pop(r);
+    pop(r);
+    pop(r);
+  } else if (peek(r) == 0xfe && peek_n(2, r) == 0xff) {
+    // UTF-16 BE BOM
+    reader_error(r, "invalid file encoding, UTF-8 expected");
+    r->errors++;
+  } else if (peek(r) == 0xff && peek_n(2, r) == 0xfe) {
+    // UTF-16 LE BOM
+    reader_error(r, "invalid file encoding, UTF-8 expected");
+    r->errors++;
+  }
   return (TokenStream) { .peek = (TokenStreamPeek) reader_peek_token,
     .pop = (TokenStreamPop) reader_pop_token,
     .context = r };

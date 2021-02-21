@@ -69,6 +69,7 @@ Module *create_module(const char *file_name) {
   Module *module = allocate(sizeof(Module));
   module->file_name = copy_string(file_name);
   module->root = NULL;
+  module->parse_error = 0;
   return module;
 }
 
