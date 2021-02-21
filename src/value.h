@@ -135,16 +135,10 @@ void env_put(Symbol name, Value value, Env *env);
   } while (0)
 
 #define arg_type_error(index, expected_type, args, env) \
-  do {\
-    env_error((env), index, "%s: unexpected argument of type %s, %s expected", __func__, value_name(args->values[index].type), value_name(expected_type));\
-    return nil_value;\
-  } while (0)
+  env_error((env), index, "%s: unexpected argument of type %s, %s expected", __func__, value_name(args->values[index].type), value_name(expected_type))\
 
 #define arg_error(index, expected, args, env) \
-  do {\
-    env_error((env), index, "%s: unexpected argument of type %s, %s expected", __func__, value_name(args->values[index].type), expected);\
-    return nil_value;\
-  } while (0)
+  env_error((env), index, "%s: unexpected argument of type %s, %s expected", __func__, value_name(args->values[index].type), expected)\
 
 int env_get(Symbol name, Value *value, Env *env);
 

@@ -300,7 +300,7 @@ static int read_escape_sequence(Reader *r, Buffer *buffer, int double_quote) {
       buffer_put(buffer, c);
       break;
     case 'b':
-      buffer_put(buffer, '\x08');
+      buffer_put(buffer, '\b');
       break;
     case 'f':
       buffer_put(buffer, '\f');

@@ -35,6 +35,7 @@ static Value length(const Tuple *args, Env *env) {
       return create_int(arg.string_value->size);
     default:
       arg_error(0, "array|object|string", args, env);
+      return nil_value;
   }
 }
 
@@ -109,6 +110,7 @@ static Value map(const Tuple *args, Env *env) {
     return dest;
   } else {
     arg_error(0, "array|object", args, env);
+    return nil_value;
   }
 }
 
@@ -185,6 +187,7 @@ static Value filter(const Tuple *args, Env *env) {
     return dest;
   } else {
     arg_error(0, "array|object", args, env);
+    return nil_value;
   }
 }
 
@@ -232,6 +235,7 @@ static Value exclude(const Tuple *args, Env *env) {
     return dest;
   } else {
     arg_error(0, "array|object", args, env);
+    return nil_value;
   }
 }
 

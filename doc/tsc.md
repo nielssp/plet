@@ -244,7 +244,7 @@ contains(obj: array|object, key: any): nil|true
 delete(obj: object, key: any): nil|true
 ```
 
-### time
+### datetime
 
 ```
 now(): time

@@ -21,6 +21,7 @@ static Value lower(const Tuple *args, Env *env) {
   Value arg = args->values[0];
   if (arg.type != V_STRING) {
     arg_type_error(0, V_STRING, args, env);
+    return nil_value;
   }
   if (!arg.string_value->size) {
     return arg;
@@ -37,9 +38,10 @@ static Value lower(const Tuple *args, Env *env) {
     if (status == U_BUFFER_OVERFLOW_ERROR) {
       result = reallocate_string(result.string_value, result_len, env->arena);
       status = U_ZERO_ERROR;
-      ucasemap_utf8ToLower(case_map, (char *) result.string_value->bytes, result.string_value->size,
+      result_len = ucasemap_utf8ToLower(case_map, (char *) result.string_value->bytes, result.string_value->size,
           (char *) arg.string_value->bytes, arg.string_value->size, &status);
     }
+    result.string_value->size = result_len;
   }
   ucasemap_close(case_map);
   if (U_FAILURE(status)) {
@@ -63,6 +65,7 @@ static Value upper(const Tuple *args, Env *env) {
   Value arg = args->values[0];
   if (arg.type != V_STRING) {
     arg_type_error(0, V_STRING, args, env);
+    return nil_value;
   }
   if (!arg.string_value->size) {
     return arg;
@@ -79,9 +82,10 @@ static Value upper(const Tuple *args, Env *env) {
     if (status == U_BUFFER_OVERFLOW_ERROR) {
       result = reallocate_string(result.string_value, result_len, env->arena);
       status = U_ZERO_ERROR;
-      ucasemap_utf8ToUpper(case_map, (char *) result.string_value->bytes, result.string_value->size,
+      result_len = ucasemap_utf8ToUpper(case_map, (char *) result.string_value->bytes, result.string_value->size,
           (char *) arg.string_value->bytes, arg.string_value->size, &status);
     }
+    result.string_value->size = result_len;
   }
   ucasemap_close(case_map);
   if (U_FAILURE(status)) {
@@ -105,6 +109,7 @@ static Value title(const Tuple *args, Env *env) {
   Value arg = args->values[0];
   if (arg.type != V_STRING) {
     arg_type_error(0, V_STRING, args, env);
+    return nil_value;
   }
   if (!arg.string_value->size) {
     return arg;
@@ -121,9 +126,10 @@ static Value title(const Tuple *args, Env *env) {
     if (status == U_BUFFER_OVERFLOW_ERROR) {
       result = reallocate_string(result.string_value, result_len, env->arena);
       status = U_ZERO_ERROR;
-      ucasemap_utf8ToTitle(case_map, (char *) result.string_value->bytes, result.string_value->size,
+      result_len = ucasemap_utf8ToTitle(case_map, (char *) result.string_value->bytes, result.string_value->size,
           (char *) arg.string_value->bytes, arg.string_value->size, &status);
     }
+    result.string_value->size = result_len;
   }
   ucasemap_close(case_map);
   if (U_FAILURE(status)) {
@@ -151,10 +157,12 @@ static Value starts_with(const Tuple *args, Env *env) {
   Value obj = args->values[0];
   if (obj.type != V_STRING) {
     arg_type_error(0, V_STRING, args, env);
+    return nil_value;
   }
   Value prefix = args->values[1];
   if (prefix.type != V_STRING) {
     arg_type_error(1, V_STRING, args, env);
+    return nil_value;
   }
   if (!prefix.string_value->size) {
     return true_value;
@@ -175,10 +183,12 @@ static Value ends_with(const Tuple *args, Env *env) {
   Value obj = args->values[0];
   if (obj.type != V_STRING) {
     arg_type_error(0, V_STRING, args, env);
+    return nil_value;
   }
   Value prefix = args->values[1];
   if (prefix.type != V_STRING) {
     arg_type_error(1, V_STRING, args, env);
+    return nil_value;
   }
   if (!prefix.string_value->size) {
     return true_value;
@@ -199,6 +209,7 @@ static Value symbol(const Tuple *args, Env *env) {
   Value arg = args->values[0];
   if (arg.type != V_STRING) {
     arg_type_error(0, V_STRING, args, env);
+    return nil_value;
   }
   char *name = alloca(arg.string_value->size + 1);
   memcpy(name, arg.string_value->bytes, arg.string_value->size);
@@ -234,7 +245,7 @@ static void json_encode_value(Value value, Buffer *buffer) {
           case '\\':
             buffer_printf(buffer, "\\\\");
             break;
-          case '\x08':
+          case '\b':
             buffer_printf(buffer, "\\b");
             break;
           case '\f':
@@ -251,7 +262,7 @@ static void json_encode_value(Value value, Buffer *buffer) {
             break;
           default:
             if (byte < 32 || byte == 127) {
-              buffer_printf(buffer, "\\x%02x", byte);
+              buffer_printf(buffer, "\\x%02x", byte); // not valid json, use \uXXXX for valid unicode codepoints
             } else {
               buffer_put(buffer, byte);
             }
