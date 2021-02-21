@@ -74,6 +74,8 @@ struct Value {
 
 #define create_symbol(s) ((Value) { .type = V_SYMBOL, .symbol_value = (s) })
 
+#define create_time(i) ((Value) { .type = V_TIME, .time_value = (i) })
+
 struct String {
   size_t size;
   uint8_t bytes[];

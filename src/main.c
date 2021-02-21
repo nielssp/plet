@@ -6,6 +6,7 @@
 
 #include "collections.h"
 #include "core.h"
+#include "datetime.h"
 #include "interpreter.h"
 #include "parser.h"
 #include "reader.h"
@@ -69,6 +70,7 @@ int main(int argc, char *argv[]) {
   import_core(env);
   import_strings(env);
   import_collections(env);
+  import_datetime(env);
   Value output = interpret(*module->root, env);
   if (output.type == V_STRING) {
     for (size_t i = 0 ; i < output.string_value->size; i++) {

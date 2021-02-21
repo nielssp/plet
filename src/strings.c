@@ -250,7 +250,7 @@ static void json_encode_value(Value value, Buffer *buffer) {
             buffer_printf(buffer, "\\t");
             break;
           default:
-            if (byte < 32 || byte > 126) {
+            if (byte < 32 || byte == 127) {
               buffer_printf(buffer, "\\x%02x", byte);
             } else {
               buffer_put(buffer, byte);

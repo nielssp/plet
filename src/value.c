@@ -8,6 +8,7 @@
 
 #include "util.h"
 
+#include <errno.h>
 #include <inttypes.h>
 #include <string.h>
 
@@ -315,9 +316,21 @@ void value_to_string(Value value, Buffer *buffer) {
     case V_ARRAY:
     case V_OBJECT:
       break;
-    case V_TIME:
-      // TODO: ISO 8601
+    case V_TIME: {
+      struct tm *t;
+      char date[26];
+      t = localtime(&value.time_value);
+      if (t) {
+        if (strftime(date, sizeof(date), "%Y-%m-%dT%H:%M:%S%z", t)) {
+          buffer_printf(buffer, "%s", date);
+        } else {
+          buffer_printf(buffer, "(invalid time: %s)", strerror(errno));
+        }
+      } else {
+        buffer_printf(buffer, "(invalid time: %s)", strerror(errno));
+      }
       break;
+    }
     case V_FUNCTION:
     case V_CLOSURE:
       break;
