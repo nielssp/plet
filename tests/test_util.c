@@ -23,6 +23,19 @@ static void test_arena(void) {
   delete_arena(arena);
 }
 
+static void test_arena_reallocate(void) {
+  Arena *arena = create_arena();
+  char *p1 = arena_allocate(10, arena);
+  char *p2 = arena_reallocate(p1, 10, 20, arena);
+  assert(p1 == p2);
+  char *p3 = arena_allocate(10, arena);
+  assert(p3 == p1 + 20);
+  char *p4 = arena_reallocate(p2, 20, 30, arena);
+  assert(p4 != p2);
+  assert(p4 == p3 + 10);
+  delete_arena(arena);
+}
+
 static void test_buffer_printf(void) {
   Buffer buffer1 = create_buffer(0);
   for (int i = 0; i < 1000; i++) {
@@ -46,6 +59,7 @@ static void test_buffer_printf(void) {
 
 void test_util(void) {
   run_test(test_arena);
+  run_test(test_arena_reallocate);
   run_test(test_buffer_printf);
 }
 

@@ -166,6 +166,8 @@ Value create_string(const uint8_t *bytes, size_t size, Arena *arena);
 
 Value allocate_string(size_t size, Arena *arena);
 
+Value reallocate_string(String *string, size_t size, Arena *arena);
+
 Value create_array(size_t capacity, Arena *arena);
 
 void array_push(Array *array, Value elem, Arena *arena);

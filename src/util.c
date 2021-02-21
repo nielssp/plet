@@ -52,7 +52,7 @@ void *arena_allocate(size_t size, Arena *arena) {
     return allocate(size);
   }
   Arena *last = arena->last;
-  if (size < last->capacity - last->size) {
+  if (size <= last->capacity - last->size) {
     void *p = last->data + last->size;
     last->size += size;
     return p;
@@ -68,6 +68,18 @@ void *arena_allocate(size_t size, Arena *arena) {
     arena->last = new;
     return new->data;
   }
+}
+
+void *arena_reallocate(void *old, size_t old_size, size_t size, Arena *arena) {
+  if (!arena) {
+    return reallocate(old, size);
+  }
+  Arena *last = arena->last;
+  if (old != last->data + last->size - old_size || size - old_size > last->capacity - last->size) {
+    return arena_allocate(size, arena);
+  }
+  last->size += size - old_size;
+  return old;
 }
 
 char *copy_string(const char *src) {

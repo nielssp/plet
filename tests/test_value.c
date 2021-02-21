@@ -11,7 +11,8 @@
 static void test_env(void) {
   Arena *arena = create_arena();
   ModuleMap *modules = create_module_map();
-  Env *env = create_env(arena, modules);
+  SymbolMap *symbol_map = create_symbol_map();
+  Env *env = create_env(arena, modules, symbol_map);
   Value value;
   Symbol sym1 = "foo";
   assert(env_get(sym1, &value, env) == 0);
@@ -21,6 +22,7 @@ static void test_env(void) {
   assert(equals(value, value1));
   delete_arena(arena);
   delete_module_map(modules);
+  delete_symbol_map(symbol_map);
 }
 
 void test_value(void) {

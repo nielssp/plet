@@ -7,9 +7,14 @@
 #include "strings.h"
 
 #include <alloca.h>
+#include <ctype.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef WITH_UNICODE
+#include <unicode/ucasemap.h>
+#endif
 
 static Value lower(const Tuple *args, Env *env) {
   check_args(1, args, env);
@@ -22,14 +27,34 @@ static Value lower(const Tuple *args, Env *env) {
   }
   Value result = allocate_string(arg.string_value->size, env->arena);
   result.string_value->size = arg.string_value->size;
+#ifdef WITH_UNICODE
+  UErrorCode status = U_ZERO_ERROR;
+  char *locale = NULL; // TODO
+  UCaseMap *case_map = ucasemap_open(locale, U_FOLD_CASE_DEFAULT, &status);
+  if (U_SUCCESS(status)) {
+    int32_t result_len = ucasemap_utf8ToLower(case_map, (char *) result.string_value->bytes,
+        result.string_value->size, (char *) arg.string_value->bytes, arg.string_value->size, &status);
+    if (status == U_BUFFER_OVERFLOW_ERROR) {
+      result = reallocate_string(result.string_value, result_len, env->arena);
+      status = U_ZERO_ERROR;
+      ucasemap_utf8ToLower(case_map, (char *) result.string_value->bytes, result.string_value->size,
+          (char *) arg.string_value->bytes, arg.string_value->size, &status);
+    }
+  }
+  ucasemap_close(case_map);
+  if (U_FAILURE(status)) {
+    env_error(env, -1, "case map error: %s", u_errorName(status));
+    return nil_value;
+  }
+#else
   for (size_t i = 0; i < result.string_value->size; i++) {
     uint8_t byte = arg.string_value->bytes[i];
     if (byte >= 'A' && byte <= 'Z') {
       byte += 32;
-      // TODO: unicode support using ICU maybe?
     }
     result.string_value->bytes[i] = byte;
   }
+#endif
   return result;
 }
 
@@ -44,14 +69,80 @@ static Value upper(const Tuple *args, Env *env) {
   }
   Value result = allocate_string(arg.string_value->size, env->arena);
   result.string_value->size = arg.string_value->size;
+#ifdef WITH_UNICODE
+  UErrorCode status = U_ZERO_ERROR;
+  char *locale = NULL; // TODO
+  UCaseMap *case_map = ucasemap_open(locale, U_FOLD_CASE_DEFAULT, &status);
+  if (U_SUCCESS(status)) {
+    int32_t result_len = ucasemap_utf8ToUpper(case_map, (char *) result.string_value->bytes,
+        result.string_value->size, (char *) arg.string_value->bytes, arg.string_value->size, &status);
+    if (status == U_BUFFER_OVERFLOW_ERROR) {
+      result = reallocate_string(result.string_value, result_len, env->arena);
+      status = U_ZERO_ERROR;
+      ucasemap_utf8ToUpper(case_map, (char *) result.string_value->bytes, result.string_value->size,
+          (char *) arg.string_value->bytes, arg.string_value->size, &status);
+    }
+  }
+  ucasemap_close(case_map);
+  if (U_FAILURE(status)) {
+    env_error(env, -1, "case map error: %s", u_errorName(status));
+    return nil_value;
+  }
+#else
   for (size_t i = 0; i < result.string_value->size; i++) {
     uint8_t byte = arg.string_value->bytes[i];
     if (byte >= 'a' && byte <= 'z') {
       byte -= 32;
-      // TODO: unicode support using ICU maybe?
     }
     result.string_value->bytes[i] = byte;
   }
+#endif
+  return result;
+}
+
+static Value title(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  Value arg = args->values[0];
+  if (arg.type != V_STRING) {
+    arg_type_error(0, V_STRING, args, env);
+  }
+  if (!arg.string_value->size) {
+    return arg;
+  }
+  Value result = allocate_string(arg.string_value->size, env->arena);
+  result.string_value->size = arg.string_value->size;
+#ifdef WITH_UNICODE
+  UErrorCode status = U_ZERO_ERROR;
+  char *locale = NULL; // TODO
+  UCaseMap *case_map = ucasemap_open(locale, U_FOLD_CASE_DEFAULT, &status);
+  if (U_SUCCESS(status)) {
+    int32_t result_len = ucasemap_utf8ToTitle(case_map, (char *) result.string_value->bytes,
+        result.string_value->size, (char *) arg.string_value->bytes, arg.string_value->size, &status);
+    if (status == U_BUFFER_OVERFLOW_ERROR) {
+      result = reallocate_string(result.string_value, result_len, env->arena);
+      status = U_ZERO_ERROR;
+      ucasemap_utf8ToTitle(case_map, (char *) result.string_value->bytes, result.string_value->size,
+          (char *) arg.string_value->bytes, arg.string_value->size, &status);
+    }
+  }
+  ucasemap_close(case_map);
+  if (U_FAILURE(status)) {
+    env_error(env, -1, "case map error: %s", u_errorName(status));
+    return nil_value;
+  }
+#else
+  for (size_t i = 0; i < result.string_value->size; i++) {
+    uint8_t byte = arg.string_value->bytes[i];
+    if (i == 0 || isspace(arg.string_value->bytes[i - 1])) {
+      if (byte >= 'a' && byte <= 'z') {
+        byte -= 32;
+      }
+    } else if (byte >= 'A' && byte <= 'Z') {
+      byte += 32;
+    }
+    result.string_value->bytes[i] = byte;
+  }
+#endif
   return result;
 }
 
@@ -236,6 +327,7 @@ static Value json(const Tuple *args, Env *env) {
 void import_strings(Env *env) {
   env_def_fn("lower", lower, env);
   env_def_fn("upper", upper, env);
+  env_def_fn("title", title, env);
   env_def_fn("starts_with", starts_with, env);
   env_def_fn("ends_with", ends_with, env);
   env_def_fn("symbol", symbol, env);

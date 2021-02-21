@@ -49,6 +49,7 @@ Arena *create_arena(void);
 void delete_arena(Arena *arena);
 
 void *arena_allocate(size_t size, Arena *arena);
+void *arena_reallocate(void *old, size_t old_size, size_t size, Arena *arena);
 
 char *copy_string(const char *src);
 

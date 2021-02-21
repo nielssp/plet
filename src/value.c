@@ -370,6 +370,15 @@ Value allocate_string(size_t size, Arena *arena) {
   return (Value) { .type = V_STRING, .string_value = string };
 }
 
+Value reallocate_string(String *string, size_t size, Arena *arena) {
+  if (!size) {
+    return (Value) { .type = V_STRING, .string_value = empty_string };
+  }
+  string = arena_reallocate(string, sizeof(String) + string->size, sizeof(String) + size, arena);
+  string->size = size;
+  return (Value) { .type = V_STRING, .string_value = string };
+}
+
 Value create_array(size_t capacity, Arena *arena) {
   Array *array = arena_allocate(sizeof(Array), arena);
   array->capacity = capacity < INITIAL_ARRAY_CAPACITY ? INITIAL_ARRAY_CAPACITY : capacity;

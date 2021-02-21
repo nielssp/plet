@@ -211,6 +211,7 @@ string(val: any): string
 ```
 lower(str: string): string
 upper(str: string): string
+title(str: string): string
 starts_with(str: string, prefix: string): nil|true
 ends_with(str: string, suffix: string): nil|true
 symbol(str: string): symbol
