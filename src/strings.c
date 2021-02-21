@@ -6,6 +6,7 @@
 
 #include "strings.h"
 
+#include <alloca.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
@@ -100,6 +101,18 @@ static Value ends_with(const Tuple *args, Env *env) {
     }
   }
   return true_value;
+}
+
+static Value symbol(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  Value arg = args->values[0];
+  if (arg.type != V_STRING) {
+    arg_type_error(0, V_STRING, args, env);
+  }
+  char *name = alloca(arg.string_value->size + 1);
+  memcpy(name, arg.string_value->bytes, arg.string_value->size);
+  name[arg.string_value->size] = '\0';
+  return create_symbol(get_symbol(name, env->symbol_map));
 }
 
 static void json_encode_value(Value value, Buffer *buffer) {
@@ -225,5 +238,6 @@ void import_strings(Env *env) {
   env_def_fn("upper", upper, env);
   env_def_fn("starts_with", starts_with, env);
   env_def_fn("ends_with", ends_with, env);
+  env_def_fn("symbol", symbol, env);
   env_def_fn("json", json, env);
 }

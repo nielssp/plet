@@ -398,6 +398,26 @@ int array_pop(Array *array, Value *elem) {
   return 0;
 }
 
+void array_unshift(Array *array, Value elem, Arena *arena) {
+  size_t new_capacity = array->capacity + 1;
+  Value *new_cells = arena_allocate(new_capacity * sizeof(Value), arena);
+  memcpy(new_cells + 1, array->cells, array->capacity * sizeof(Value));
+  array->capacity = new_capacity;
+  array->cells[0] = elem;
+  array->size++;
+}
+
+int array_shift(Array *array, Value *elem) {
+  if (array->size) {
+    array->size--;
+    array->capacity--;
+    *elem = array->cells[0];
+    array->cells++;
+    return 1;
+  }
+  return 0;
+}
+
 Value create_object(size_t capacity, Arena *arena) {
   Object *object = arena_allocate(sizeof(Object), arena);
   object->capacity = capacity < INITIAL_ARRAY_CAPACITY ? INITIAL_ARRAY_CAPACITY : capacity;
@@ -423,7 +443,9 @@ void object_put(Object *object, Value key, Value value, Arena *arena) {
 int object_get(Object *object, Value key, Value *value) {
   for (size_t i = 0; i < object->size; i++) {
     if (equals(key, object->entries[i].key)) {
-      *value = object->entries[i].value;
+      if (value) {
+        *value = object->entries[i].value;
+      }
       return 1;
     }
   }
@@ -433,7 +455,9 @@ int object_get(Object *object, Value key, Value *value) {
 int object_remove(Object *object, Value key, Value *value) {
   for (size_t i = 0; i < object->size; i++) {
     if (equals(key, object->entries[i].key)) {
-      *value = object->entries[i].value;
+      if (value) {
+        *value = object->entries[i].value;
+      }
       if (i < object->size - 1) {
         memmove(&object->entries[i], &object->entries[i + 1], (object->size - i - 1) * sizeof(Entry));
       }

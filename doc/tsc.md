@@ -187,6 +187,7 @@ array
 object
 time
 function
+symbol
 
 any
 
@@ -212,6 +213,7 @@ lower(str: string): string
 upper(str: string): string
 starts_with(str: string, prefix: string): nil|true
 ends_with(str: string, suffix: string): nil|true
+symbol(str: string): symbol
 json(var: any): string
 ```
 
@@ -223,7 +225,6 @@ keys(obj: object): array
 values(obj: object): array
 map(collection: array|object, f: func): array|object
 map_keys(obj: object, f: func): object
-flat_map(collection: array, f: func): array
 filter(collection: array|object, predicate: func): array
 exclude(collection: array|object, predicate: func): array
 sort(array: array): array
@@ -238,7 +239,8 @@ push(array: array, element: any): array
 push_all(array: array, elements: array): array
 shift(array: array): any
 unshift(array: array, element: any): array
-delete(obj: object, key: string): any
+contains(obj: array|object, key: any): nil|true
+delete(obj: object, key: any): nil|true
 ```
 
 ### time

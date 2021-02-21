@@ -31,7 +31,6 @@ static Value length(const Tuple *args, Env *env) {
       return create_int(arg.string_value->size);
     default:
       arg_error(0, "array|object|string", args, env);
-      return nil_value;
   }
 }
 
@@ -106,7 +105,6 @@ static Value map(const Tuple *args, Env *env) {
     return dest;
   } else {
     arg_error(0, "array|object", args, env);
-    return nil_value;
   }
 }
 
@@ -183,7 +181,6 @@ static Value filter(const Tuple *args, Env *env) {
     return dest;
   } else {
     arg_error(0, "array|object", args, env);
-    return nil_value;
   }
 }
 
@@ -231,7 +228,6 @@ static Value exclude(const Tuple *args, Env *env) {
     return dest;
   } else {
     arg_error(0, "array|object", args, env);
-    return nil_value;
   }
 }
 
@@ -436,6 +432,51 @@ static Value sort_by_desc(const Tuple *args, Env *env) {
   return dest;
 }
 
+static Value group_by(const Tuple *args, Env *env) {
+  check_args(2, args, env);
+  Value src = args->values[0];
+  if (src.type != V_ARRAY) {
+    arg_type_error(0, V_ARRAY, args, env);
+    return nil_value;
+  }
+  Value func = args->values[1];
+  if (func.type != V_FUNCTION && func.type != V_CLOSURE) {
+    arg_type_error(1, V_FUNCTION, args, env);
+    return nil_value;
+  }
+  Value dest = create_array(0, env->arena);
+  Tuple *func_args = alloca(sizeof(Tuple) + 2 * sizeof(Value));
+  for (size_t i = 0; i < src.array_value->size; i++) {
+    func_args->size = 1;
+    func_args->values[0] = src.array_value->cells[i];
+    Value result_a, result_b;
+    // TODO: don't apply function to the same element multiple times, maybe start
+    // by applying function to all elements, then group by results aftwerwards?
+    if (!apply(func, func_args, &result_a, env)) {
+      env->error_arg = 1;
+      return nil_value;
+    }
+    size_t j;
+    for (j = 0; j < dest.array_value->size; j++) {
+      func_args->values[0] = dest.array_value->cells[j].array_value->cells[0];
+      if (!apply(func, func_args, &result_b, env)) {
+        env->error_arg = 1;
+        return nil_value;
+      }
+      if (equals(result_a, result_b)) {
+        array_push(dest.array_value->cells[j].array_value, src.array_value->cells[i], env->arena);
+        break;
+      }
+    }
+    if (j >= dest.array_value->size) {
+      Value new_array = create_array(0, env->arena);
+      array_push(new_array.array_value, src.array_value->cells[i], env->arena);
+      array_push(dest.array_value, new_array, env->arena);
+    }
+  }
+  return dest;
+}
+
 static Value take(const Tuple *args, Env *env) {
   check_args(2, args, env);
   Value src = args->values[0];
@@ -525,6 +566,64 @@ static Value push_all(const Tuple *args, Env *env) {
   return src;
 }
 
+static Value shift(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  Value src = args->values[0];
+  if (src.type != V_ARRAY) {
+    arg_type_error(0, V_ARRAY, args, env);
+    return nil_value;
+  }
+  Value element;
+  if (array_shift(src.array_value, &element)) {
+    return element;
+  }
+  return nil_value;
+}
+
+static Value unshift(const Tuple *args, Env *env) {
+  check_args(2, args, env);
+  Value src = args->values[0];
+  if (src.type != V_ARRAY) {
+    arg_type_error(0, V_ARRAY, args, env);
+    return nil_value;
+  }
+  array_unshift(src.array_value, args->values[1], env->arena);
+  return src;
+}
+
+static Value contains(const Tuple *args, Env *env) {
+  check_args(2, args, env);
+  Value src = args->values[0];
+  Value query = args->values[1];
+  if (src.type == V_ARRAY) {
+    for (size_t i = 0; i < src.array_value->size; i++) {
+      if (equals(src.array_value->cells[i], query)) {
+        return true_value;
+      }
+    }
+  } else if (src.type == V_OBJECT) {
+    if (object_get(src.object_value, query, NULL)) {
+      return true_value;
+    }
+  } else {
+    arg_error(0, "array|object", args, env);
+  }
+  return nil_value;
+}
+
+static Value delete(const Tuple *args, Env *env) {
+  check_args(2, args, env);
+  Value src = args->values[0];
+  if (src.type != V_OBJECT) {
+    arg_type_error(0, V_OBJECT, args, env);
+    return nil_value;
+  }
+  if (object_remove(src.object_value, args->values[1], NULL)) {
+    return true_value;
+  }
+  return nil_value;
+}
+
 void import_collections(Env *env) {
   env_def_fn("length", length, env);
   env_def_fn("keys", keys, env);
@@ -537,9 +636,14 @@ void import_collections(Env *env) {
   env_def_fn("sort_with", sort_with, env);
   env_def_fn("sort_by", sort_by, env);
   env_def_fn("sort_by_desc", sort_by_desc, env);
+  env_def_fn("group_by", group_by, env);
   env_def_fn("take", take, env);
   env_def_fn("drop", drop, env);
   env_def_fn("pop", pop, env);
   env_def_fn("push", push, env);
   env_def_fn("push_all", push_all, env);
+  env_def_fn("shift", shift, env);
+  env_def_fn("unshift", unshift, env);
+  env_def_fn("contains", contains, env);
+  env_def_fn("delete", delete, env);
 }

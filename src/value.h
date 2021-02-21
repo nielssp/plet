@@ -172,6 +172,10 @@ void array_push(Array *array, Value elem, Arena *arena);
 
 int array_pop(Array *array, Value *elem);
 
+void array_unshift(Array *array, Value elem, Arena *arena);
+
+int array_shift(Array *array, Value *elem);
+
 Value create_object(size_t capacity, Arena *arena);
 
 void object_put(Object *object, Value key, Value value, Arena *arena);
