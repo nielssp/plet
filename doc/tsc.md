@@ -18,11 +18,10 @@ commentSingle ::= '#' {any \ lf}   -- ignored
 
 lf ::= "\n"
 skip ::= " " | "\t" | "\r"    -- ignored
-skipLf ::= skip | lf         -- ignored
 
-paren ::= "(" {commandToken | skipLf} ")"
-bracket ::= "[" {commandToken |  skipLf} "]"
-brace ::= "{" {commandToken | skipLf} "}"
+paren ::= "(" {commandToken | lf | skip} ")"
+bracket ::= "[" {commandToken | lf |  skip} "]"
+brace ::= "{" {commandToken | lf | skip} "}"
 
 quote ::= '"' {quoteText | command} '"'
 
@@ -152,11 +151,11 @@ Key ::= int
       | string
       | name
 
-Atom ::= "[" [Expression {"," Expression} [","]] "]"
-       | "(" Expression ")"
-       | "{" [Key ":" Expression {"," Key ":" Expression} [","]] "}"
+Atom ::= "[" [Expression {"," Expression} [","]] "]"   -- ignore lf
+       | "(" Expression ")"   -- ignore lf
+       | "{" [Key ":" Expression {"," Key ":" Expression} [","]] "}"   -- ignore lf
        | '"' Template '"'
-       | "do" Block "end" "do"
+       | "do" Block "end" "do"   -- don't ignore lf
        | int
        | float
        | string

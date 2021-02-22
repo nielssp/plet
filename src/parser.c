@@ -23,6 +23,7 @@ typedef struct {
   NameList *free_variables;
   int errors;
   Pos end;
+  int ignore_lf;
 } Parser;
 
 static Node parse_expression(Parser *parser);
@@ -126,29 +127,41 @@ static void parser_error(Parser *parser, Token *token, const char *format, ...) 
   }
 }
 
+static Token *pop(Parser *parser) {
+  Token *t = pop_token(parser->tokens);
+  parser->end = t->end;
+  return t;
+}
+
+static void skip_lf_if_ignored(Parser *parser) {
+  if (parser->ignore_lf) {
+    while (peek_token(parser->tokens)->type == T_LF) {
+      pop(parser);
+    }
+  }
+}
+
 static int peek_type(TokenType type, Parser *parser) {
+  skip_lf_if_ignored(parser);
   return peek_token(parser->tokens)->type == type;
 }
 
 static int peek_keyword(const char *keyword, Parser *parser) {
+  skip_lf_if_ignored(parser);
   Token *t = peek_token(parser->tokens);
   return t->type == T_KEYWORD && strcmp(t->name_value, keyword) == 0;
 }
 
 static int peek_operator(const char *operator, Parser *parser) {
+  skip_lf_if_ignored(parser);
   Token *t = peek_token(parser->tokens);
   return t->type == T_OPERATOR && strcmp(t->operator_value, operator) == 0;
 }
 
 static int peek_punct(const char punct, Parser *parser) {
+  skip_lf_if_ignored(parser);
   Token *t = peek_token(parser->tokens);
   return t->type == T_PUNCT && t->punct_value == punct;
-}
-
-static Token *pop(Parser *parser) {
-  Token *t = pop_token(parser->tokens);
-  parser->end = t->end;
-  return t;
 }
 
 static Token *expect_type(TokenType type, Parser *parser) {
@@ -279,6 +292,8 @@ static Node parse_delimited(Parser *parser) {
   if (peek_punct('[', parser)) {
     Node list = create_node(N_LIST, parser);
     pop(parser);
+    int ignore_lf = parser->ignore_lf;
+    parser->ignore_lf = 1;
     if (!peek_punct(']', parser)) {
       NodeList *last_item = NULL;
       while (1) {
@@ -295,16 +310,22 @@ static Node parse_delimited(Parser *parser) {
       }
     }
     expect_punct(']', parser);
+    parser->ignore_lf = ignore_lf;
     list.end = parser->end;
     return list;
   } else if (peek_punct('(', parser)) {
     pop(parser);
+    int ignore_lf = parser->ignore_lf;
+    parser->ignore_lf = 1;
     Node expr = parse_expression(parser);
     expect_punct(')', parser);
+    parser->ignore_lf = ignore_lf;
     return expr;
   } else if (peek_punct('{', parser)) {
     Node object = create_node(N_OBJECT, parser);
     pop(parser);
+    int ignore_lf = parser->ignore_lf;
+    parser->ignore_lf = 1;
     if (!peek_punct('}', parser)) {
       PropertyList *last_property = NULL;
       while (1) {
@@ -334,12 +355,16 @@ static Node parse_delimited(Parser *parser) {
       }
     }
     expect_punct('}', parser);
+    parser->ignore_lf = ignore_lf;
     object.end = parser->end;
     return object;
   } else if (peek_keyword("do", parser)) {
     Pos start = pop(parser)->start;
+    int ignore_lf = parser->ignore_lf;
+    parser->ignore_lf = 0;
     Node block = parse_block(parser);
     expect_end("do", parser);
+    parser->ignore_lf = ignore_lf;
     block.start = start;
     block.end = parser->end;
     return block;
@@ -796,7 +821,7 @@ static Node parse_template(Parser *parser) {
 Module *parse(TokenStream tokens, const char *file_name) {
   Module *m = create_module(file_name);
   Parser parser = (Parser) { .tokens = tokens, .module = m, .free_variables = NULL, .errors = 0,
-    .end.line = 1, .end.column = 1 };
+    .end.line = 1, .end.column = 1, .ignore_lf = 0 };
   ASSIGN_NODE(m->root, parse_template(&parser));
   expect_type(T_EOF, &parser);
   delete_name_list(parser.free_variables);

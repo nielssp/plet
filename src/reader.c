@@ -447,9 +447,9 @@ static Token *read_number(Reader *r) {
   return token;
 }
 
-static void skip_ws(Reader *r, int skip_lf) {
+static void skip_ws(Reader *r) {
   int c = peek(r);
-  while (c == ' ' || c == '\t' || c == '\r' || (skip_lf && c == '\n')) {
+  while (c == ' ' || c == '\t' || c == '\r') {
     pop(r);
     c = peek(r);
   }
@@ -505,7 +505,7 @@ static Token *read_next_token(Reader *r) {
     return token;
   } else {
     int is_command = (top_paren == '{' && (!r->parens->next || (r->parens->next && r->parens->next->paren == '"')));
-    skip_ws(r, !is_command);
+    skip_ws(r);
     int c = peek(r);
     if (c == '\n') {
       Token *token = create_token(T_LF, r);
