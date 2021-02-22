@@ -10,6 +10,7 @@
 #include "interpreter.h"
 #include "parser.h"
 #include "reader.h"
+#include "sitemap.h"
 #include "strings.h"
 
 #include <errno.h>
@@ -73,6 +74,7 @@ int main(int argc, char *argv[]) {
       import_strings(env);
       import_collections(env);
       import_datetime(env);
+      import_sitemap(env);
       Value output = interpret(*module->root, env);
       if (output.type == V_STRING) {
         for (size_t i = 0 ; i < output.string_value->size; i++) {

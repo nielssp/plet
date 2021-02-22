@@ -38,6 +38,7 @@ Env *create_env(Arena *arena, ModuleMap *modules, SymbolMap *symbol_map) {
   env->symbol_map = symbol_map;
   env->error = NULL;
   env->error_arg = -1;
+  env->error_level = ENV_ERROR;
   init_generic_hash_map(&env->global, sizeof(Entry), 0, entry_hash, entry_equals, arena);
   return env;
 }
@@ -65,12 +66,42 @@ void env_error(Env *env, int arg, const char *format, ...) {
   buffer_put(&buffer, '\0');
   env->error = arena_allocate(buffer.size, env->arena);
   memcpy(env->error, buffer.data, buffer.size);
+  env->error_level = ENV_ERROR;
+  delete_buffer(buffer);
+}
+
+void env_warn(Env *env, int arg, const char *format, ...) {
+  va_list va;
+  env->error_arg = arg;
+  Buffer buffer = create_buffer(0);
+  va_start(va, format);
+  buffer_vprintf(&buffer, format, va);
+  va_end(va);
+  buffer_put(&buffer, '\0');
+  env->error = arena_allocate(buffer.size, env->arena);
+  memcpy(env->error, buffer.data, buffer.size);
+  env->error_level = ENV_WARN;
+  delete_buffer(buffer);
+}
+
+void env_info(Env *env, int arg, const char *format, ...) {
+  va_list va;
+  env->error_arg = arg;
+  Buffer buffer = create_buffer(0);
+  va_start(va, format);
+  buffer_vprintf(&buffer, format, va);
+  va_end(va);
+  buffer_put(&buffer, '\0');
+  env->error = arena_allocate(buffer.size, env->arena);
+  memcpy(env->error, buffer.data, buffer.size);
+  env->error_level = ENV_INFO;
   delete_buffer(buffer);
 }
 
 void env_clear_error(Env *env) {
   env->error = NULL;
   env->error_arg = -1;
+  env->error_level = ENV_ERROR;
 }
 
 int equals(Value a, Value b) {

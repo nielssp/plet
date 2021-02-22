@@ -26,12 +26,22 @@ typedef struct Closure Closure;
 
 typedef struct Tuple Tuple;
 
+#define ENV_ARG_ALL -1
+#define ENV_ARG_NONE -2
+
+typedef enum {
+  ENV_ERROR,
+  ENV_WARN,
+  ENV_INFO
+} EnvErrorLevel;
+
 typedef struct {
   Arena *arena;
   ModuleMap *modules;
   SymbolMap *symbol_map;
   char *error;
   int error_arg;
+  EnvErrorLevel error_level;
   GenericHashMap global;
 } Env;
 
@@ -126,10 +136,21 @@ void env_put(Symbol name, Value value, Env *env);
 #define check_args(length, args, env) \
   do {\
     if ((args)->size < (length)) {\
-      env_error((env), -1, "%s: too few arguments for function, %d expected", __func__, (length));\
+      env_error((env), ENV_ARG_ALL, "%s: too few arguments for function, %d expected", __func__, (length));\
       return nil_value;\
     } else if ((args)->size > (length)) {\
       env_error((env), (length), "%s: too many arguments for function, %d expected", __func__, (length));\
+      return nil_value;\
+    }\
+  } while (0)
+
+#define check_args_between(min, max, args, env) \
+  do {\
+    if ((args)->size < (min)) {\
+      env_error((env), ENV_ARG_ALL, "%s: too few arguments for function, %d expected", __func__, (min));\
+      return nil_value;\
+    } else if ((args)->size > (max)) {\
+      env_error((env), (max), "%s: too many arguments for function, %d expected", __func__, (max));\
       return nil_value;\
     }\
   } while (0)
@@ -143,6 +164,10 @@ void env_put(Symbol name, Value value, Env *env);
 int env_get(Symbol name, Value *value, Env *env);
 
 void env_error(Env *env, int arg, const char *format, ...);
+
+void env_warn(Env *env, int arg, const char *format, ...);
+
+void env_info(Env *env, int arg, const char *format, ...);
 
 void env_clear_error(Env *env);
 
