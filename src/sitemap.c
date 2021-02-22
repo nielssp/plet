@@ -8,6 +8,7 @@
 
 static Value add_static(const Tuple *args, Env *env) {
   check_args(1, args, env);
+  // recursively copy from SRC/ARG1 to BUILD/ARG1
   return nil_value;
 }
 

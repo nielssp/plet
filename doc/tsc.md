@@ -204,6 +204,9 @@ true: true
 import(name: string): nil
 type(val: any): string
 string(val: any): string
+error(message: string): nil
+warning(message: string): nil
+info(message: string): nil
 ```
 
 ### strings

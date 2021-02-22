@@ -7,9 +7,9 @@
 #define _GNU_SOURCE
 #include "datetime.h"
 
-#include <alloca.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -129,18 +129,20 @@ static Value date(const Tuple *args, Env *env) {
     arg_type_error(1, V_STRING, args, env);
     return nil_value;
   }
-  char *format_string = alloca(format.string_value->size + 1);
-  memcpy(format_string, format.string_value->bytes, format.string_value->size);
-  format_string[format.string_value->size] = '\0';
   struct tm *t = localtime(&arg);
   // TODO: improve
   char output[100];
   if (t) {
+    char *format_string = allocate(format.string_value->size + 1);
+    memcpy(format_string, format.string_value->bytes, format.string_value->size);
+    format_string[format.string_value->size] = '\0';
     size_t size = strftime(output, sizeof(output), format_string, t);
     if (size) {
+      free(format_string);
       return create_string((uint8_t *) output, size, env->arena);
     } else {
       env_error(env, -1, "date formatting error: empty result");
+      free(format_string);
       return nil_value;
     }
   } else {

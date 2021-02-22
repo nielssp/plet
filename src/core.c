@@ -6,7 +6,7 @@
 
 #include "core.h"
 
-#include <alloca.h>
+#include <stdlib.h>
 #include <string.h>
 
 static Value import(const Tuple *args, Env *env) {
@@ -41,10 +41,11 @@ static Value error(const Tuple *args, Env *env) {
     arg_type_error(0, V_STRING, args, env);
     return nil_value;
   }
-  char *message_string = alloca(message.string_value->size + 1);
+  char *message_string = allocate(message.string_value->size + 1);
   memcpy(message_string, message.string_value->bytes, message.string_value->size);
   message_string[message.string_value->size] = '\0';
   env_error(env, ENV_ARG_NONE, "%s", message_string);
+  free(message_string);
   return nil_value;
 }
 
@@ -55,10 +56,11 @@ static Value warning(const Tuple *args, Env *env) {
     arg_type_error(0, V_STRING, args, env);
     return nil_value;
   }
-  char *message_string = alloca(message.string_value->size + 1);
+  char *message_string = allocate(message.string_value->size + 1);
   memcpy(message_string, message.string_value->bytes, message.string_value->size);
   message_string[message.string_value->size] = '\0';
   env_warn(env, ENV_ARG_NONE, "%s", message_string);
+  free(message_string);
   return nil_value;
 }
 
@@ -69,10 +71,11 @@ static Value info(const Tuple *args, Env *env) {
     arg_type_error(0, V_STRING, args, env);
     return nil_value;
   }
-  char *message_string = alloca(message.string_value->size + 1);
+  char *message_string = allocate(message.string_value->size + 1);
   memcpy(message_string, message.string_value->bytes, message.string_value->size);
   message_string[message.string_value->size] = '\0';
   env_info(env, ENV_ARG_NONE, "%s", message_string);
+  free(message_string);
   return nil_value;
 }
 
