@@ -24,6 +24,13 @@
 #define WARN_LABEL SGR_BOLD_MAGENTA "warning: " SGR_RESET SGR_BOLD
 #define INFO_LABEL SGR_BOLD_CYAN "info: " SGR_RESET SGR_BOLD
 
+
+#if defined(_WIN32)
+#define PATH_SEP '\\'
+#else
+#define PATH_SEP '/'
+#endif
+
 typedef struct Arena Arena;
 
 typedef struct {
@@ -66,5 +73,8 @@ void buffer_printf(Buffer *buffer, const char *format, ...);
 
 size_t get_line_in_file(int line, char **output, FILE *f);
 void print_error_line(const char *file_name, Pos start, Pos end);
+
+char *combine_paths(const char *path1, const char *path2);
+int mkdir_rec(const char *path);
 
 #endif

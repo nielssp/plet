@@ -40,7 +40,7 @@ static void describe_option(const char *short_option, const char *long_option, c
 }
 
 static void print_help(const char *program_name) {
-  printf("usage: %s [options] <command>\n", program_name);
+  printf("usage: %s [options] <command> [<args>]\n", program_name);
   puts("options:");
   describe_option("h", "help", "Show help.");
   describe_option("v", "version", "Show version information.");
@@ -57,23 +57,29 @@ static int build(GlobalArgs args) {
   size_t length = strlen(cwd);
   char *index_path = allocate(length + 1 + name_length + 1);
   memcpy(index_path, cwd, length);
-  index_path[length] = '/';
+  index_path[length] = PATH_SEP;
   memcpy(index_path + length + 1, index_name, name_length + 1);
   FILE *index = fopen(index_path, "r");
   if (!index) {
     do {
       length--;
-      if (cwd[length] == '/') {
+      if (cwd[length] == PATH_SEP) {
         memcpy(index_path + length + 1, index_name, name_length + 1);
         index = fopen(index_path, "r");
         if (index) {
+          cwd[length] = '\0';
           break;
         }
       }
     } while (length > 0);
   }
   if (index) {
-    fprintf(stderr, INFO_LABEL "using %s" SGR_RESET "\n", index_path);
+    fprintf(stderr, INFO_LABEL "building %s" SGR_RESET "\n", index_path);
+    char *dist_dir = combine_paths(cwd, "dist");
+    if (mkdir_rec(dist_dir)) {
+    }
+    free(dist_dir);
+    fclose(index);
   } else {
     fprintf(stderr, ERROR_LABEL "index.tss not found" SGR_RESET "\n");
   }

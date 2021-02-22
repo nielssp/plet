@@ -6,9 +6,15 @@
 
 #include "util.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+
+#if defined(_WIN32)
+#include <io.h>
+#endif
 
 #define MIN_ARENA_SIZE 4096
 #define INITIAL_BUFFER_SIZE 32
@@ -16,7 +22,7 @@
 void *allocate(size_t size) {
   void *p = malloc(size);
   if (!p) {
-    fprintf(stderr, ERROR_LABEL "memory allocation failed!\n" SGR_RESET);
+    fprintf(stderr, ERROR_LABEL "memory allocation failed!" SGR_RESET "\n");
     exit(-1);
   }
   return p;
@@ -25,7 +31,7 @@ void *allocate(size_t size) {
 void *reallocate(void *old, size_t size) {
   void *new = realloc(old, size);
   if (!new) {
-    fprintf(stderr, ERROR_LABEL "memory allocation failed!\n" SGR_RESET);
+    fprintf(stderr, ERROR_LABEL "memory allocation failed!" SGR_RESET "\n");
     exit(-1);
   }
   return new;
@@ -222,4 +228,62 @@ void print_error_line(const char *file_name, Pos start, Pos end) {
     fprintf(stderr, "^");
   }
   fprintf(stderr, SGR_RESET "\n");
+}
+
+char *combine_paths(const char *path1, const char *path2) {
+  size_t length1 = strlen(path1);
+  size_t length2 = strlen(path2);
+  size_t combined_length = length1 + length2 + 2;
+  char *combined_path = allocate(combined_length);
+  memcpy(combined_path, path1, length1);
+  if (path1[length1 - 1] != PATH_SEP) {
+    combined_path[length1++] = PATH_SEP;
+  }
+  memcpy(combined_path + length1, path2, length2);
+  combined_path[length1 + length2] = '\0';
+  return combined_path;
+}
+
+static int check_dir(const char *path) {
+  struct stat stat_buffer;
+  if (stat(path, &stat_buffer) == 0 && S_ISDIR(stat_buffer.st_mode)) {
+    return 1;
+  }
+#if defined(_WIN32)
+  if (_mkdir(path) == 0) {
+    return 1;
+  }
+#else
+  if (mkdir(path, S_IRWXU) == 0) {
+    return 1;
+  }
+#endif
+  fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "directory creation failed: %s" SGR_RESET "\n", path, strerror(errno));
+  return 0;
+}
+
+int mkdir_rec(const char *path) {
+  size_t length = strlen(path);
+  char *buffer = allocate(length + 1);
+  char *p;
+  memcpy(buffer, path, length + 1);
+  if (buffer[length - 1] == PATH_SEP) {
+    buffer[length - 1] = 0;
+  }
+  for (p = buffer + 1; *p; p++) {
+    if (*p == PATH_SEP) {
+      *p = 0;
+      if (!check_dir(buffer)) {
+        free(buffer);
+        return 0;
+      }
+      *p = PATH_SEP;
+    }
+  }
+  if (!check_dir(buffer)) {
+    free(buffer);
+    return 0;
+  }
+  free(buffer);
+  return 1;
 }
