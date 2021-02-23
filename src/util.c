@@ -244,6 +244,44 @@ char *combine_paths(const char *path1, const char *path2) {
   return combined_path;
 }
 
+int is_dir(const char *path) {
+  struct stat stat_buffer;
+  return stat(path, &stat_buffer) == 0 && S_ISDIR(stat_buffer.st_mode);
+}
+
+int copy_file(const char *src_path, const char *dest_path) {
+  FILE *src = fopen(src_path, "r");
+  if (!src) {
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "copy error: %s" SGR_RESET "\n", src_path, strerror(errno));
+    return 0;
+  }
+  FILE *dest = fopen(dest_path, "w");
+  int status = 1;
+  if (!dest) {
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "copy error: %s" SGR_RESET "\n", dest_path, strerror(errno));
+    status = 0;
+  } else {
+    char *buffer = allocate(8192);
+    size_t n;
+    do {
+      n = fread(buffer, 1, 8192, src);
+      if (fwrite(buffer, 1, n, dest) != n) {
+        fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "copy error: %s" SGR_RESET "\n", dest_path, strerror(errno));
+        status = 0;
+        break;
+      }
+    } while (n == 8192);
+    if (status && !feof(src)) {
+      fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "copy error: %s" SGR_RESET "\n", src_path, strerror(errno));
+      status = 0;
+    }
+    free(buffer);
+    fclose(dest);
+  }
+  fclose(src);
+  return 1;
+}
+
 static int check_dir(const char *path) {
   struct stat stat_buffer;
   if (stat(path, &stat_buffer) == 0 && S_ISDIR(stat_buffer.st_mode)) {

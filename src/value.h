@@ -185,6 +185,10 @@ const char *value_name(ValueType type);
 
 Value create_string(const uint8_t *bytes, size_t size, Arena *arena);
 
+Value copy_c_string(const char *str, Arena *arena);
+
+char *string_to_c_string(String *string);
+
 Value allocate_string(size_t size, Arena *arena);
 
 Value reallocate_string(String *string, size_t size, Arena *arena);

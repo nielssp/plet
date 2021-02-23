@@ -75,6 +75,8 @@ size_t get_line_in_file(int line, char **output, FILE *f);
 void print_error_line(const char *file_name, Pos start, Pos end);
 
 char *combine_paths(const char *path1, const char *path2);
+int is_dir(const char *path);
+int copy_file(const char *src_path, const char *dest_path);
 int mkdir_rec(const char *path);
 
 #endif

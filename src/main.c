@@ -4,6 +4,7 @@
  * See the LICENSE file or http://opensource.org/licenses/MIT for more information.
  */
 
+#include "build.h"
 #include "collections.h"
 #include "core.h"
 #include "datetime.h"
@@ -19,13 +20,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-typedef struct {
-  char *program_name;
-  char *command_name;
-  int argc;
-  char **argv;
-} GlobalArgs;
 
 const char *short_options = "hvo:";
 
@@ -48,44 +42,6 @@ static void print_help(const char *program_name) {
   puts("  build             Build site from index.tss");
   puts("  eval <file>       Evaluate a single source file");
   puts("  init              Create a new site in the current directory");
-}
-
-static int build(GlobalArgs args) {
-  char *index_name = "index.tss";
-  size_t name_length = strlen(index_name);
-  char *cwd = getcwd(NULL, 0);
-  size_t length = strlen(cwd);
-  char *index_path = allocate(length + 1 + name_length + 1);
-  memcpy(index_path, cwd, length);
-  index_path[length] = PATH_SEP;
-  memcpy(index_path + length + 1, index_name, name_length + 1);
-  FILE *index = fopen(index_path, "r");
-  if (!index) {
-    do {
-      length--;
-      if (cwd[length] == PATH_SEP) {
-        memcpy(index_path + length + 1, index_name, name_length + 1);
-        index = fopen(index_path, "r");
-        if (index) {
-          cwd[length] = '\0';
-          break;
-        }
-      }
-    } while (length > 0);
-  }
-  if (index) {
-    fprintf(stderr, INFO_LABEL "building %s" SGR_RESET "\n", index_path);
-    char *dist_dir = combine_paths(cwd, "dist");
-    if (mkdir_rec(dist_dir)) {
-    }
-    free(dist_dir);
-    fclose(index);
-  } else {
-    fprintf(stderr, ERROR_LABEL "index.tss not found" SGR_RESET "\n");
-  }
-  free(index_path);
-  free(cwd);
-  return 0;
 }
 
 static int eval(GlobalArgs args) {

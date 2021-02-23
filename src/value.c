@@ -405,6 +405,17 @@ Value create_string(const uint8_t *bytes, size_t size, Arena *arena) {
   return (Value) { .type = V_STRING, .string_value = string };
 }
 
+Value copy_c_string(const char *str, Arena *arena) {
+  return create_string((uint8_t *) str, strlen(str), arena);
+}
+
+char *string_to_c_string(String *string) {
+  char *c_str = allocate(string->size + 1);
+  memcpy(c_str, string->bytes, string->size);
+  c_str[string->size] = '\0';
+  return c_str;
+}
+
 Value allocate_string(size_t size, Arena *arena) {
   if (!size) {
     return (Value) { .type = V_STRING, .string_value = empty_string };
