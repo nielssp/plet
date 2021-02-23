@@ -7,12 +7,16 @@
 #ifndef BUILD_H
 #define BUILD_H
 
+#include "value.h"
+
 typedef struct {
   char *program_name;
   char *command_name;
   int argc;
   char **argv;
 } GlobalArgs;
+
+Module *get_template(const char *name, Env *env);
 
 int build(GlobalArgs args);
 

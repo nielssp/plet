@@ -35,6 +35,34 @@ static void import_build_info(BuildInfo *build_info, Env *env) {
   env_def("DIST_ROOT", copy_c_string(build_info->dist_root, env->arena), env);
 }
 
+Module *get_template(const char *name, Env *env) {
+  Module *m = get_module(name, env->modules);
+  if (m) {
+    return m;
+  }
+  FILE *file = fopen(name, "r");
+  if (!file) {
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s", name, strerror(errno));
+    return NULL;
+  }
+  Reader *reader = open_reader(file, name, env->symbol_map);
+  TokenStream tokens = read_all(reader, 1);
+  if (reader_errors(reader)) {
+    close_reader(reader);
+    fclose(file);
+    return NULL;
+  }
+  m = parse(tokens, name);
+  close_reader(reader);
+  fclose(file);
+  if (m->parse_error) {
+    delete_module(m);
+    return NULL;
+  }
+  add_module(m, env->modules);
+  return m;
+}
+
 static int eval_script(FILE *file, const char *file_name, BuildInfo *build_info) {
   Reader *reader = open_reader(file, file_name, build_info->symbol_map);
   TokenStream tokens = read_all(reader, 0);

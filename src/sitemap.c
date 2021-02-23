@@ -6,6 +6,8 @@
 
 #include "sitemap.h"
 
+#include "build.h"
+
 #include <dirent.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -35,6 +37,40 @@ static int copy_static_files(const char *src_path, const char *dest_path) {
   return copy_file(src_path, dest_path);
 }
 
+static char *get_env_string(const char *name, Env *env) {
+  Value value;
+  if (!env_get(get_symbol(name, env->symbol_map), &value, env) || value.type != V_STRING) {
+    return NULL;
+  }
+  return string_to_c_string(value.string_value);
+}
+
+static char *get_src_path(String *path, Env *env) {
+  char *dir = get_env_string("DIR", env);
+  if (!dir) {
+    env_error(env, -1, "missing or invalid DIR");
+    return NULL;
+  }
+  char *path_str = string_to_c_string(path);
+  char *combined = combine_paths(dir, path_str);
+  free(path_str);
+  free(dir);
+  return combined;
+}
+
+static char *get_dist_path(String *path, Env *env) {
+  char *dir = get_env_string("DIST_ROOT", env);
+  if (!dir) {
+    env_error(env, -1, "missing or invalid DIST_ROOT");
+    return NULL;
+  }
+  char *path_str = string_to_c_string(path);
+  char *combined = combine_paths(dir, path_str);
+  free(path_str);
+  free(dir);
+  return combined;
+}
+
 static Value add_static(const Tuple *args, Env *env) {
   check_args(1, args, env);
   Value src_value = args->values[0];
@@ -42,33 +78,59 @@ static Value add_static(const Tuple *args, Env *env) {
     arg_type_error(0, V_STRING, args, env);
     return nil_value;
   }
-  Value dir_value, dist_root_value;
-  if (!env_get(get_symbol("DIR", env->symbol_map), &dir_value, env) || dir_value.type != V_STRING) {
-    env_error(env, -1, "missing or invalid DIR");
+  char *src_path = get_src_path(src_value.string_value, env);
+  if (!src_path) {
     return nil_value;
   }
-  if (!env_get(get_symbol("DIST_ROOT", env->symbol_map), &dist_root_value, env) || dist_root_value.type != V_STRING) {
-    env_error(env, -1, "missing or invalid DIST_ROOT");
+  char *dest_path = get_dist_path(src_value.string_value, env);
+  if (!dest_path) {
+    free(src_path);
     return nil_value;
   }
-  char *dir = string_to_c_string(dir_value.string_value);
-  char *src = string_to_c_string(src_value.string_value);
-  char *dist_root = string_to_c_string(dist_root_value.string_value);
-  char *src_path = combine_paths(dir, src);
-  char *dest_path = combine_paths(dist_root, src);
   if (!copy_static_files(src_path, dest_path)) {
     env_error(env, -1, "failed copying one or more files to dist");
   }
   free(dest_path);
   free(src_path);
-  free(dist_root);
-  free(src);
-  free(dir);
   return nil_value;
 }
 
 static Value add_page(const Tuple *args, Env *env) {
   check_args_between(2, 3, args, env);
+  Value dest_value = args->values[0];
+  if (dest_value.type != V_STRING) {
+    arg_type_error(0, V_STRING, args, env);
+    return nil_value;
+  }
+  Value src_value = args->values[1];
+  if (src_value.type != V_STRING) {
+    arg_type_error(1, V_STRING, args, env);
+    return nil_value;
+  }
+  Value data = nil_value;
+  if (args->size > 2) {
+    data = args->values[2];
+    if (data.type != V_OBJECT) {
+      arg_type_error(2, V_OBJECT, args, env);
+      return nil_value;
+    }
+  }
+  char *src_path = get_src_path(src_value.string_value, env);
+  if (!src_path) {
+    return nil_value;
+  }
+  char *dest_path = get_dist_path(dest_value.string_value, env);
+  if (!dest_path) {
+    free(src_path);
+    return nil_value;
+  }
+  Module *module = get_template(src_path, env);
+  if (!module) {
+    env_error(env, -1, "unable to load module");
+  } else {
+  }
+  free(dest_path);
+  free(src_path);
   return nil_value;
 }
 
