@@ -89,14 +89,24 @@ void delete_template_env(Env *env) {
 Value eval_template(Module *module, Value data, Env *env) {
   env_def("FILE", copy_c_string(module->file_name, env->arena), env);
   char *file_name_copy = copy_string(module->file_name);
-  char *dir = dirname(file_name_copy);
+  char *dir = copy_string(dirname(file_name_copy));
   env_def("DIR", copy_c_string(dir, env->arena), env);
   free(file_name_copy);
   Value content = interpret(*module->root, env);
   Value layout;
-  if (env_get(get_symbol("LAYOUT", env->symbol_map), &layout, env)) {
-    // TODO
+  if (env_get(get_symbol("LAYOUT", env->symbol_map), &layout, env) && layout.type == V_STRING) {
+    env_def("CONTENT", content, env);
+    env_def("LAYOUT", nil_value, env);
+    char *layout_name = string_to_c_string(layout.string_value);
+    char *layout_path = combine_paths(dir, layout_name);
+    Module *layout_module = get_template(layout_path, env);
+    if (layout_module) {
+      content = eval_template(layout_module, nil_value, env);
+    }
+    free(layout_path);
+    free(layout_name);
   }
+  free(dir);
   return content;
 }
 

@@ -10,6 +10,7 @@
 
 #include <dirent.h>
 #include <errno.h>
+#include <libgen.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -132,21 +133,28 @@ static Value add_page(const Tuple *args, Env *env) {
     Env *template_env = create_template_env(data, env);
     Value output = eval_template(module, data, template_env);
     if (output.type == V_STRING) {
-      FILE *dest = fopen(dest_path, "w");
-      int error = 0;
-      if (!dest) {
-        fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", dest_path, strerror(errno));
-        error = 1;
-      } else {
-        if (fwrite(output.string_value->bytes, 1, output.string_value->size, dest) != output.string_value->size) {
-          fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "write error: %s" SGR_RESET "\n", dest_path, strerror(errno));
+      char *dest_path_copy = copy_string(dest_path);
+      char *dir = dirname(dest_path_copy);
+      if (mkdir_rec(dir)) {
+        FILE *dest = fopen(dest_path, "w");
+        int error = 0;
+        if (!dest) {
+          fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", dest_path, strerror(errno));
           error = 1;
+        } else {
+          if (fwrite(output.string_value->bytes, 1, output.string_value->size, dest) != output.string_value->size) {
+            fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "write error: %s" SGR_RESET "\n", dest_path, strerror(errno));
+            error = 1;
+          }
+          fclose(dest);
         }
-        fclose(dest);
+        if (error) {
+          env_error(env, -1, "unable to write template output");
+        }
+      } else {
+        env_error(env, -1, "unable to create output directory");
       }
-      if (error) {
-        env_error(env, -1, "unable to write template output");
-      }
+      free(dest_path_copy);
     }
     delete_template_env(template_env);
   }

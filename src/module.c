@@ -52,11 +52,11 @@ void delete_module_map(ModuleMap *module_map) {
 }
 
 Module *get_module(const char *file_name, ModuleMap *module_map) {
-  Module *module;
+  ModuleEntry entry;
   ModuleEntry query;
   query.key = file_name;
-  if (generic_hash_map_get(&module_map->map, &query, &module)) {
-    return module;
+  if (generic_hash_map_get(&module_map->map, &query, &entry)) {
+    return entry.value;
   }
   return NULL;
 }
