@@ -63,6 +63,43 @@ Module *get_template(const char *name, Env *env) {
   return m;
 }
 
+Env *create_template_env(Value data, Env *parent) {
+  Arena *arena = create_arena();
+  Env *env = create_env(arena, parent->modules, parent->symbol_map);
+  import_core(env);
+  import_strings(env);
+  import_collections(env);
+  import_datetime(env);
+  if (data.type == V_OBJECT) {
+    ObjectIterator it = iterate_object(data.object_value);
+    Value entry_key, entry_value;
+    while (object_iterator_next(&it, &entry_key, &entry_value)) {
+      if (entry_key.type == V_SYMBOL) {
+        env_put(entry_key.symbol_value, copy_value(entry_value, arena), env);
+      }
+    }
+  }
+  return env;
+}
+
+void delete_template_env(Env *env) {
+  delete_arena(env->arena);
+}
+
+Value eval_template(Module *module, Value data, Env *env) {
+  env_def("FILE", copy_c_string(module->file_name, env->arena), env);
+  char *file_name_copy = copy_string(module->file_name);
+  char *dir = dirname(file_name_copy);
+  env_def("DIR", copy_c_string(dir, env->arena), env);
+  free(file_name_copy);
+  Value content = interpret(*module->root, env);
+  Value layout;
+  if (env_get(get_symbol("LAYOUT", env->symbol_map), &layout, env)) {
+    // TODO
+  }
+  return content;
+}
+
 static int eval_script(FILE *file, const char *file_name, BuildInfo *build_info) {
   Reader *reader = open_reader(file, file_name, build_info->symbol_map);
   TokenStream tokens = read_all(reader, 0);

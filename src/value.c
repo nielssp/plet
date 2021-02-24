@@ -146,12 +146,14 @@ int equals(Value a, Value b) {
       if (a.object_value->size != b.object_value->size) {
         return 0;
       }
-      for (size_t i = 0; i < a.object_value->size; i++) {
+      ObjectIterator it = iterate_object(a.object_value);
+      Value entry_key, entry_value;
+      while (object_iterator_next(&it, &entry_key, &entry_value)) {
         Value value;
-        if (!object_get(a.object_value, a.object_value->entries[i].key, &value)) {
+        if (!object_get(a.object_value, entry_key, &value)) {
           return 0;
         }
-        if (!equals(a.object_value->entries[i].value, value)) {
+        if (!equals(entry_value, value)) {
           return 0;
         }
       }
@@ -221,12 +223,15 @@ Hash value_hash(Hash h, Value value) {
         h = value_hash(h, value.array_value->cells[i]);
       }
       break;
-    case V_OBJECT:
-      for (size_t i = 0; i < value.object_value->size; i++) {
-        h = value_hash(h, value.object_value->entries[i].key);
-        h = value_hash(h, value.object_value->entries[i].value);
+    case V_OBJECT: {
+      ObjectIterator it = iterate_object(value.object_value);
+      Value entry_key, entry_value;
+      while (object_iterator_next(&it, &entry_key, &entry_value)) {
+        h = value_hash(h, entry_key);
+        h = value_hash(h, entry_value);
       }
       break;
+    }
     case V_TIME:
       for (int i = 0; i < sizeof(time_t); i++) {
         h = HASH_ADD_BYTE(GET_BYTE(i, value.int_value), h);
@@ -294,9 +299,11 @@ static Value copy_value_detect_cycles(Value value, Arena *arena, RefStack *ref_s
       }
       Value copy = create_object(value.object_value->size, arena);
       RefStack nested = (RefStack) { .next = ref_stack, .old = value.object_value, .new = copy.object_value };
-      for (size_t i = 0; i < value.object_value->size; i++) {
-        object_put(copy.object_value, copy_value_detect_cycles(value.object_value->entries[i].key, arena, &nested),
-            copy_value_detect_cycles(value.object_value->entries[i].value, arena, &nested), arena);
+      ObjectIterator it = iterate_object(value.object_value);
+      Value entry_key, entry_value;
+      while (object_iterator_next(&it, &entry_key, &entry_value)) {
+        object_put(copy.object_value, copy_value_detect_cycles(entry_key, arena, &nested),
+            copy_value_detect_cycles(entry_value, arena, &nested), arena);
       }
       return copy;
     }

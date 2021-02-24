@@ -430,7 +430,10 @@ static Value eval_if(Node node, Env *env) {
   if (is_truthy(cond)) {
     return interpret(*node.if_value.cons, env);
   }
-  return interpret(*node.if_value.alt, env);
+  if (node.if_value.alt) {
+    return interpret(*node.if_value.alt, env);
+  }
+  return nil_value;
 }
 
 static Value eval_for(Node node, Env *env) {

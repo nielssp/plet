@@ -172,7 +172,7 @@ Atom ::= "[" [Expression {"," Expression} [","]] "]"   -- ignore lf
 ```
 "." name_1 {"." name_n}
 =>
-"fn" newName -> newName "." name_1 {"." name_n}
+newName => newName "." name_1 {"." name_n}
 ```
 
 ```

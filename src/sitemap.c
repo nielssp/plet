@@ -11,6 +11,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 
 static int copy_static_files(const char *src_path, const char *dest_path) {
   if (is_dir(src_path)) {
@@ -128,6 +129,26 @@ static Value add_page(const Tuple *args, Env *env) {
   if (!module) {
     env_error(env, -1, "unable to load module");
   } else {
+    Env *template_env = create_template_env(data, env);
+    Value output = eval_template(module, data, template_env);
+    if (output.type == V_STRING) {
+      FILE *dest = fopen(dest_path, "w");
+      int error = 0;
+      if (!dest) {
+        fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", dest_path, strerror(errno));
+        error = 1;
+      } else {
+        if (fwrite(output.string_value->bytes, 1, output.string_value->size, dest) != output.string_value->size) {
+          fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "write error: %s" SGR_RESET "\n", dest_path, strerror(errno));
+          error = 1;
+        }
+        fclose(dest);
+      }
+      if (error) {
+        env_error(env, -1, "unable to write template output");
+      }
+    }
+    delete_template_env(template_env);
   }
   free(dest_path);
   free(src_path);
