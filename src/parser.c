@@ -109,6 +109,9 @@ static Node create_node(NodeType type, Parser *parser) {
     case N_BLOCK:
       node.block_value = NULL;
       break;
+    case N_SUPPRESS:
+      node.suppress_value = NULL;
+      break;
   }
   return node;
 }
@@ -437,6 +440,14 @@ static Node parse_delimited(Parser *parser) {
 static Node parse_apply_dot(Parser *parser) {
   Node expr = parse_delimited(parser);
   while (1) {
+    if (peek_operator("?", parser)) {
+      Node suppress = create_node(N_SUPPRESS, parser);
+      suppress.start = expr.start;
+      pop(parser);
+      ASSIGN_NODE(suppress.suppress_value, expr);
+      suppress.end = parser->end;
+      expr = suppress;
+    }
     if (peek_punct('(', parser)) {
       Node apply = create_node(N_APPLY, parser);
       apply.start = expr.start;

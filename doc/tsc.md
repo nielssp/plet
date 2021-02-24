@@ -146,10 +146,10 @@ AddSub ::= AddSub ("+" | "-") Negate
 Negate ::= "-" Negate
          | ApplyDot
 
-ApplyDot ::= ApplyDot "(" [Expression {"," Expression} [","]] ")"
-           | ApplyDot "." name
-           | ApplyDot "[" Expression "]"
-           | Atom
+ApplyDot ::= ApplyDot ["?"] "(" [Expression {"," Expression} [","]] ")"
+           | ApplyDot ["?"] "." name
+           | ApplyDot ["?"] "[" Expression "]"
+           | Atom ["?"]
 
 Key ::= int
       | float

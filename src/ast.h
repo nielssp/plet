@@ -65,7 +65,8 @@ typedef enum {
   N_FOR,
   N_SWITCH,
   N_ASSIGN,
-  N_BLOCK
+  N_BLOCK,
+  N_SUPPRESS
 } NodeType;
 
 typedef enum {
@@ -162,6 +163,7 @@ struct Node {
       InfixOperator operator;
     } assign_value;
     NodeList *block_value;
+    Node *suppress_value;
   };
 };
 

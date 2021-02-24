@@ -90,6 +90,9 @@ void delete_node(Node node) {
     case N_BLOCK:
       LL_DELETE(NodeList, node.block_value, delete_node);
       break;
+    case N_SUPPRESS:
+      DELETE_NODE(node.suppress_value);
+      break;
   }
 }
 

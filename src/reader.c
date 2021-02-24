@@ -195,7 +195,7 @@ static Token *read_name(Reader *r) {
 }
 
 static int is_operator_char(int c) {
-  return !!strchr("+-*/%!<>=|.,:", c);
+  return !!strchr("+-*/%!<>=|.,:?", c);
 }
 
 static Token *read_operator(Reader *r) {
