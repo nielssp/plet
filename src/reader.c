@@ -35,7 +35,7 @@ struct Reader {
 };
 
 const char *keywords[] = {
-  "if", "else", "for", "in", "switch", "case", "default", "end", "fn", "and", "or", "not", "do", NULL
+  "if", "else", "for", "in", "switch", "case", "default", "end", "and", "or", "not", "do", NULL
 };
 
 Reader *open_reader(FILE *file, const char *file_name, SymbolMap *symbol_map) {
@@ -203,12 +203,6 @@ static Token *read_operator(Reader *r) {
   token->operator_value[0] = (uint8_t) pop(r);
   token->operator_value[1] = '\0';
   switch (token->operator_value[0]) {
-    case '-':
-      if (peek(r) == '=' || peek(r) == '>') {
-        token->operator_value[1] = (uint8_t) pop(r);
-        token->operator_value[2] = '\0';
-      }
-      break;
     case '=':
       if (peek(r) == '=' || peek(r) == '>') {
         token->operator_value[1] = (uint8_t) pop(r);
@@ -216,6 +210,7 @@ static Token *read_operator(Reader *r) {
       }
       break;
     case '+':
+    case '-':
     case '*':
     case '/':
     case '<':

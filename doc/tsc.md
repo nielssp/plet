@@ -37,9 +37,9 @@ token ::= keyword
         | name
 
 keyword ::= "if" | "else" | "end" | "for" | "in" | "switch" | "case" | "default"
-          | "fn" | "do" | "and" | "or" | "not"
+          | "do" | "and" | "or" | "not"
 
-operator ::= "." | "," | ":" | "->" | "=>"
+operator ::= "." | "," | ":" | "=>"
            | "==" | "!=" | "<=" | ">=" | "<" | ">"
            | "=" | "+=" | "-=" | "*=" | "/="
            | "+" | "-" | "*" | "/" | "%"
@@ -113,8 +113,7 @@ Switch ::= "switch" Expression (lf | {lf} [text])
 
 Assignment ::= Expression [("=" | "+=" | "-=" | "*=" | "/=") Expression]
 
-Expression ::= "fn" [name {"," name} [","]] "->" Expression
-             | "." name {"." name}
+Expression ::= "." name {"." name}
              | FatArrow
 
 FatArrow ::= Tuple "=>" Expression

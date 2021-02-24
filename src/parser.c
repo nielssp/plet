@@ -670,36 +670,6 @@ static Node parse_fat_arrow(Parser *parser) {
   return fn;
 }
 
-static Node parse_fn(Parser *parser) {
-  Node fn = create_node(N_FN, parser);
-  expect_keyword("fn", parser);
-  if (peek_type(T_NAME, parser)) {
-    NameList *last_param = NULL;
-    LL_APPEND(NameList, fn.fn_value.params, last_param, parse_name(parser));
-    while (peek_operator(",", parser)) {
-      pop(parser);
-      if (peek_operator("->", parser)) {
-        break;
-      }
-      LL_APPEND(NameList, fn.fn_value.params, last_param, parse_name(parser));
-    }
-  }
-  expect_operator("->", parser);
-  NameList *previous_name_list = parser->free_variables;
-  parser->free_variables = NULL;
-  ASSIGN_NODE(fn.fn_value.body, parse_expression(parser));
-  for (NameList *name = fn.fn_value.params; name; name = name->tail) {
-    parser->free_variables = name_list_remove(name->head, parser->free_variables);
-  }
-  fn.fn_value.free_variables = parser->free_variables;
-  parser->free_variables = previous_name_list;
-  for (NameList *name = fn.fn_value.free_variables; name; name = name->tail) {
-    parser->free_variables = name_list_put(name->head, parser->free_variables);
-  }
-  fn.end = parser->end;
-  return fn;
-}
-
 static Node parse_partial_dot(Parser *parser) {
   Node fn = create_node(N_FN, parser);
   fn.fn_value.params = allocate(sizeof(NameList));
@@ -720,9 +690,7 @@ static Node parse_partial_dot(Parser *parser) {
 }
 
 static Node parse_expression(Parser *parser) {
-  if (peek_keyword("fn", parser)) {
-    return parse_fn(parser);
-  } else if (peek_operator(".", parser)) {
+  if (peek_operator(".", parser)) {
     return parse_partial_dot(parser);
   } else {
     return parse_fat_arrow(parser);
