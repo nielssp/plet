@@ -59,6 +59,7 @@ typedef enum {
   N_DOT,
   N_PREFIX,
   N_INFIX,
+  N_TUPLE,
   N_FN,
   N_IF,
   N_FOR,
@@ -132,6 +133,7 @@ struct Node {
       Node *right;
       InfixOperator operator;
     } infix_value;
+    NameList *tuple_value;
     struct {
       NameList *params;
       NameList *free_variables;

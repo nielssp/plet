@@ -75,6 +75,9 @@ static Node create_node(NodeType type, Parser *parser) {
       node.infix_value.left = NULL;
       node.infix_value.right = NULL;
       break;
+    case N_TUPLE:
+      node.tuple_value = NULL;
+      break;
     case N_FN:
       node.fn_value.params = NULL;
       node.fn_value.free_variables = NULL;
@@ -277,6 +280,14 @@ static Node parse_atom(Parser *parser) {
   } else if (peek_type(T_NAME, parser)) {
     Node node = create_node(N_NAME, parser);
     node.name_value = parse_name(parser);
+    if (peek_operator("=>", parser)) {
+      Node tuple = create_node(N_TUPLE, parser);
+      tuple.start = node.start;
+      tuple.end = node.end;
+      NameList *last_param = NULL;
+      LL_APPEND(NameList, tuple.tuple_value, last_param, node.name_value);
+      return tuple;
+    }
     parser->free_variables = name_list_put(node.name_value, parser->free_variables);
     node.end = parser->end;
     return node;
@@ -314,12 +325,55 @@ static Node parse_delimited(Parser *parser) {
     list.end = parser->end;
     return list;
   } else if (peek_punct('(', parser)) {
-    pop(parser);
+    Token *start_paren = pop(parser);
     int ignore_lf = parser->ignore_lf;
     parser->ignore_lf = 1;
+    if (peek_punct(')', parser)) {
+      pop(parser);
+      parser->ignore_lf = ignore_lf;
+      Node tuple = create_node(N_TUPLE, parser);
+      tuple.start = start_paren->start;
+      tuple.end = parser->end;
+      if (!peek_operator("=>", parser)) {
+        expect_operator("=>", parser);
+      }
+      return tuple;
+    }
     Node expr = parse_expression(parser);
+    if (expr.type == N_NAME && peek_operator(",", parser)) {
+      Node tuple = create_node(N_TUPLE, parser);
+      tuple.start = start_paren->start;
+      NameList *last_param = NULL;
+      LL_APPEND(NameList, tuple.tuple_value, last_param, expr.name_value);
+      parser->free_variables = name_list_remove(expr.name_value, parser->free_variables);
+      if (!peek_punct(')', parser)) {
+        while (peek_operator(",", parser)) {
+          pop(parser);
+          if (peek_punct(')', parser)) {
+            break;
+          }
+          LL_APPEND(NameList, tuple.tuple_value, last_param, parse_name(parser));
+        }
+      }
+      expect_punct(')', parser);
+      parser->ignore_lf = ignore_lf;
+      tuple.end = parser->end;
+      if (!peek_operator("=>", parser)) {
+        expect_operator("=>", parser);
+      }
+      return tuple;
+    }
     expect_punct(')', parser);
     parser->ignore_lf = ignore_lf;
+    expr.end = parser->end;
+    if (expr.type == N_NAME && peek_operator("=>", parser)) {
+      Node tuple = create_node(N_TUPLE, parser);
+      tuple.start = expr.start;
+      tuple.end = expr.end;
+      NameList *last_param = NULL;
+      LL_APPEND(NameList, tuple.tuple_value, last_param, expr.name_value);
+      return tuple;
+    }
     return expr;
   } else if (peek_punct('{', parser)) {
     Node object = create_node(N_OBJECT, parser);
@@ -592,6 +646,30 @@ static Node parse_pipe_line(Parser *parser) {
   return expr;
 }
 
+static Node parse_fat_arrow(Parser *parser) {
+  Node expr = parse_pipe_line(parser);
+  if (expr.type != N_TUPLE) {
+    return expr;
+  }
+  Node fn = create_node(N_FN, parser);
+  fn.start = expr.start;
+  fn.fn_value.params = expr.tuple_value;
+  expect_operator("=>", parser);
+  NameList *previous_name_list = parser->free_variables;
+  parser->free_variables = NULL;
+  ASSIGN_NODE(fn.fn_value.body, parse_expression(parser));
+  for (NameList *name = fn.fn_value.params; name; name = name->tail) {
+    parser->free_variables = name_list_remove(name->head, parser->free_variables);
+  }
+  fn.fn_value.free_variables = parser->free_variables;
+  parser->free_variables = previous_name_list;
+  for (NameList *name = fn.fn_value.free_variables; name; name = name->tail) {
+    parser->free_variables = name_list_put(name->head, parser->free_variables);
+  }
+  fn.end = parser->end;
+  return fn;
+}
+
 static Node parse_fn(Parser *parser) {
   Node fn = create_node(N_FN, parser);
   expect_keyword("fn", parser);
@@ -647,7 +725,7 @@ static Node parse_expression(Parser *parser) {
   } else if (peek_operator(".", parser)) {
     return parse_partial_dot(parser);
   } else {
-    return parse_pipe_line(parser);
+    return parse_fat_arrow(parser);
   }
 }
 

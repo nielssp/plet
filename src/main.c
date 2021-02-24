@@ -82,6 +82,8 @@ static int eval(GlobalArgs args) {
       }
       delete_arena(arena);
       delete_module_map(modules);
+    } else {
+      delete_module(module);
     }
   } else {
     close_reader(reader);

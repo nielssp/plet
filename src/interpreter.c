@@ -654,6 +654,9 @@ Value interpret(Node node, Env *env) {
       return eval_prefix(node, env);
     case N_INFIX:
       return eval_infix(node, env);
+    case N_TUPLE:
+      eval_error(node, "unexpected tuple");
+      return nil_value;
     case N_FN:
       return create_closure(node.fn_value.params, node.fn_value.free_variables, *node.fn_value.body, env, env->arena);
     case N_IF:

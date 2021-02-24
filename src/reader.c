@@ -209,12 +209,17 @@ static Token *read_operator(Reader *r) {
         token->operator_value[2] = '\0';
       }
       break;
+    case '=':
+      if (peek(r) == '=' || peek(r) == '>') {
+        token->operator_value[1] = (uint8_t) pop(r);
+        token->operator_value[2] = '\0';
+      }
+      break;
     case '+':
     case '*':
     case '/':
     case '<':
     case '>':
-    case '=':
     case '!':
       if (peek(r) == '=') {
         token->operator_value[1] = (uint8_t) pop(r);

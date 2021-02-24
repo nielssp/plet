@@ -39,7 +39,7 @@ token ::= keyword
 keyword ::= "if" | "else" | "end" | "for" | "in" | "switch" | "case" | "default"
           | "fn" | "do" | "and" | "or" | "not"
 
-operator ::= "." | "," | ":" | "->"
+operator ::= "." | "," | ":" | "->" | "=>"
            | "==" | "!=" | "<=" | ">=" | "<" | ">"
            | "=" | "+=" | "-=" | "*=" | "/="
            | "+" | "-" | "*" | "/" | "%"
@@ -115,7 +115,13 @@ Assignment ::= Expression [("=" | "+=" | "-=" | "*=" | "/=") Expression]
 
 Expression ::= "fn" [name {"," name} [","]] "->" Expression
              | "." name {"." name}
-             | PipeLine
+             | FatArrow
+
+FatArrow ::= Tuple "=>" Expression
+           | PipeLine
+
+Tuple ::= name
+        | "(" [name {"," name} [","]] ")"
 
 PipeLine ::= PipeLine "|" name ["(" [Expression {"," Expression} [","]] ")"]
            | LogicalOr

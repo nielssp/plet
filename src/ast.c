@@ -52,6 +52,9 @@ void delete_node(Node node) {
       DELETE_NODE(node.infix_value.left);
       DELETE_NODE(node.infix_value.right);
       break;
+    case N_TUPLE:
+      delete_name_list(node.tuple_value);
+      break;
     case N_FN:
       delete_name_list(node.fn_value.params);
       delete_name_list(node.fn_value.free_variables);
