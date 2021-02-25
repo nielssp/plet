@@ -12,17 +12,53 @@
 #include <stdlib.h>
 #include <string.h>
 
-static Value create_content_object(const char *path, const char *name, Env *env) {
+typedef struct PathStack PathStack;
+
+struct PathStack {
+   PathStack *next;
+   PathStack *prev;
+   char *name;
+};
+
+static Value path_stack_to_string(PathStack *path_stack, Arena *arena) {
+  if (!path_stack) {
+    return copy_c_string(".", arena);
+  }
+  while (path_stack->prev) {
+    path_stack = path_stack->prev;
+  }
+  Buffer buffer = create_buffer(0);
+  while (path_stack) {
+    buffer_printf(&buffer, path_stack->name);
+    path_stack = path_stack->next;
+    if (path_stack) {
+      buffer_put(&buffer, PATH_SEP);
+    }
+  }
+  Value result = create_string(buffer.data, buffer.size, arena);
+  delete_buffer(buffer);
+  return result;
+}
+
+static Value create_content_object(const char *path, const char *name, PathStack *path_stack, Env *env) {
   Value obj = create_object(0, env->arena);
   object_put(obj.object_value, create_symbol(get_symbol("path", env->symbol_map)), copy_c_string(path, env->arena),
       env->arena);
-  object_put(obj.object_value, create_symbol(get_symbol("name", env->symbol_map)), copy_c_string(name, env->arena),
-      env->arena);
+  object_put(obj.object_value, create_symbol(get_symbol("relative_path", env->symbol_map)),
+      path_stack_to_string(path_stack, env->arena), env->arena);
+  Value name_value = copy_c_string(name, env->arena);
+  for (size_t i = name_value.string_value->size - 1; i > 0; i--) {
+    if (name_value.string_value->bytes[i] == '.') {
+      name_value.string_value->size = i;
+      break;
+    }
+  }
+  object_put(obj.object_value, create_symbol(get_symbol("name", env->symbol_map)), name_value, env->arena);
   return obj;
 }
 
-static int find_content(const char *path, int recursive, const char *suffix, size_t suffix_length, Array *content,
-    Env *env) {
+static int find_content(const char *path, int recursive, const char *suffix, size_t suffix_length,
+    PathStack *path_stack, Array *content, Env *env) {
   DIR *dir = opendir(path);
   int status = 1;
   if (dir) {
@@ -41,10 +77,14 @@ static int find_content(const char *path, int recursive, const char *suffix, siz
             }
           }
           if (match) {
-            array_push(content, create_content_object(subpath, file->d_name, env), env->arena);
+            array_push(content, create_content_object(subpath, file->d_name, path_stack, env), env->arena);
           }
         } else if (recursive) {
-          status = status && find_content(subpath, recursive, suffix, suffix_length, content, env);
+          PathStack next = {NULL, path_stack, file->d_name};
+          if (path_stack) {
+            path_stack->next = &next;
+          }
+          status = status && find_content(subpath, recursive, suffix, suffix_length, &next, content, env);
         }
         free(subpath);
       }
@@ -86,7 +126,7 @@ static Value list_content(const Tuple *args, Env *env) {
     return nil_value;
   }
   Value content = create_array(0, env->arena);
-  find_content(path, recursive, suffix, suffix ? strlen(suffix) : 0, content.array_value, env);
+  find_content(path, recursive, suffix, suffix ? strlen(suffix) : 0, NULL, content.array_value, env);
   if (suffix) {
     free(suffix);
   }
