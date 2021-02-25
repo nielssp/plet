@@ -97,12 +97,6 @@ struct Array {
   size_t size;
 };
 
-struct Object {
-  Entry *entries;
-  size_t capacity;
-  size_t size;
-};
-
 struct ObjectIterator {
   Object *object;
   size_t next_index;
@@ -163,6 +157,8 @@ void env_put(Symbol name, Value value, Env *env);
 
 int env_get(Symbol name, Value *value, Env *env);
 
+char *get_env_string(const char *name, Env *env);
+
 void env_error(Env *env, int arg, const char *format, ...);
 
 void env_warn(Env *env, int arg, const char *format, ...);
@@ -210,6 +206,8 @@ void object_put(Object *object, Value key, Value value, Arena *arena);
 int object_get(Object *object, Value key, Value *value);
 
 int object_remove(Object *object, Value key, Value *value);
+
+size_t object_size(Object *object);
 
 ObjectIterator iterate_object(Object *object);
 

@@ -39,40 +39,6 @@ static int copy_static_files(const char *src_path, const char *dest_path) {
   return copy_file(src_path, dest_path);
 }
 
-static char *get_env_string(const char *name, Env *env) {
-  Value value;
-  if (!env_get(get_symbol(name, env->symbol_map), &value, env) || value.type != V_STRING) {
-    return NULL;
-  }
-  return string_to_c_string(value.string_value);
-}
-
-static char *get_src_path(String *path, Env *env) {
-  char *dir = get_env_string("DIR", env);
-  if (!dir) {
-    env_error(env, -1, "missing or invalid DIR");
-    return NULL;
-  }
-  char *path_str = string_to_c_string(path);
-  char *combined = combine_paths(dir, path_str);
-  free(path_str);
-  free(dir);
-  return combined;
-}
-
-static char *get_dist_path(String *path, Env *env) {
-  char *dir = get_env_string("DIST_ROOT", env);
-  if (!dir) {
-    env_error(env, -1, "missing or invalid DIST_ROOT");
-    return NULL;
-  }
-  char *path_str = string_to_c_string(path);
-  char *combined = combine_paths(dir, path_str);
-  free(path_str);
-  free(dir);
-  return combined;
-}
-
 static Value add_static(const Tuple *args, Env *env) {
   check_args(1, args, env);
   Value src_value = args->values[0];

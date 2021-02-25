@@ -14,6 +14,12 @@
 
 #define INITIAL_ARRAY_CAPACITY 16
 
+struct Object {
+  Entry *entries;
+  size_t capacity;
+  size_t size;
+};
+
 typedef struct RefStack RefStack;
 struct RefStack {
   RefStack *next;
@@ -54,6 +60,14 @@ int env_get(Symbol name, Value *value, Env *env) {
     return 1;
   }
   return 0;
+}
+
+char *get_env_string(const char *name, Env *env) {
+  Value value;
+  if (!env_get(get_symbol(name, env->symbol_map), &value, env) || value.type != V_STRING) {
+    return NULL;
+  }
+  return string_to_c_string(value.string_value);
 }
 
 void env_error(Env *env, int arg, const char *format, ...) {
@@ -454,6 +468,7 @@ void array_push(Array *array, Value elem, Arena *arena) {
     size_t new_capacity = array->capacity << 1;
     Value *new_cells = arena_allocate(new_capacity * sizeof(Value), arena);
     memcpy(new_cells, array->cells, array->capacity * sizeof(Value));
+    array->cells = new_cells;
     array->capacity = new_capacity;
   }
   array->cells[array->size] = elem;
@@ -505,6 +520,7 @@ void object_put(Object *object, Value key, Value value, Arena *arena) {
     size_t new_capacity = object->capacity << 1;
     Entry *new_entries = arena_allocate(new_capacity * sizeof(Entry), arena);
     memcpy(new_entries, object->entries, object->capacity * sizeof(Entry));
+    object->entries = new_entries;
     object->capacity = new_capacity;
   }
   object->entries[object->size] = (Entry) { .key = key, .value = value };
@@ -537,6 +553,10 @@ int object_remove(Object *object, Value key, Value *value) {
     }
   }
   return 0;
+}
+
+size_t object_size(Object *object) {
+  return object->size;
 }
 
 ObjectIterator iterate_object(Object *object) {

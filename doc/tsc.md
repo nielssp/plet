@@ -289,6 +289,6 @@ paginate(items: array, per_page: int, path: string, template: string, data: obje
 ### contentmap
 
 ```
-list_content(path: string, options: {recursive: boolean}?): array
+list_content(path: string, options: {recursive: boolean, suffix: string}?): array
 save_content(content: object): nil
 ```

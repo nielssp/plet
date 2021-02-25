@@ -245,7 +245,7 @@ static Value eval_add(Node node, Value left, Value right, Env *env) {
     }
     return result;
   } else if (left.type == V_OBJECT && right.type == V_OBJECT) {
-    Value result = create_object(left.object_value->size + right.object_value->size, env->arena);
+    Value result = create_object(object_size(left.object_value) + object_size(right.object_value), env->arena);
     Value key, value;
     ObjectIterator it = iterate_object(left.object_value);
     while (object_iterator_next(&it, &key, &value)) {
@@ -474,7 +474,7 @@ static Value eval_for(Node node, Env *env) {
     delete_buffer(buffer);
     return result;
   } else if (collection.type == V_OBJECT) {
-    if (collection.object_value->size == 0) {
+    if (!object_size(collection.object_value)) {
       if (node.for_value.alt) {
         return interpret(*node.for_value.alt, env);
       }

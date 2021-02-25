@@ -283,16 +283,19 @@ static void json_encode_value(Value value, Buffer *buffer) {
       break;
     case V_OBJECT:
       buffer_printf(buffer, "{");
-      for (size_t i = 0; i < value.object_value->size; i++) {
-        if (i > 0) {
+      ObjectIterator it = iterate_object(value.object_value);
+      Value entry_key, entry_value;
+      int first = 1;
+      while (object_iterator_next(&it, &entry_key, &entry_value)) {
+        if (!first) {
           buffer_printf(buffer, ",");
+          first = 0;
         }
-        Value key = value.object_value->entries[i].key;
-        if (key.type == V_STRING || key.type == V_SYMBOL) {
-          json_encode_value(key, buffer);
+        if (entry_key.type == V_STRING || entry_key.type == V_SYMBOL) {
+          json_encode_value(entry_key, buffer);
         } else {
           Buffer buffer2 = create_buffer(0);
-          json_encode_value(key, &buffer2);
+          json_encode_value(entry_key, &buffer2);
           String *string = allocate(sizeof(String) + buffer2.size);
           string->size = buffer2.size;
           memcpy(string->bytes, buffer2.data, buffer2.size);
@@ -301,7 +304,7 @@ static void json_encode_value(Value value, Buffer *buffer) {
           delete_buffer(buffer2);
         }
         buffer_printf(buffer, ":");
-        json_encode_value(value.object_value->entries[i].value, buffer);
+        json_encode_value(entry_value, buffer);
       }
       buffer_printf(buffer, "}");
       break;

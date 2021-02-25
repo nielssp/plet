@@ -23,4 +23,7 @@ Value eval_template(Module *module, Value data, Env *env);
 
 int build(GlobalArgs args);
 
+char *get_src_path(String *path, Env *env);
+char *get_dist_path(String *path, Env *env);
+
 #endif

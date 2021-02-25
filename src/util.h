@@ -24,6 +24,8 @@
 #define WARN_LABEL SGR_BOLD_MAGENTA "warning: " SGR_RESET SGR_BOLD
 #define INFO_LABEL SGR_BOLD_CYAN "info: " SGR_RESET SGR_BOLD
 
+#define MIN_ARENA_SIZE 512
+#define INITIAL_BUFFER_SIZE 32
 
 #if defined(_WIN32)
 #define PATH_SEP '\\'

@@ -6,6 +6,7 @@
 
 #include "build.h"
 #include "collections.h"
+#include "contentmap.h"
 #include "core.h"
 #include "datetime.h"
 #include "interpreter.h"
@@ -74,6 +75,7 @@ static int eval(GlobalArgs args) {
       import_collections(env);
       import_datetime(env);
       import_sitemap(env);
+      import_contentmap(env);
       Value output = interpret(*module->root, env);
       if (output.type == V_STRING) {
         for (size_t i = 0 ; i < output.string_value->size; i++) {

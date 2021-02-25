@@ -7,6 +7,7 @@
 #include "build.h"
 
 #include "collections.h"
+#include "contentmap.h"
 #include "core.h"
 #include "datetime.h"
 #include "interpreter.h"
@@ -70,6 +71,7 @@ Env *create_template_env(Value data, Env *parent) {
   import_strings(env);
   import_collections(env);
   import_datetime(env);
+  import_contentmap(env);
   if (data.type == V_OBJECT) {
     ObjectIterator it = iterate_object(data.object_value);
     Value entry_key, entry_value;
@@ -132,6 +134,7 @@ static int eval_script(FILE *file, const char *file_name, BuildInfo *build_info)
   import_collections(env);
   import_datetime(env);
   import_sitemap(env);
+  import_contentmap(env);
   import_build_info(build_info, env);
   env_def("FILE", copy_c_string(file_name, env->arena), env);
   char *file_name_copy = copy_string(file_name);
@@ -141,6 +144,32 @@ static int eval_script(FILE *file, const char *file_name, BuildInfo *build_info)
   interpret(*module->root, env);
   delete_arena(arena);
   return 1;
+}
+
+char *get_src_path(String *path, Env *env) {
+  char *dir = get_env_string("DIR", env);
+  if (!dir) {
+    env_error(env, -1, "missing or invalid DIR");
+    return NULL;
+  }
+  char *path_str = string_to_c_string(path);
+  char *combined = combine_paths(dir, path_str);
+  free(path_str);
+  free(dir);
+  return combined;
+}
+
+char *get_dist_path(String *path, Env *env) {
+  char *dir = get_env_string("DIST_ROOT", env);
+  if (!dir) {
+    env_error(env, -1, "missing or invalid DIST_ROOT");
+    return NULL;
+  }
+  char *path_str = string_to_c_string(path);
+  char *combined = combine_paths(dir, path_str);
+  free(path_str);
+  free(dir);
+  return combined;
 }
 
 int build(GlobalArgs args) {

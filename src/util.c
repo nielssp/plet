@@ -16,9 +16,6 @@
 #include <io.h>
 #endif
 
-#define MIN_ARENA_SIZE 4096
-#define INITIAL_BUFFER_SIZE 32
-
 void *allocate(size_t size) {
   void *p = malloc(size);
   if (!p) {

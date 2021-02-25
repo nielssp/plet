@@ -30,7 +30,7 @@ static Value length(const Tuple *args, Env *env) {
     case V_ARRAY:
       return create_int(arg.array_value->size);
     case V_OBJECT:
-      return create_int(arg.object_value->size);
+      return create_int(object_size(arg.object_value));
     case V_STRING:
       return create_int(arg.string_value->size);
     default:
@@ -46,7 +46,7 @@ static Value keys(const Tuple *args, Env *env) {
     arg_type_error(0, V_OBJECT, args, env);
     return nil_value;
   }
-  Value array = create_array(arg.object_value->size, env->arena);
+  Value array = create_array(object_size(arg.object_value), env->arena);
   ObjectIterator it = iterate_object(arg.object_value);
   Value key;
   while (object_iterator_next(&it, &key, NULL)) {
@@ -62,7 +62,7 @@ static Value values(const Tuple *args, Env *env) {
     arg_type_error(0, V_OBJECT, args, env);
     return nil_value;
   }
-  Value array = create_array(arg.object_value->size, env->arena);
+  Value array = create_array(object_size(arg.object_value), env->arena);
   ObjectIterator it = iterate_object(arg.object_value);
   Value value;
   while (object_iterator_next(&it, NULL, &value)) {
@@ -95,7 +95,7 @@ static Value map(const Tuple *args, Env *env) {
     }
     return dest;
   } else if (src.type == V_OBJECT) {
-    Value dest = create_object(src.object_value->size, env->arena);
+    Value dest = create_object(object_size(src.object_value), env->arena);
     ObjectIterator it = iterate_object(src.object_value);
     Value key, value;
     while (object_iterator_next(&it, &key, &value)) {
@@ -125,7 +125,7 @@ static Value map_keys(const Tuple *args, Env *env) {
   Tuple *func_args = alloca(sizeof(Tuple) + sizeof(Value));
   func_args->size = 1;
   if (src.type == V_OBJECT) {
-    Value dest = create_object(src.object_value->size, env->arena);
+    Value dest = create_object(object_size(src.object_value), env->arena);
     ObjectIterator it = iterate_object(src.object_value);
     Value key, value;
     while (object_iterator_next(&it, &key, &value)) {

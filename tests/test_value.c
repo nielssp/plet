@@ -25,7 +25,23 @@ static void test_env(void) {
   delete_symbol_map(symbol_map);
 }
 
+static void test_array_push(void) {
+  Arena *arena = create_arena();
+  Value array = create_array(0, arena);
+  for (size_t i = 0; i < 1000; i++) {
+    array_push(array.array_value, create_int(i), arena);
+  }
+  assert(array.array_value->size == 1000);
+  for (size_t i = 0; i < 1000; i++) {
+    Value elem = array.array_value->cells[i];
+    assert(elem.type == V_INT);
+    assert(elem.int_value == i);
+  }
+  delete_arena(arena);
+}
+
 void test_value(void) {
   run_test(test_env);
+  run_test(test_array_push);
 }
 
