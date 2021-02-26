@@ -10,6 +10,7 @@
 #include "contentmap.h"
 #include "core.h"
 #include "datetime.h"
+#include "html.h"
 #include "interpreter.h"
 #include "parser.h"
 #include "reader.h"
@@ -72,6 +73,7 @@ Env *create_template_env(Value data, Env *parent) {
   import_collections(env);
   import_datetime(env);
   import_contentmap(env);
+  import_html(env);
   if (data.type == V_OBJECT) {
     ObjectIterator it = iterate_object(data.object_value);
     Value entry_key, entry_value;

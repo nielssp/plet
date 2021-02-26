@@ -14,6 +14,7 @@ typedef struct {
   char *command_name;
   int argc;
   char **argv;
+  int parse_as_template;
 } GlobalArgs;
 
 Module *get_template(const char *name, Env *env);

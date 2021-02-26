@@ -9,6 +9,7 @@
 #include "contentmap.h"
 #include "core.h"
 #include "datetime.h"
+#include "html.h"
 #include "interpreter.h"
 #include "parser.h"
 #include "reader.h"
@@ -22,11 +23,12 @@
 #include <string.h>
 #include <unistd.h>
 
-const char *short_options = "hvo:";
+const char *short_options = "hvt";
 
 const struct option long_options[] = {
   {"help", no_argument, NULL, 'h'},
   {"version", no_argument, NULL, 'v'},
+  {"template", no_argument, NULL, 't'},
   {0, 0, 0, 0}
 };
 
@@ -39,6 +41,7 @@ static void print_help(const char *program_name) {
   puts("options:");
   describe_option("h", "help", "Show help.");
   describe_option("v", "version", "Show version information.");
+  describe_option("t", "template", "Parse file as a template.");
   puts("commands:");
   puts("  build             Build site from index.tss");
   puts("  eval <file>       Evaluate a single source file");
@@ -58,7 +61,7 @@ static int eval(GlobalArgs args) {
   }
   SymbolMap *symbol_map = create_symbol_map();
   Reader *reader = open_reader(in, infile, symbol_map);
-  TokenStream tokens = read_all(reader, 0);
+  TokenStream tokens = read_all(reader, args.parse_as_template);
   if (!reader_errors(reader)) {
     Module *module = parse(tokens, infile);
     close_reader(reader);
@@ -76,6 +79,7 @@ static int eval(GlobalArgs args) {
       import_datetime(env);
       import_sitemap(env);
       import_contentmap(env);
+      import_html(env);
       Value output = interpret(*module->root, env);
       if (output.type == V_STRING) {
         for (size_t i = 0 ; i < output.string_value->size; i++) {
@@ -113,6 +117,7 @@ static int init(GlobalArgs args) {
 
 int main(int argc, char *argv[]) {
   GlobalArgs args;
+  args.parse_as_template = 0;
   int opt;
   int option_index;
   while ((opt = getopt_long(argc, argv, short_options, long_options, &option_index)) != -1) {
@@ -123,6 +128,9 @@ int main(int argc, char *argv[]) {
       case 'v':
         puts("tsc 0.1.0");
         return 0;
+      case 't':
+        args.parse_as_template = 1;
+        break;
     }
   }
   if (optind >= argc) {

@@ -276,7 +276,7 @@ filter_content(content: object, filters: array?): string
 ### html
 ```
 h(str: string): string
-href(link: string?): string
+href(link: string?, class: string?): string
 ```
 
 ### sitemap
