@@ -13,6 +13,14 @@
 #include <string.h>
 #include <time.h>
 
+static const char *rfc2822_day_names[] = {
+  "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+};
+
+static const char *rfc2822_month_names[] = {
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+};
+
 typedef struct {
   uint8_t *input;
   size_t length;
@@ -151,8 +159,58 @@ static Value date(const Tuple *args, Env *env) {
   }
 }
 
+static Value iso8601(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  time_t arg;
+  if (!parse_time_value(args->values[0], &arg)) {
+    arg_error(0, "time|int|string", args, env);
+    return nil_value;
+  }
+  struct tm *t = localtime(&arg);
+  char output[100];
+  if (t) {
+    size_t size = strftime(output, sizeof(output), "%Y-%m-%dT%H:%M:%S%z", t);
+    if (size) {
+      return create_string((uint8_t *) output, size, env->arena);
+    } else {
+      env_error(env, -1, "date formatting error: empty result");
+      return nil_value;
+    }
+  } else {
+    env_error(env, -1, "date formatting error: %s", strerror(errno));
+    return nil_value;
+  }
+}
+
+static Value rfc2822(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  time_t arg;
+  if (!parse_time_value(args->values[0], &arg)) {
+    arg_error(0, "time|int|string", args, env);
+    return nil_value;
+  }
+  struct tm *t = localtime(&arg);
+  if (t) {
+    char timezone[10];
+    if (!strftime(timezone, sizeof(timezone), " %z", t)) {
+      timezone[0] = '\0';
+    }
+    Buffer buffer = create_buffer(32);
+    buffer_printf(&buffer, "%s, %d %s %d %d:%d:%d%s", rfc2822_day_names[t->tm_wday], t->tm_mday,
+        rfc2822_month_names[t->tm_mon], t->tm_year, t->tm_hour, t->tm_min, t->tm_sec, timezone);
+    Value output = create_string(buffer.data, buffer.size, env->arena);
+    delete_buffer(buffer);
+    return output;
+  } else {
+    env_error(env, -1, "date formatting error: %s", strerror(errno));
+    return nil_value;
+  }
+}
+
 void import_datetime(Env *env) {
   env_def_fn("now", now, env);
   env_def_fn("time", time_, env);
   env_def_fn("date", date, env);
+  env_def_fn("iso8601", iso8601, env);
+  env_def_fn("rfc2822", rfc2822, env);
 }
