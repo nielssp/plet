@@ -11,4 +11,8 @@
 
 void import_strings(Env *env);
 
+int string_equals(const char *c_string, String *string);
+int string_starts_with(const char *prefix, String *string);
+int string_ends_with(const char *prefix, String *string);
+
 #endif

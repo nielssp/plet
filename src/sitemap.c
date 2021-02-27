@@ -97,6 +97,17 @@ static Value add_page(const Tuple *args, Env *env) {
     env_error(env, -1, "unable to load module");
   } else {
     Env *template_env = create_template_env(data, env);
+    Value global;
+    if (env_get(get_symbol("GLOBAL", env->symbol_map), &global, env) && global.type == V_OBJECT) {
+      ObjectIterator it = iterate_object(global.object_value);
+      Value entry_key, entry_value;
+      while (object_iterator_next(&it, &entry_key, &entry_value)) {
+        if (entry_key.type == V_SYMBOL) {
+          env_put(entry_key.symbol_value, copy_value(entry_value, template_env->arena), template_env);
+        }
+      }
+    }
+    env_def("PATH", copy_value(dest_value, template_env->arena), template_env);
     Value output = eval_template(module, data, template_env);
     if (output.type == V_STRING) {
       char *dest_path_copy = copy_string(dest_path);
@@ -135,6 +146,7 @@ static Value paginate(const Tuple *args, Env *env) {
 }
 
 void import_sitemap(Env *env) {
+  env_def("GLOBAL", create_object(0, env->arena), env);
   env_def_fn("add_static", add_static, env);
   env_def_fn("add_page", add_page, env);
   env_def_fn("paginate", paginate, env);

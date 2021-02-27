@@ -13,6 +13,7 @@
 
 #include <dirent.h>
 #include <errno.h>
+#include <sys/stat.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -58,6 +59,14 @@ static Value create_content_object(const char *path, const char *name, PathStack
     }
   }
   object_put(obj.object_value, create_symbol(get_symbol("name", env->symbol_map)), name_value, env->arena);
+  struct stat stat_buffer;
+  if (stat(path, &stat_buffer) == 0) {
+    object_put(obj.object_value, create_symbol(get_symbol("modified", env->symbol_map)),
+        create_time(stat_buffer.st_mtime), env->arena);
+  } else {
+    object_put(obj.object_value, create_symbol(get_symbol("modified", env->symbol_map)),
+        create_time(0), env->arena);
+  }
   FILE *file = fopen(path, "r");
   if (!file) {
     fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", path, strerror(errno));

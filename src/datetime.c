@@ -72,7 +72,7 @@ static time_t parse_iso8601(DateParseInput *input) {
     }
     if (skip_sep(input, "Z")) {
       t.tm_isdst = 0;
-    } else if (*input->input == '-' || *input->input == '+') {
+    } else if (input->length && (*input->input == '-' || *input->input == '+')) {
       int sign = *input->input == '+' ? 1 : -1;
       t.tm_isdst = 0;
       input->input++;
@@ -197,7 +197,7 @@ static Value rfc2822(const Tuple *args, Env *env) {
     }
     Buffer buffer = create_buffer(32);
     buffer_printf(&buffer, "%s, %d %s %d %d:%d:%d%s", rfc2822_day_names[t->tm_wday], t->tm_mday,
-        rfc2822_month_names[t->tm_mon], t->tm_year, t->tm_hour, t->tm_min, t->tm_sec, timezone);
+        rfc2822_month_names[t->tm_mon], t->tm_year + 1900, t->tm_hour, t->tm_min, t->tm_sec, timezone);
     Value output = create_string(buffer.data, buffer.size, env->arena);
     delete_buffer(buffer);
     return output;

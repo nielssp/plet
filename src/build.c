@@ -16,6 +16,7 @@
 #include "reader.h"
 #include "sitemap.h"
 #include "strings.h"
+#include "template.h"
 
 #include <errno.h>
 #include <getopt.h>
@@ -73,6 +74,7 @@ Env *create_template_env(Value data, Env *parent) {
   import_collections(env);
   import_datetime(env);
   import_contentmap(env);
+  import_template(env);
   import_html(env);
   if (data.type == V_OBJECT) {
     ObjectIterator it = iterate_object(data.object_value);

@@ -185,19 +185,19 @@ static Value ends_with(const Tuple *args, Env *env) {
     arg_type_error(0, V_STRING, args, env);
     return nil_value;
   }
-  Value prefix = args->values[1];
-  if (prefix.type != V_STRING) {
+  Value suffix = args->values[1];
+  if (suffix.type != V_STRING) {
     arg_type_error(1, V_STRING, args, env);
     return nil_value;
   }
-  if (!prefix.string_value->size) {
+  if (!suffix.string_value->size) {
     return true_value;
   }
-  if (obj.string_value->size < prefix.string_value->size) {
+  if (obj.string_value->size < suffix.string_value->size) {
     return nil_value;
   }
-  for (size_t i = 0; i < prefix.string_value->size; i++) {
-    if (prefix.string_value->bytes[i] != obj.string_value->bytes[obj.string_value->size - prefix.string_value->size + i]) {
+  for (size_t i = 0; i < suffix.string_value->size; i++) {
+    if (suffix.string_value->bytes[i] != obj.string_value->bytes[obj.string_value->size - suffix.string_value->size + i]) {
       return nil_value;
     }
   }
@@ -346,4 +346,28 @@ void import_strings(Env *env) {
   env_def_fn("ends_with", ends_with, env);
   env_def_fn("symbol", symbol, env);
   env_def_fn("json", json, env);
+}
+
+int string_equals(const char *c_string, String *string) {
+  size_t c_string_length = strlen(c_string);
+  if (c_string_length != string->size) {
+    return 0;
+  }
+  return memcmp(c_string, string->bytes, c_string_length) == 0;
+}
+
+int string_starts_with(const char *prefix, String *string) {
+  size_t prefix_length = strlen(prefix);
+  if (prefix_length > string->size) {
+    return 0;
+  }
+  return memcmp(prefix, string->bytes, prefix_length) == 0;
+}
+
+int string_ends_with(const char *prefix, String *string) {
+  size_t prefix_length = strlen(prefix);
+  if (prefix_length > string->size) {
+    return 0;
+  }
+  return memcmp(prefix, string->bytes + string->size - prefix_length, prefix_length) == 0;
 }
