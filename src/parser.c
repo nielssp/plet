@@ -24,6 +24,7 @@ typedef struct {
   int errors;
   Pos end;
   int ignore_lf;
+  int object_notation;
 } Parser;
 
 static Node parse_expression(Parser *parser);
@@ -878,9 +879,22 @@ static Node parse_template(Parser *parser) {
 Module *parse(TokenStream tokens, const char *file_name) {
   Module *m = create_module(file_name);
   Parser parser = (Parser) { .tokens = tokens, .module = m, .free_variables = NULL, .errors = 0,
-    .end.line = 1, .end.column = 1, .ignore_lf = 0 };
+    .end.line = 1, .end.column = 1, .ignore_lf = 0, .object_notation = 0 };
   ASSIGN_NODE(m->root, parse_template(&parser));
   expect_type(T_EOF, &parser);
+  delete_name_list(parser.free_variables);
+  m->parse_error = parser.errors;
+  return m;
+}
+
+Module *parse_object_notation(TokenStream tokens, const char *file_name, int expect_eof) {
+  Module *m = create_module(file_name);
+  Parser parser = (Parser) { .tokens = tokens, .module = m, .free_variables = NULL, .errors = 0,
+    .end.line = 1, .end.column = 1, .ignore_lf = 0, .object_notation = 1 };
+  ASSIGN_NODE(m->root, parse_delimited(&parser));
+  if (expect_eof) {
+    expect_type(T_EOF, &parser);
+  }
   delete_name_list(parser.free_variables);
   m->parse_error = parser.errors;
   return m;

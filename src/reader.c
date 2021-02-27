@@ -49,6 +49,7 @@ Reader *open_reader(FILE *file, const char *file_name, SymbolMap *symbol_map) {
   r->pos.line = 1;
   r->pos.column = 1;
   r->la = 0;
+  r->errors = 0;
   return r;
 }
 

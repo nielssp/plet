@@ -7,8 +7,12 @@
 #include "contentmap.h"
 
 #include "build.h"
+#include "interpreter.h"
+#include "parser.h"
+#include "reader.h"
 
 #include <dirent.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -54,6 +58,62 @@ static Value create_content_object(const char *path, const char *name, PathStack
     }
   }
   object_put(obj.object_value, create_symbol(get_symbol("name", env->symbol_map)), name_value, env->arena);
+  FILE *file = fopen(path, "r");
+  if (!file) {
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", path, strerror(errno));
+    return nil_value;
+  }
+  Reader *reader = open_reader(file, path, env->symbol_map);
+  if (reader_errors(reader)) {
+    close_reader(reader);
+    fclose(file);
+    return nil_value;
+  }
+  TokenStream tokens = read_all(reader, 0);
+  while (peek_token(tokens)->type == T_LF) {
+    pop_token(tokens);
+  }
+  if (peek_token(tokens)->type == T_PUNCT && peek_token(tokens)->punct_value == '{') {
+    Module *front_matter = parse_object_notation(tokens, path, 0);
+    close_reader(reader);
+    if (!front_matter->parse_error) {
+      Value front_matter_obj = interpret(*front_matter->root, env);
+      if (front_matter_obj.type == V_OBJECT) {
+        ObjectIterator it = iterate_object(front_matter_obj.object_value);
+        Value entry_key, entry_value;
+        while (object_iterator_next(&it, &entry_key, &entry_value)) {
+          object_put(obj.object_value, entry_key, entry_value, env->arena);
+        }
+      } else {
+        fprintf(stderr, SGR_BOLD "%s: " INFO_LABEL "unexpected front matter of type %s" SGR_RESET "\n", path,
+            value_name(front_matter_obj.type));
+      }
+    } else {
+      rewind(file);
+    }
+    delete_module(front_matter);
+  } else {
+    close_reader(reader);
+    fprintf(stderr, SGR_BOLD "%s: " INFO_LABEL "no front matter" SGR_RESET "\n", path);
+    rewind(file);
+  }
+  Buffer buffer = create_buffer(8192);
+  size_t n;
+  do {
+    if (buffer.size) {
+      buffer.capacity += 8192;
+      buffer.data = reallocate(buffer.data, buffer.capacity);
+    }
+    n = fread(buffer.data, 1, 8192, file);
+    buffer.size += n;
+  } while (n == 8192);
+  if (!feof(file)) {
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "read error: %s" SGR_RESET "\n", path, strerror(errno));
+  }
+  Value content = create_string(buffer.data, buffer.size, env->arena);
+  delete_buffer(buffer);
+  object_put(obj.object_value, create_symbol(get_symbol("content", env->symbol_map)), content, env->arena);
+  fclose(file);
   return obj;
 }
 
@@ -77,7 +137,12 @@ static int find_content(const char *path, int recursive, const char *suffix, siz
             }
           }
           if (match) {
-            array_push(content, create_content_object(subpath, file->d_name, path_stack, env), env->arena);
+            Value obj = create_content_object(subpath, file->d_name, path_stack, env);
+            if (obj.type == V_OBJECT) {
+              array_push(content, obj, env->arena);
+            } else {
+              status = 0;
+            }
           }
         } else if (recursive) {
           PathStack next = {NULL, path_stack, file->d_name};
@@ -126,7 +191,10 @@ static Value list_content(const Tuple *args, Env *env) {
     return nil_value;
   }
   Value content = create_array(0, env->arena);
-  find_content(path, recursive, suffix, suffix ? strlen(suffix) : 0, NULL, content.array_value, env);
+  int result = find_content(path, recursive, suffix, suffix ? strlen(suffix) : 0, NULL, content.array_value, env);
+  if (!result) {
+    env_error(env, -1, "encountered one or more errors when listing content");
+  }
   if (suffix) {
     free(suffix);
   }

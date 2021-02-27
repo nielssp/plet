@@ -12,5 +12,7 @@
 
 Module *parse(TokenStream tokens, const char *file_name);
 
+Module *parse_object_notation(TokenStream tokens, const char *file_name, int expect_eof);
+
 #endif
 

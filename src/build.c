@@ -44,7 +44,7 @@ Module *get_template(const char *name, Env *env) {
   }
   FILE *file = fopen(name, "r");
   if (!file) {
-    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s", name, strerror(errno));
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", name, strerror(errno));
     return NULL;
   }
   Reader *reader = open_reader(file, name, env->symbol_map);
