@@ -203,6 +203,9 @@ Value create_object(size_t capacity, Arena *arena);
 
 void object_put(Object *object, Value key, Value value, Arena *arena);
 
+#define object_def(object, name, value, env) \
+  object_put((object), create_symbol(get_symbol((name), (env)->symbol_map)), (value), (env)->arena)
+
 int object_get(Object *object, Value key, Value *value);
 
 int object_remove(Object *object, Value key, Value *value);

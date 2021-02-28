@@ -28,6 +28,7 @@ typedef struct {
 } Parser;
 
 static Node parse_expression(Parser *parser);
+static Node parse_statement(Parser *parser);
 static Node parse_block(Parser *parser);
 static Node parse_template(Parser *parser);
 
@@ -669,7 +670,7 @@ static Node parse_fat_arrow(Parser *parser) {
   expect_operator("=>", parser);
   NameList *previous_name_list = parser->free_variables;
   parser->free_variables = NULL;
-  ASSIGN_NODE(fn.fn_value.body, parse_expression(parser));
+  ASSIGN_NODE(fn.fn_value.body, parse_statement(parser));
   for (NameList *name = fn.fn_value.params; name; name = name->tail) {
     parser->free_variables = name_list_remove(name->head, parser->free_variables);
   }
@@ -713,23 +714,30 @@ static Node parse_if(Parser *parser) {
   Node stmt = create_node(N_IF, parser);
   expect_keyword("if", parser);
   ASSIGN_NODE(stmt.if_value.cond, parse_expression(parser));
-  ASSIGN_NODE(stmt.if_value.cons, parse_block(parser));
-  Node *parent = &stmt;
-  while (peek_keyword("else", parser)) {
+  if (peek_keyword("then", parser)) {
     pop(parser);
-    if (peek_keyword("if", parser)) {
+    ASSIGN_NODE(stmt.if_value.cons, parse_expression(parser));
+    expect_keyword("else", parser);
+    ASSIGN_NODE(stmt.if_value.alt, parse_statement(parser));
+  } else {
+    ASSIGN_NODE(stmt.if_value.cons, parse_block(parser));
+    Node *parent = &stmt;
+    while (peek_keyword("else", parser)) {
       pop(parser);
-      Node nested = create_node(N_IF, parser);
-      ASSIGN_NODE(parent->if_value.alt, nested);
-      parent = parent->if_value.alt;
-      ASSIGN_NODE(parent->if_value.cond, parse_expression(parser));
-      ASSIGN_NODE(parent->if_value.cons, parse_block(parser));
-    } else {
-      ASSIGN_NODE(parent->if_value.alt, parse_block(parser));
-      break;
+      if (peek_keyword("if", parser)) {
+        pop(parser);
+        Node nested = create_node(N_IF, parser);
+        ASSIGN_NODE(parent->if_value.alt, nested);
+        parent = parent->if_value.alt;
+        ASSIGN_NODE(parent->if_value.cond, parse_expression(parser));
+        ASSIGN_NODE(parent->if_value.cons, parse_block(parser));
+      } else {
+        ASSIGN_NODE(parent->if_value.alt, parse_block(parser));
+        break;
+      }
     }
+    expect_end("if", parser);
   }
-  expect_end("if", parser);
   stmt.end = parser->end;
   return stmt;
 }

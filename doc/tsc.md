@@ -103,6 +103,7 @@ Statement ::= If
 If ::= "if" Expression Block
        {"else" "if" Expression Block}
        ["else" Block] "end" "if"
+     | "if" Expression "then" Expression "else" Statement
 
 For ::= "for" name [":" name] "in" Expression Block
        ["else" Block] "end" "for"
@@ -116,7 +117,7 @@ Assignment ::= Expression [("=" | "+=" | "-=" | "*=" | "/=") Expression]
 Expression ::= "." name {"." name}
              | FatArrow
 
-FatArrow ::= Tuple "=>" Expression
+FatArrow ::= Tuple "=>" Statement
            | PipeLine
 
 Tuple ::= name
@@ -233,6 +234,7 @@ keys(obj: object): array
 values(obj: object): array
 map(collection: array|object, f: func): array|object
 map_keys(obj: object, f: func): object
+flat_map(collection: array, f: func): array
 filter(collection: array|object, predicate: func): array
 exclude(collection: array|object, predicate: func): array
 sort(array: array): array

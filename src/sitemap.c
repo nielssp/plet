@@ -7,9 +7,11 @@
 #include "sitemap.h"
 
 #include "build.h"
+#include "strings.h"
 
 #include <dirent.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <libgen.h>
 #include <stdlib.h>
 #include <string.h>
@@ -63,34 +65,15 @@ static Value add_static(const Tuple *args, Env *env) {
   return nil_value;
 }
 
-static Value add_page(const Tuple *args, Env *env) {
-  check_args_between(2, 3, args, env);
-  Value dest_value = args->values[0];
-  if (dest_value.type != V_STRING) {
-    arg_type_error(0, V_STRING, args, env);
-    return nil_value;
-  }
-  Value src_value = args->values[1];
-  if (src_value.type != V_STRING) {
-    arg_type_error(1, V_STRING, args, env);
-    return nil_value;
-  }
-  Value data = nil_value;
-  if (args->size > 2) {
-    data = args->values[2];
-    if (data.type != V_OBJECT) {
-      arg_type_error(2, V_OBJECT, args, env);
-      return nil_value;
-    }
-  }
-  char *src_path = get_src_path(src_value.string_value, env);
+static void create_site_node(String *site_path, String *template_path, Value data, Env *env) {
+  char *src_path = get_src_path(template_path, env);
   if (!src_path) {
-    return nil_value;
+    return;
   }
-  char *dest_path = get_dist_path(dest_value.string_value, env);
+  char *dest_path = get_dist_path(site_path, env);
   if (!dest_path) {
     free(src_path);
-    return nil_value;
+    return;
   }
   Module *module = get_template(src_path, env);
   if (!module) {
@@ -107,7 +90,8 @@ static Value add_page(const Tuple *args, Env *env) {
         }
       }
     }
-    env_def("PATH", copy_value(dest_value, template_env->arena), template_env);
+    env_def("PATH", copy_value((Value) { .type = V_STRING, .string_value = site_path },
+          template_env->arena), template_env);
     Value output = eval_template(module, data, template_env);
     if (output.type == V_STRING) {
       char *dest_path_copy = copy_string(dest_path);
@@ -137,11 +121,126 @@ static Value add_page(const Tuple *args, Env *env) {
   }
   free(dest_path);
   free(src_path);
+}
+
+static Value add_page(const Tuple *args, Env *env) {
+  check_args_between(2, 3, args, env);
+  Value dest = args->values[0];
+  if (dest.type != V_STRING) {
+    arg_type_error(0, V_STRING, args, env);
+    return nil_value;
+  }
+  Value src = args->values[1];
+  if (src.type != V_STRING) {
+    arg_type_error(1, V_STRING, args, env);
+    return nil_value;
+  }
+  Value data = nil_value;
+  if (args->size > 2) {
+    data = args->values[2];
+    if (data.type != V_OBJECT) {
+      arg_type_error(2, V_OBJECT, args, env);
+      return nil_value;
+    }
+  }
+  create_site_node(dest.string_value, src.string_value, data, env);
   return nil_value;
+}
+
+static Value create_page(int64_t total, int64_t per_page, int64_t page, int64_t pages, int64_t offset,
+    Value path_template, Env *env) {
+  Value obj = create_object(6, env->arena);
+  object_def(obj.object_value, "items", create_array(per_page, env->arena), env);
+  object_def(obj.object_value, "total", create_int(total), env);
+  object_def(obj.object_value, "page", create_int(page), env);
+  object_def(obj.object_value, "pages", create_int(pages), env);
+  object_def(obj.object_value, "offset", create_int(offset), env);
+  object_def(obj.object_value, "path_template", path_template, env);
+  return obj;
+}
+
+static void add_item_to_page(Value item, Value page, Env *env) {
+  if (page.type != V_OBJECT) {
+    return;
+  }
+  Value items;
+  if (object_get(page.object_value, create_symbol(get_symbol("items", env->symbol_map)), &items)
+      && items.type == V_ARRAY) {
+    array_push(items.array_value, item, env->arena);
+  }
+}
+
+static void add_page_to_site(Value page, String *src, String *path_template, Value data, Env *env) {
+  if (page.type != V_OBJECT) {
+    return;
+  }
+  Value page_number;
+  if (!object_get(page.object_value, create_symbol(get_symbol("page", env->symbol_map)), &page_number)
+      && page_number.type == V_INT) {
+    return;
+  }
+  Value page_name;
+  if (page_number.int_value == 1) {
+    page_name = create_string(NULL, 0, env->arena);
+  } else {
+    StringBuffer page_name_buffer = create_string_buffer(10, env->arena);
+    string_buffer_printf(&page_name_buffer, "/page" PRId64, page_number.int_value);
+    page_name = finalize_string_buffer(page_name_buffer);
+  }
+  Value path = string_replace(copy_c_string("%page%", env->arena).string_value, page_name.string_value,
+      path_template, env->arena);
+  if (data.type != V_OBJECT) {
+    data = create_object(0, env->arena);
+  }
+  object_def(data.object_value, "PAGE", page, env);
+  create_site_node(path.string_value, src, data, env);
 }
 
 static Value paginate(const Tuple *args, Env *env) {
   check_args_between(4, 5, args, env);
+  Value items = args->values[0];
+  if (items.type != V_ARRAY) {
+    arg_type_error(0, V_ARRAY, args, env);
+    return nil_value;
+  }
+  Value per_page = args->values[1];
+  if (per_page.type != V_INT) {
+    arg_type_error(1, V_INT, args, env);
+    return nil_value;
+  }
+  Value path_template = args->values[2];
+  if (path_template.type != V_STRING) {
+    arg_type_error(2, V_STRING, args, env);
+    return nil_value;
+  }
+  Value src = args->values[3];
+  if (src.type != V_STRING) {
+    arg_type_error(3, V_STRING, args, env);
+    return nil_value;
+  }
+  Value data = nil_value;
+  if (args->size > 4) {
+    data = args->values[4];
+    if (data.type != V_OBJECT) {
+      arg_type_error(4, V_OBJECT, args, env);
+      return nil_value;
+    }
+  }
+  int64_t page_count = (items.array_value->size - 1) / per_page.int_value + 1;
+  int64_t page_number = 1;
+  Value page = create_page(items.array_value->size, per_page.int_value, page_number, page_count, 0,
+      path_template, env);
+  for (int64_t i = 0, counter = 0; i < items.array_value->size; i++, counter++) {
+    if (counter >= per_page.int_value) {
+      add_page_to_site(page, src.string_value, path_template.string_value, data, env);
+      page_number++;
+      page = create_page(items.array_value->size, per_page.int_value, page_number, page_count, i,
+          path_template, env);
+      counter = 0;
+    }
+    add_item_to_page(items.array_value->cells[i], page, env);
+  }
+  add_page_to_site(page, src.string_value, path_template.string_value, data, env);
   return nil_value;
 }
 

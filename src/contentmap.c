@@ -123,6 +123,8 @@ static Value create_content_object(const char *path, const char *name, PathStack
   delete_buffer(buffer);
   object_put(obj.object_value, create_symbol(get_symbol("content", env->symbol_map)), content, env->arena);
   fclose(file);
+  // TODO: run content through md4c then extract <h1>title</h1> from content (if
+  // obj.title is not set)
   return obj;
 }
 

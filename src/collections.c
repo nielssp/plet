@@ -143,6 +143,41 @@ static Value map_keys(const Tuple *args, Env *env) {
   }
 }
 
+static Value flat_map(const Tuple *args, Env *env) {
+  check_args(2, args, env);
+  Value src = args->values[0];
+  Value func = args->values[1];
+  if (func.type != V_FUNCTION && func.type != V_CLOSURE) {
+    arg_type_error(1, V_FUNCTION, args, env);
+    return nil_value;
+  }
+  Tuple *func_args = alloca(sizeof(Tuple) + 2 * sizeof(Value));
+  func_args->size = 2;
+  if (src.type == V_ARRAY) {
+    Value dest = create_array(src.array_value->size, env->arena);
+    for (size_t i = 0; i < src.array_value->size; i++) {
+      func_args->values[0] = src.array_value->cells[i];
+      func_args->values[1] = create_int(i);
+      Value value;
+      if (!apply(func, func_args, &value, env)) {
+        env->error_arg = 1;
+        return nil_value;
+      }
+      if (value.type == V_ARRAY) {
+        for (size_t j = 0; j < value.array_value->size; j++) {
+          array_push(dest.array_value, value.array_value->cells[j], env->arena);
+        }
+      } else {
+        env_error(env, 1, "invalid return value of type %s", value_name(value.type));
+      }
+    }
+    return dest;
+  } else {
+    arg_type_error(0, V_ARRAY, args, env);
+    return nil_value;
+  }
+}
+
 static Value filter(const Tuple *args, Env *env) {
   check_args(2, args, env);
   Value src = args->values[0];
@@ -672,6 +707,7 @@ void import_collections(Env *env) {
   env_def_fn("values", values, env);
   env_def_fn("map", map, env);
   env_def_fn("map_keys", map_keys, env);
+  env_def_fn("flat_map", flat_map, env);
   env_def_fn("filter", filter, env);
   env_def_fn("exclude", exclude, env);
   env_def_fn("sort", sort, env);

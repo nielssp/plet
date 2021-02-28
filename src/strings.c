@@ -204,6 +204,26 @@ static Value ends_with(const Tuple *args, Env *env) {
   return true_value;
 }
 
+static Value replace(const Tuple *args, Env *env) {
+  check_args(3, args, env);
+  Value haystack = args->values[0];
+  if (haystack.type != V_STRING) {
+    arg_type_error(0, V_STRING, args, env);
+    return nil_value;
+  }
+  Value needle = args->values[1];
+  if (needle.type != V_STRING) {
+    arg_type_error(1, V_STRING, args, env);
+    return nil_value;
+  }
+  Value replacement = args->values[2];
+  if (replacement.type != V_STRING) {
+    arg_type_error(2, V_STRING, args, env);
+    return nil_value;
+  }
+  return string_replace(needle.string_value, replacement.string_value, haystack.string_value, env->arena);
+}
+
 static Value symbol(const Tuple *args, Env *env) {
   check_args(1, args, env);
   Value arg = args->values[0];
@@ -344,11 +364,12 @@ void import_strings(Env *env) {
   env_def_fn("title", title, env);
   env_def_fn("starts_with", starts_with, env);
   env_def_fn("ends_with", ends_with, env);
+  env_def_fn("replace", replace, env);
   env_def_fn("symbol", symbol, env);
   env_def_fn("json", json, env);
 }
 
-int string_equals(const char *c_string, String *string) {
+int string_equals(const char *c_string, const String *string) {
   size_t c_string_length = strlen(c_string);
   if (c_string_length != string->size) {
     return 0;
@@ -356,7 +377,7 @@ int string_equals(const char *c_string, String *string) {
   return memcmp(c_string, string->bytes, c_string_length) == 0;
 }
 
-int string_starts_with(const char *prefix, String *string) {
+int string_starts_with(const char *prefix, const String *string) {
   size_t prefix_length = strlen(prefix);
   if (prefix_length > string->size) {
     return 0;
@@ -364,10 +385,111 @@ int string_starts_with(const char *prefix, String *string) {
   return memcmp(prefix, string->bytes, prefix_length) == 0;
 }
 
-int string_ends_with(const char *prefix, String *string) {
+int string_ends_with(const char *prefix, const String *string) {
   size_t prefix_length = strlen(prefix);
   if (prefix_length > string->size) {
     return 0;
   }
   return memcmp(prefix, string->bytes + string->size - prefix_length, prefix_length) == 0;
+}
+
+Value string_replace(const String *needle, const String *replacement, String *haystack, Arena *arena) {
+  if (needle->size > 0 && needle->size <= haystack->size) {
+    for (size_t i = 0; i <= haystack->size - needle->size; i++) {
+      if (memcmp(needle->bytes, haystack->bytes + i, needle->size) == 0) {
+        Value result = allocate_string(haystack->size - needle->size + replacement->size, arena);
+        if (i > 0) {
+          memcpy(result.string_value->bytes, haystack->bytes, i);
+        }
+        if (replacement->size > 0) {
+          memcpy(result.string_value->bytes + i, replacement->bytes, replacement->size);
+        }
+        if (i < haystack->size - needle->size) {
+          memcpy(result.string_value->bytes + i + replacement->size, haystack->bytes + i + needle->size, haystack->size - i - needle->size);
+        }
+        return result;
+      }
+    }
+  }
+  return (Value) { .type = V_STRING, .string_value = haystack };
+}
+
+StringBuffer create_string_buffer(size_t capacity, Arena *arena) {
+  if (capacity < INITIAL_BUFFER_SIZE) {
+    capacity = INITIAL_BUFFER_SIZE;
+  }
+  Value string = allocate_string(capacity, arena);
+  string.string_value->size = 0;
+  return (StringBuffer) { .arena = arena, .string = string.string_value, .capacity = capacity };
+}
+
+Value finalize_string_buffer(StringBuffer buffer) {
+  return (Value) { .type = V_STRING, .string_value = buffer.string };
+}
+
+void string_buffer_put(StringBuffer *buffer, uint8_t byte) {
+  if (buffer->string->size >= buffer->capacity) {
+    buffer->capacity <<= 1;
+    Value string = reallocate_string(buffer->string, buffer->capacity, buffer->arena);
+    string.string_value->size = buffer->string->size;
+    buffer->string = string.string_value;
+  }
+  buffer->string->bytes[buffer->string->size++] = byte;
+}
+
+void string_buffer_append(StringBuffer *buffer, String *suffix) {
+  if (!suffix->size) {
+    return;
+  }
+  size_t size = buffer->string->size + suffix->size;
+  if (size > buffer->capacity) {
+    while (size > buffer->capacity) {
+      buffer->capacity <<= 1;
+    }
+    Value string = reallocate_string(buffer->string, buffer->capacity, buffer->arena);
+    string.string_value->size = buffer->string->size;
+    buffer->string = string.string_value;
+  }
+  memcpy(buffer->string->bytes + buffer->string->size, suffix->bytes, suffix->size);
+  buffer->string->size += suffix->size;
+}
+
+void string_buffer_vprintf(StringBuffer *buffer, const char *format, va_list va) {
+  int n;
+  va_list va2;
+  size_t size;
+  size = buffer->capacity - buffer->string->size;
+  if (size <= 0) {
+    buffer->capacity <<= 1;
+    Value string = reallocate_string(buffer->string, buffer->capacity, buffer->arena);
+    string.string_value->size = buffer->string->size;
+    buffer->string = string.string_value;
+  }
+  while (1) {
+    uint8_t *dest = buffer->string->bytes + buffer->string->size;
+    va_copy(va2, va);
+    n = vsnprintf((char *) dest, size, format, va2);
+    va_end(va2);
+    if (n < 0) {
+      return;
+    }
+    if (n < size) {
+      buffer->string->size += n;
+      break;
+    }
+    size = n + 1;
+    while (size + buffer->string->size > buffer->capacity) {
+      buffer->capacity <<= 1;
+    }
+    Value string = reallocate_string(buffer->string, buffer->capacity, buffer->arena);
+    string.string_value->size = buffer->string->size;
+    buffer->string = string.string_value;
+  }
+}
+
+void string_buffer_printf(StringBuffer *buffer, const char *format, ...) {
+  va_list va;
+  va_start(va, format);
+  string_buffer_vprintf(buffer, format, va);
+  va_end(va);
 }

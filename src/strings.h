@@ -9,10 +9,26 @@
 
 #include "value.h"
 
+#include <stdarg.h>
+
 void import_strings(Env *env);
 
-int string_equals(const char *c_string, String *string);
-int string_starts_with(const char *prefix, String *string);
-int string_ends_with(const char *prefix, String *string);
+int string_equals(const char *c_string, const String *string);
+int string_starts_with(const char *prefix, const String *string);
+int string_ends_with(const char *prefix, const String *string);
+Value string_replace(const String *needle, const String *replacement, String *haystack, Arena *arena);
+
+typedef struct {
+  Arena *arena;
+  String *string;
+  size_t capacity;
+} StringBuffer;
+
+StringBuffer create_string_buffer(size_t capacity, Arena *arena);
+Value finalize_string_buffer(StringBuffer buffer);
+void string_buffer_put(StringBuffer *buffer, uint8_t byte);
+void string_buffer_append(StringBuffer *buffer, String *string);
+void string_buffer_vprintf(StringBuffer *buffer, const char *format, va_list va);
+void string_buffer_printf(StringBuffer *buffer, const char *format, ...);
 
 #endif
