@@ -244,9 +244,32 @@ static Value paginate(const Tuple *args, Env *env) {
   return nil_value;
 }
 
+static Value default_handler(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  Value input = args->values[0];
+  if (input.type != V_STRING) {
+    arg_type_error(0, V_STRING, args, env);
+    return nil_value;
+  }
+  return input;
+}
+
 void import_sitemap(Env *env) {
   env_def("GLOBAL", create_object(0, env->arena), env);
   env_def_fn("add_static", add_static, env);
   env_def_fn("add_page", add_page, env);
   env_def_fn("paginate", paginate, env);
+  Value content_handlers;
+  if (!env_get(get_symbol("CONTENT_HANDLERS", env->symbol_map), &content_handlers, env)) {
+    content_handlers = create_object(0, env->arena);
+    env_def("CONTENT_HANDLERS", content_handlers, env);
+  }
+  if (content_handlers.type == V_OBJECT) {
+    object_put(content_handlers.object_value, copy_c_string("txt", env->arena),
+        (Value) { .type = V_FUNCTION, .function_value = default_handler }, env->arena);
+    object_put(content_handlers.object_value, copy_c_string("htm", env->arena),
+        (Value) { .type = V_FUNCTION, .function_value = default_handler }, env->arena);
+    object_put(content_handlers.object_value, copy_c_string("html", env->arena),
+        (Value) { .type = V_FUNCTION, .function_value = default_handler }, env->arena);
+  }
 }
