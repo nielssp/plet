@@ -454,6 +454,23 @@ void string_buffer_append(StringBuffer *buffer, String *suffix) {
   buffer->string->size += suffix->size;
 }
 
+void string_buffer_append_bytes(StringBuffer *buffer, const uint8_t *bytes, size_t size) {
+  if (!size) {
+    return;
+  }
+  size_t new_size = buffer->string->size + size;
+  if (new_size > buffer->capacity) {
+    while (new_size > buffer->capacity) {
+      buffer->capacity <<= 1;
+    }
+    Value string = reallocate_string(buffer->string, buffer->capacity, buffer->arena);
+    string.string_value->size = buffer->string->size;
+    buffer->string = string.string_value;
+  }
+  memcpy(buffer->string->bytes + buffer->string->size, bytes, size);
+  buffer->string->size = new_size;
+}
+
 void string_buffer_vprintf(StringBuffer *buffer, const char *format, va_list va) {
   int n;
   va_list va2;

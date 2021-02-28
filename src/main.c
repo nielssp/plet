@@ -11,6 +11,7 @@
 #include "datetime.h"
 #include "html.h"
 #include "interpreter.h"
+#include "markdown.h"
 #include "parser.h"
 #include "reader.h"
 #include "sitemap.h"
@@ -80,6 +81,7 @@ static int eval(GlobalArgs args) {
       import_sitemap(env);
       import_contentmap(env);
       import_html(env);
+      import_markdown(env);
       Value output = interpret(*module->root, env);
       if (output.type == V_STRING) {
         for (size_t i = 0 ; i < output.string_value->size; i++) {

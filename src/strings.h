@@ -28,6 +28,7 @@ StringBuffer create_string_buffer(size_t capacity, Arena *arena);
 Value finalize_string_buffer(StringBuffer buffer);
 void string_buffer_put(StringBuffer *buffer, uint8_t byte);
 void string_buffer_append(StringBuffer *buffer, String *string);
+void string_buffer_append_bytes(StringBuffer *buffer, const uint8_t *bytes, size_t size);
 void string_buffer_vprintf(StringBuffer *buffer, const char *format, va_list va);
 void string_buffer_printf(StringBuffer *buffer, const char *format, ...);
 

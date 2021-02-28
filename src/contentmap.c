@@ -10,7 +10,9 @@
 #include "interpreter.h"
 #include "parser.h"
 #include "reader.h"
+#include "strings.h"
 
+#include <alloca.h>
 #include <dirent.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -32,40 +34,37 @@ static Value path_stack_to_string(PathStack *path_stack, Arena *arena) {
   while (path_stack->prev) {
     path_stack = path_stack->prev;
   }
-  Buffer buffer = create_buffer(0);
+  StringBuffer buffer = create_string_buffer(0, arena);
   while (path_stack) {
-    buffer_printf(&buffer, path_stack->name);
+    string_buffer_printf(&buffer, path_stack->name);
     path_stack = path_stack->next;
     if (path_stack) {
-      buffer_put(&buffer, PATH_SEP);
+      string_buffer_put(&buffer, PATH_SEP);
     }
   }
-  Value result = create_string(buffer.data, buffer.size, arena);
-  delete_buffer(buffer);
-  return result;
+  return finalize_string_buffer(buffer);
 }
 
 static Value create_content_object(const char *path, const char *name, PathStack *path_stack, Env *env) {
   Value obj = create_object(0, env->arena);
-  object_put(obj.object_value, create_symbol(get_symbol("path", env->symbol_map)), copy_c_string(path, env->arena),
-      env->arena);
-  object_put(obj.object_value, create_symbol(get_symbol("relative_path", env->symbol_map)),
-      path_stack_to_string(path_stack, env->arena), env->arena);
+  object_def(obj.object_value, "path", copy_c_string(path, env->arena), env);
+  object_def(obj.object_value, "relative_path", path_stack_to_string(path_stack, env->arena), env);
   Value name_value = copy_c_string(name, env->arena);
   for (size_t i = name_value.string_value->size - 1; i > 0; i--) {
     if (name_value.string_value->bytes[i] == '.') {
+      Value type_value = create_string(name_value.string_value->bytes + i + 1,
+          name_value.string_value->size - i - 1, env->arena);
+      object_def(obj.object_value, "type", type_value, env);
       name_value.string_value->size = i;
       break;
     }
   }
-  object_put(obj.object_value, create_symbol(get_symbol("name", env->symbol_map)), name_value, env->arena);
+  object_def(obj.object_value, "name", name_value, env);
   struct stat stat_buffer;
   if (stat(path, &stat_buffer) == 0) {
-    object_put(obj.object_value, create_symbol(get_symbol("modified", env->symbol_map)),
-        create_time(stat_buffer.st_mtime), env->arena);
+    object_def(obj.object_value, "modified", create_time(stat_buffer.st_mtime), env);
   } else {
-    object_put(obj.object_value, create_symbol(get_symbol("modified", env->symbol_map)),
-        create_time(0), env->arena);
+    object_def(obj.object_value, "modified", create_time(0), env);
   }
   FILE *file = fopen(path, "r");
   if (!file) {
@@ -121,10 +120,41 @@ static Value create_content_object(const char *path, const char *name, PathStack
   }
   Value content = create_string(buffer.data, buffer.size, env->arena);
   delete_buffer(buffer);
-  object_put(obj.object_value, create_symbol(get_symbol("content", env->symbol_map)), content, env->arena);
   fclose(file);
-  // TODO: run content through md4c then extract <h1>title</h1> from content (if
-  // obj.title is not set)
+  Value content_handlers;
+  if (env_get(get_symbol("CONTENT_HANDLERS", env->symbol_map), &content_handlers, env)
+      && content_handlers.type == V_OBJECT) {
+    Value type;
+    if (object_get(obj.object_value, create_symbol(get_symbol("type", env->symbol_map)), &type)
+        && type.type == V_STRING) {
+      Value handler;
+      if (object_get(content_handlers.object_value, type, &handler)) {
+        if (handler.type == V_FUNCTION || handler.type == V_CLOSURE) {
+          Tuple *func_args = alloca(sizeof(Tuple) + sizeof(Value));
+          func_args->size = 1;
+          func_args->values[0] = content;
+          if (!apply(handler, func_args, &content, env)) {
+            env->error_arg = -1;
+          }
+        } else {
+          char *type_string = string_to_c_string(type.string_value);
+          fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "invalid handler for content type '%s'" SGR_RESET "\n",
+              path, type_string);
+          free(type_string);
+        }
+      } else {
+        char *type_string = string_to_c_string(type.string_value);
+        fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "handler not found for content type '%s'" SGR_RESET "\n", path,
+            type_string);
+        free(type_string);
+      }
+    } else {
+      fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "unknown content type" SGR_RESET "\n", path);
+    }
+  } else {
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "CONTENT_HANDLERS not found or invalid" SGR_RESET "\n", path);
+  }
+  object_def(obj.object_value, "content", content, env);
   return obj;
 }
 

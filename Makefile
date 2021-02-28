@@ -1,6 +1,6 @@
 TARGET = tsc
-CFLAGS = -Wall -pedantic -std=c11 -Wstrict-prototypes -Wmissing-prototypes -Wshadow -DWITH_UNICODE
-LDFLAGS = -licuuc -licui18n
+CFLAGS = -Wall -pedantic -std=c11 -Wstrict-prototypes -Wmissing-prototypes -Wshadow -DWITH_UNICODE -DWITH_MARKDOWN
+LDFLAGS = -licuuc -licui18n -lmd4c -lmd4c-html
 
 SOURCES := $(wildcard src/*.c)
 OBJECTS := $(SOURCES:.c=.o)

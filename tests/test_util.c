@@ -26,13 +26,26 @@ static void test_arena(void) {
 static void test_arena_reallocate(void) {
   Arena *arena = create_arena();
   char *p1 = arena_allocate(10, arena);
+  for (int i = 0; i < 10; i++) {
+    p1[i] = i;
+  }
   char *p2 = arena_reallocate(p1, 10, 20, arena);
+  for (int i = 0; i < 10; i++) {
+    assert(p1[i] == i);
+    assert(p2[i] == i);
+  }
+  for (int i = 10; i < 20; i++) {
+    p1[i] = i;
+  }
   assert(p1 == p2);
   char *p3 = arena_allocate(10, arena);
   assert(p3 == p1 + 20);
   char *p4 = arena_reallocate(p2, 20, 30, arena);
   assert(p4 != p2);
   assert(p4 == p3 + 10);
+  for (int i = 0; i < 20; i++) {
+    assert(p4[i] == i);
+  }
   delete_arena(arena);
 }
 

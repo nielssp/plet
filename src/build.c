@@ -12,6 +12,7 @@
 #include "datetime.h"
 #include "html.h"
 #include "interpreter.h"
+#include "markdown.h"
 #include "parser.h"
 #include "reader.h"
 #include "sitemap.h"
@@ -76,6 +77,7 @@ Env *create_template_env(Value data, Env *parent) {
   import_contentmap(env);
   import_template(env);
   import_html(env);
+  import_markdown(env);
   if (data.type == V_OBJECT) {
     ObjectIterator it = iterate_object(data.object_value);
     Value entry_key, entry_value;
@@ -139,6 +141,7 @@ static int eval_script(FILE *file, const char *file_name, BuildInfo *build_info)
   import_datetime(env);
   import_sitemap(env);
   import_contentmap(env);
+  import_markdown(env);
   import_build_info(build_info, env);
   env_def("FILE", copy_c_string(file_name, env->arena), env);
   char *file_name_copy = copy_string(file_name);

@@ -35,7 +35,7 @@ static Value embed(const Tuple *args, Env *env) {
   Module *module = get_template(src_path, env);
   Value output = nil_value;
   if (!module) {
-    env_error(env, -1, "unable to load module");
+    env_error(env, -1, "unable to load template");
   } else {
     Env *template_env = create_template_env(data, env);
     Value global;

@@ -79,7 +79,9 @@ void *arena_reallocate(void *old, size_t old_size, size_t size, Arena *arena) {
   }
   Arena *last = arena->last;
   if (old != last->data + last->size - old_size || size - old_size > last->capacity - last->size) {
-    return arena_allocate(size, arena);
+    void *new =  arena_allocate(size, arena);
+    memcpy(new, old, old_size);
+    return new;
   }
   last->size += size - old_size;
   return old;
