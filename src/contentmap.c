@@ -15,9 +15,9 @@
 #include <alloca.h>
 #include <dirent.h>
 #include <errno.h>
-#include <sys/stat.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 typedef struct PathStack PathStack;
 
@@ -112,7 +112,7 @@ static Value create_content_object(const char *path, const char *name, PathStack
       buffer.capacity += 8192;
       buffer.data = reallocate(buffer.data, buffer.capacity);
     }
-    n = fread(buffer.data, 1, 8192, file);
+    n = fread(buffer.data + buffer.size, 1, 8192, file);
     buffer.size += n;
   } while (n == 8192);
   if (!feof(file)) {
