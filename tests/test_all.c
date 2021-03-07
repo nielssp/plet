@@ -8,6 +8,7 @@
 
 int main(void) {
   run_test_suite(test_hashmap);
+  run_test_suite(test_strings);
   run_test_suite(test_util);
   run_test_suite(test_value);
   return 0;

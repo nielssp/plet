@@ -23,6 +23,7 @@
   printf("%s: All tests passed\n", #test)
 
 void test_hashmap(void);
+void test_strings(void);
 void test_util(void);
 void test_value(void);
 

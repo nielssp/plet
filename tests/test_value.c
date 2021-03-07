@@ -40,8 +40,40 @@ static void test_array_push(void) {
   delete_arena(arena);
 }
 
+static void test_allocate_string(void) {
+  Arena *arena = create_arena();
+  Value string = allocate_string(1000, arena);
+  for (size_t i = 0; i < 1000; i++) {
+    string.string_value->bytes[i] = i % 256;
+  }
+  assert(string.string_value->size == 1000);
+  for (size_t i = 0; i < 1000; i++) {
+    assert(string.string_value->bytes[i] == (i % 256));
+  }
+  delete_arena(arena);
+}
+
+static void test_reallocate_string(void) {
+  Arena *arena = create_arena();
+  Value string = allocate_string(1000, arena);
+  for (size_t i = 0; i < 1000; i++) {
+    string.string_value->bytes[i] = i % 256;
+  }
+  string = reallocate_string(string.string_value, 2000, arena);
+  for (size_t i = 1000; i < 2000; i++) {
+    string.string_value->bytes[i] = i % 256;
+  }
+  assert(string.string_value->size == 2000);
+  for (size_t i = 0; i < 2000; i++) {
+    assert(string.string_value->bytes[i] == (i % 256));
+  }
+  delete_arena(arena);
+}
+
 void test_value(void) {
   run_test(test_env);
   run_test(test_array_push);
+  run_test(test_allocate_string);
+  run_test(test_reallocate_string);
 }
 

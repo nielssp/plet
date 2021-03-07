@@ -430,8 +430,9 @@ Value finalize_string_buffer(StringBuffer buffer) {
 void string_buffer_put(StringBuffer *buffer, uint8_t byte) {
   if (buffer->string->size >= buffer->capacity) {
     buffer->capacity <<= 1;
+    size_t existing_size = buffer->string->size;
     Value string = reallocate_string(buffer->string, buffer->capacity, buffer->arena);
-    string.string_value->size = buffer->string->size;
+    string.string_value->size = existing_size;
     buffer->string = string.string_value;
   }
   buffer->string->bytes[buffer->string->size++] = byte;
@@ -446,8 +447,9 @@ void string_buffer_append(StringBuffer *buffer, String *suffix) {
     while (size > buffer->capacity) {
       buffer->capacity <<= 1;
     }
+    size_t existing_size = buffer->string->size;
     Value string = reallocate_string(buffer->string, buffer->capacity, buffer->arena);
-    string.string_value->size = buffer->string->size;
+    string.string_value->size = existing_size;
     buffer->string = string.string_value;
   }
   memcpy(buffer->string->bytes + buffer->string->size, suffix->bytes, suffix->size);
@@ -463,8 +465,9 @@ void string_buffer_append_bytes(StringBuffer *buffer, const uint8_t *bytes, size
     while (new_size > buffer->capacity) {
       buffer->capacity <<= 1;
     }
+    size_t existing_size = buffer->string->size;
     Value string = reallocate_string(buffer->string, buffer->capacity, buffer->arena);
-    string.string_value->size = buffer->string->size;
+    string.string_value->size = existing_size;
     buffer->string = string.string_value;
   }
   memcpy(buffer->string->bytes + buffer->string->size, bytes, size);
@@ -478,8 +481,9 @@ void string_buffer_vprintf(StringBuffer *buffer, const char *format, va_list va)
   size = buffer->capacity - buffer->string->size;
   if (size <= 0) {
     buffer->capacity <<= 1;
+    size_t existing_size = buffer->string->size;
     Value string = reallocate_string(buffer->string, buffer->capacity, buffer->arena);
-    string.string_value->size = buffer->string->size;
+    string.string_value->size = existing_size;
     buffer->string = string.string_value;
   }
   while (1) {
@@ -498,8 +502,9 @@ void string_buffer_vprintf(StringBuffer *buffer, const char *format, va_list va)
     while (size + buffer->string->size > buffer->capacity) {
       buffer->capacity <<= 1;
     }
+    size_t existing_size = buffer->string->size;
     Value string = reallocate_string(buffer->string, buffer->capacity, buffer->arena);
-    string.string_value->size = buffer->string->size;
+    string.string_value->size = existing_size;
     buffer->string = string.string_value;
   }
 }

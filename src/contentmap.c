@@ -7,6 +7,7 @@
 #include "contentmap.h"
 
 #include "build.h"
+#include "html.h"
 #include "interpreter.h"
 #include "parser.h"
 #include "reader.h"
@@ -155,6 +156,21 @@ static Value create_content_object(const char *path, const char *name, PathStack
     fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "CONTENT_HANDLERS not found or invalid" SGR_RESET "\n", path);
   }
   object_def(obj.object_value, "content", content, env);
+  if (content.type == V_STRING) {
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "buffer size %zd" SGR_RESET "\n", path, buffer.size);
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "buffer size %zd" SGR_RESET "\n", path, content.string_value->size);
+    Value html = html_parse(content.string_value, env);
+    if (html.type != V_NIL) {
+      object_def(obj.object_value, "html", html, env);
+      Value title_tag_name = copy_c_string("h1", env->arena);
+      Value title_tag = html_find_tag(title_tag_name, html, env);
+      if (title_tag.type != V_NIL) {
+        StringBuffer title_buffer = create_string_buffer(0, env->arena);
+        html_text_content(title_tag, &title_buffer, env);
+        object_def(obj.object_value, "title", finalize_string_buffer(title_buffer), env);
+      }
+    }
+  }
   return obj;
 }
 

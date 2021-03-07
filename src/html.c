@@ -186,6 +186,44 @@ Value html_parse(String *html, Env *env) {
   return root;
 }
 
+void html_text_content(Value node, StringBuffer *buffer, Env *env) {
+  if (node.type == V_OBJECT) {
+    Value children;
+    if (object_get(node.object_value, create_symbol(get_symbol("children", env->symbol_map)), &children)) {
+      if (children.type == V_ARRAY) {
+        for (size_t i = 0; i < children.array_value->size; i++) {
+          html_text_content(children.array_value->cells[i], buffer, env);
+        }
+      }
+    }
+  } else if (node.type == V_STRING) {
+    string_buffer_append(buffer, node.string_value);
+  }
+}
+
+Value html_find_tag(Value tag_name, Value node, Env *env) {
+  if (node.type == V_OBJECT) {
+    Value node_tag;
+    if (object_get(node.object_value, create_symbol(get_symbol("tag", env->symbol_map)), &node_tag)) {
+      if (equals(tag_name, node_tag)) {
+        return node;
+      }
+    }
+    Value children;
+    if (object_get(node.object_value, create_symbol(get_symbol("children", env->symbol_map)), &children)) {
+      if (children.type == V_ARRAY) {
+        for (size_t i = 0; i < children.array_value->size; i++) {
+          Value result = html_find_tag(tag_name, children.array_value->cells[i], env);
+          if (result.type != V_NIL) {
+            return result;
+          }
+        }
+      }
+    }
+  }
+  return nil_value;
+}
+
 #else /* ifdef WITH_GUMBO */
 
 Value html_parse(String *html, Env *env) {
