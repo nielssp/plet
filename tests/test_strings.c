@@ -19,7 +19,6 @@ static void test_string_buffer_put(void) {
   }
   Value string = finalize_string_buffer(buffer);
   assert(string.type == V_STRING);
-  fprintf(stderr, "actual: %zd\n", string.string_value->size);
   assert(string.string_value->size == 5000);
   for (int i = 0; i < 5000; i++) {
     assert(string.string_value->bytes[i] == (i % 256));

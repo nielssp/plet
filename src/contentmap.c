@@ -157,8 +157,6 @@ static Value create_content_object(const char *path, const char *name, PathStack
   }
   object_def(obj.object_value, "content", content, env);
   if (content.type == V_STRING) {
-    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "buffer size %zd" SGR_RESET "\n", path, buffer.size);
-    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "buffer size %zd" SGR_RESET "\n", path, content.string_value->size);
     Value html = html_parse(content.string_value, env);
     if (html.type != V_NIL) {
       object_def(obj.object_value, "html", html, env);
