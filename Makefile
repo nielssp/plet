@@ -1,6 +1,21 @@
 TARGET = tsc
-CFLAGS = -Wall -pedantic -std=c11 -Wstrict-prototypes -Wmissing-prototypes -Wshadow -DWITH_UNICODE -DWITH_MARKDOWN
-LDFLAGS = -licuuc -licui18n -lmd4c -lmd4c-html
+CFLAGS = -Wall -pedantic -std=c11 -Wstrict-prototypes -Wmissing-prototypes -Wshadow
+LDFLAGS = 
+
+ifneq ($(WITH_UNICODE), 0)
+	LDFLAGS += $(shell pkg-config --libs icu-uc icu-i18n)
+	CFLAGS += -DWITH_UNICODE $(shell pkg-config --cflags icu-uc icu-i18n)
+endif
+
+ifneq ($(WITH_MARKDOWN), 0)
+	LDFLAGS += $(shell pkg-config --libs md4c-html)
+	CFLAGS += -DWITH_MARKDOWN $(shell pkg-config --cflags md4c-html)
+endif
+
+ifneq ($(WITH_GUMBO), 0)
+	LDFLAGS += $(shell pkg-config --libs gumbo)
+	CFLAGS += -DWITH_GUMBO $(shell pkg-config --cflags gumbo)
+endif
 
 SOURCES := $(wildcard src/*.c)
 OBJECTS := $(SOURCES:.c=.o)

@@ -11,4 +11,6 @@
 
 void import_html(Env *env);
 
+Value html_parse(String *html, Env *env);
+
 #endif
