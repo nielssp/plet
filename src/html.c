@@ -12,25 +12,25 @@
 #include <gumbo.h>
 #endif
 
-static void html_encode_byte(Buffer *buffer, uint8_t byte) {
+static void html_encode_byte(StringBuffer *buffer, uint8_t byte) {
   switch (byte) {
     case '&':
-      buffer_printf(buffer, "&amp;");
+      string_buffer_printf(buffer, "&amp;");
       break;
     case '"':
-      buffer_printf(buffer, "&quot;");
+      string_buffer_printf(buffer, "&quot;");
       break;
     case '\'':
-      buffer_printf(buffer, "&#39;");
+      string_buffer_printf(buffer, "&#39;");
       break;
     case '<':
-      buffer_printf(buffer, "&lt;");
+      string_buffer_printf(buffer, "&lt;");
       break;
     case '>':
-      buffer_printf(buffer, "&gt;");
+      string_buffer_printf(buffer, "&gt;");
       break;
     default:
-      buffer_put(buffer, byte);
+      string_buffer_put(buffer, byte);
       break;
   }
 }
@@ -38,7 +38,7 @@ static void html_encode_byte(Buffer *buffer, uint8_t byte) {
 static Value h(const Tuple *args, Env *env) {
   check_args(1, args, env);
   Value value = args->values[0];
-  Buffer buffer = create_buffer(0);
+  StringBuffer buffer = create_string_buffer(0, env->arena);
   switch (value.type) {
     case V_SYMBOL:
       while (*value.symbol_value) {
@@ -52,12 +52,10 @@ static Value h(const Tuple *args, Env *env) {
       }
       break;
     default:
-      value_to_string(value, &buffer);
+      string_buffer_append_value(&buffer, value);
       break;
   }
-  Value string = create_string(buffer.data, buffer.size, env->arena);
-  delete_buffer(buffer);
-  return string;
+  return finalize_string_buffer(buffer);
 }
 
 static Value href(const Tuple *args, Env *env) {
@@ -87,22 +85,93 @@ static Value href(const Tuple *args, Env *env) {
     path = create_string(path.string_value->bytes, path.string_value->size - 11, env->arena);
   }
   // TODO: class += 'current' if path == PATH
-  Buffer buffer = create_buffer(0);
-  buffer_printf(&buffer, " href=\"");
+  StringBuffer buffer = create_string_buffer(0, env->arena);
+  string_buffer_printf(&buffer, " href=\"");
   for (size_t i = 0; i < path.string_value->size; i++) {
     html_encode_byte(&buffer, path.string_value->bytes[i]);
   }
-  buffer_printf(&buffer, "\"");
+  string_buffer_printf(&buffer, "\"");
   if (class.string_value->size) {
-    buffer_printf(&buffer, " class=\"");
+    string_buffer_printf(&buffer, " class=\"");
     for (size_t i = 0; i < class.string_value->size; i++) {
       html_encode_byte(&buffer, class.string_value->bytes[i]);
     }
-    buffer_printf(&buffer, "\"");
+    string_buffer_printf(&buffer, "\"");
   }
-  Value string = create_string(buffer.data, buffer.size, env->arena);
-  delete_buffer(buffer);
-  return string;
+  return finalize_string_buffer(buffer);
+}
+
+static void html_to_string(Value node, StringBuffer *buffer, Env *env) {
+  if (node.type == V_OBJECT) {
+    Value tag = nil_value;
+    object_get(node.object_value, create_symbol(get_symbol("tag", env->symbol_map)), &tag);
+    if (tag.type == V_SYMBOL) {
+      string_buffer_put(buffer, '<');
+      string_buffer_printf(buffer, "%s", tag.symbol_value);
+      Value attributes;
+      if (object_get(node.object_value, create_symbol(get_symbol("attributes", env->symbol_map)),
+            &attributes) && attributes.type == V_OBJECT) {
+        ObjectIterator it = iterate_object(attributes.object_value);
+        Value key, value;
+        while (object_iterator_next(&it, &key, &value)) {
+          if (key.type == V_SYMBOL && value.type == V_STRING) {
+            string_buffer_put(buffer, ' ');
+            string_buffer_printf(buffer, "%s", key.symbol_value);
+            if (value.string_value->size) {
+              string_buffer_put(buffer, '=');
+              string_buffer_put(buffer, '"');
+              for (size_t i = 0; i < value.string_value->size; i++) {
+                html_encode_byte(buffer, value.string_value->bytes[i]);
+              }
+              string_buffer_put(buffer, '"');
+            }
+          }
+        }
+      }
+      string_buffer_put(buffer, '>');
+    }
+    Value children;
+    if (object_get(node.object_value, create_symbol(get_symbol("children", env->symbol_map)), &children)
+        && children.type == V_ARRAY) {
+      for (size_t i = 0; i < children.array_value->size; i++) {
+        html_to_string(children.array_value->cells[i], buffer, env);
+      }
+    }
+    Value self_closing = nil_value;
+    object_get(node.object_value, create_symbol(get_symbol("self_closing", env->symbol_map)),
+        &self_closing);
+    if (tag.type == V_SYMBOL && !is_truthy(self_closing)) {
+      string_buffer_put(buffer, '<');
+      string_buffer_put(buffer, '/');
+      string_buffer_printf(buffer, "%s", tag.symbol_value);
+      string_buffer_put(buffer, '>');
+    }
+  } else if (node.type == V_STRING) {
+    for (size_t i = 0; i < node.string_value->size; i++) {
+      html_encode_byte(buffer, node.string_value->bytes[i]);
+    }
+  }
+}
+
+static Value html(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  StringBuffer output = create_string_buffer(0, env->arena);
+  html_to_string(args->values[0], &output, env);
+  return finalize_string_buffer(output);
+}
+
+static Value no_title(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  Value src = args->values[0];
+  Value title_tag = html_find_tag(get_symbol("h1", env->symbol_map), src, env);
+  if (title_tag.type == V_OBJECT) {
+    src = copy_value(src, env->arena);
+    title_tag = html_find_tag(get_symbol("h1", env->symbol_map), src, env);
+    if (title_tag.type == V_OBJECT) {
+      html_remove_node(title_tag.object_value, src, env);
+    }
+  }
+  return src;
 }
 
 #ifdef WITH_GUMBO
@@ -120,6 +189,8 @@ static Value parse_html(const Tuple *args, Env *env) {
 void import_html(Env *env) {
   env_def_fn("h", h, env);
   env_def_fn("href", href, env);
+  env_def_fn("html", html, env);
+  env_def_fn("no_title", no_title, env);
 #ifdef WITH_GUMBO
   env_def_fn("parse_html", parse_html, env);
 #endif
@@ -131,7 +202,7 @@ static Value convert_gumbo_node(GumboNode *node, Env *env) {
   switch (node->type) {
     case GUMBO_NODE_DOCUMENT: {
       Value obj = create_object(2, env->arena);
-      object_def(obj.object_value, "type", copy_c_string("document", env->arena), env);
+      object_def(obj.object_value, "type", create_symbol(get_symbol("document", env->symbol_map)), env);
       Value children = create_array(node->v.element.children.length, env->arena);
       for (unsigned int i = 0; i < node->v.element.children.length; i++) {
         Value child = convert_gumbo_node(node->v.element.children.data[i], env);
@@ -144,13 +215,14 @@ static Value convert_gumbo_node(GumboNode *node, Env *env) {
     }
     case GUMBO_NODE_ELEMENT: {
       Value obj = create_object(4, env->arena);
-      object_def(obj.object_value, "type", copy_c_string("element", env->arena), env);
-      object_def(obj.object_value, "tag", copy_c_string(gumbo_normalized_tagname(node->v.element.tag),
-            env->arena), env);
+      object_def(obj.object_value, "type", create_symbol(get_symbol("element", env->symbol_map)), env);
+      object_def(obj.object_value, "tag",
+          create_symbol(get_symbol(gumbo_normalized_tagname(node->v.element.tag), env->symbol_map)),
+          env);
       Value attributes = create_object(node->v.element.attributes.length, env->arena);
       for (unsigned int i = 0; i < node->v.element.attributes.length; i++) {
         GumboAttribute *attribute = node->v.element.attributes.data[i];
-        object_put(attributes.object_value, copy_c_string(attribute->name, env->arena),
+        object_put(attributes.object_value, create_symbol(get_symbol(attribute->name, env->symbol_map)),
             copy_c_string(attribute->value, env->arena), env->arena);
       }
       object_def(obj.object_value, "attributes", attributes, env);
@@ -162,6 +234,8 @@ static Value convert_gumbo_node(GumboNode *node, Env *env) {
         }
       }
       object_def(obj.object_value, "children", children, env);
+      object_def(obj.object_value, "self_closing",
+          node->v.element.original_end_tag.length == 0 ? true_value : nil_value, env);
       return obj;
     }
     case GUMBO_NODE_TEXT:
@@ -183,8 +257,20 @@ Value html_parse(String *html, Env *env) {
   GumboOutput *output = gumbo_parse_with_options(&options, (char *) html->bytes, html->size);
   Value root = convert_gumbo_node(output->root, env);
   gumbo_destroy_output(&options, output);
+  if (root.type == V_OBJECT) {
+      object_def(root.object_value, "type", create_symbol(get_symbol("fragment", env->symbol_map)), env);
+      object_def(root.object_value, "tag", nil_value, env);
+  }
   return root;
 }
+
+#else /* ifdef WITH_GUMBO */
+
+Value html_parse(String *html, Env *env) {
+  return nil_value;
+}
+
+#endif /* ifdef WITH_GUMBO */
 
 void html_text_content(Value node, StringBuffer *buffer, Env *env) {
   if (node.type == V_OBJECT) {
@@ -201,22 +287,21 @@ void html_text_content(Value node, StringBuffer *buffer, Env *env) {
   }
 }
 
-Value html_find_tag(Value tag_name, Value node, Env *env) {
+Value html_find_tag(Symbol tag_name, Value node, Env *env) {
   if (node.type == V_OBJECT) {
     Value node_tag;
     if (object_get(node.object_value, create_symbol(get_symbol("tag", env->symbol_map)), &node_tag)) {
-      if (equals(tag_name, node_tag)) {
+      if (node_tag.type == V_SYMBOL && node_tag.symbol_value == tag_name) {
         return node;
       }
     }
     Value children;
-    if (object_get(node.object_value, create_symbol(get_symbol("children", env->symbol_map)), &children)) {
-      if (children.type == V_ARRAY) {
-        for (size_t i = 0; i < children.array_value->size; i++) {
-          Value result = html_find_tag(tag_name, children.array_value->cells[i], env);
-          if (result.type != V_NIL) {
-            return result;
-          }
+    if (object_get(node.object_value, create_symbol(get_symbol("children", env->symbol_map)), &children)
+        && children.type == V_ARRAY) {
+      for (size_t i = 0; i < children.array_value->size; i++) {
+        Value result = html_find_tag(tag_name, children.array_value->cells[i], env);
+        if (result.type != V_NIL) {
+          return result;
         }
       }
     }
@@ -224,10 +309,21 @@ Value html_find_tag(Value tag_name, Value node, Env *env) {
   return nil_value;
 }
 
-#else /* ifdef WITH_GUMBO */
-
-Value html_parse(String *html, Env *env) {
-  return nil_value;
+int html_remove_node(Object *needle, Value haystack, Env *env) {
+  if (haystack.type == V_OBJECT) {
+    if (haystack.object_value == needle) {
+      return 1;
+    }
+    Value children;
+    if (object_get(haystack.object_value, create_symbol(get_symbol("children", env->symbol_map)), &children)
+        && children.type == V_ARRAY) {
+      for (size_t i = 0; i < children.array_value->size; i++) {
+        if (html_remove_node(needle, children.array_value->cells[i], env)) {
+          array_remove(children.array_value, i);
+          break;
+        }
+      }
+    }
+  }
+  return 0;
 }
-
-#endif /* ifdef WITH_GUMBO */

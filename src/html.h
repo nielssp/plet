@@ -14,6 +14,7 @@ void import_html(Env *env);
 
 Value html_parse(String *html, Env *env);
 void html_text_content(Value node, StringBuffer *buffer, Env *env);
-Value html_find_tag(Value tag_name, Value node, Env *env);
+Value html_find_tag(Symbol tag_name, Value node, Env *env);
+int html_remove_node(Object *needle, Value haystack, Env *env);
 
 #endif

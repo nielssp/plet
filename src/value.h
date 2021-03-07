@@ -199,6 +199,8 @@ void array_unshift(Array *array, Value elem, Arena *arena);
 
 int array_shift(Array *array, Value *elem);
 
+int array_remove(Array *array, int index);
+
 Value create_object(size_t capacity, Arena *arena);
 
 void object_put(Object *object, Value key, Value value, Arena *arena);

@@ -6,6 +6,8 @@
 
 #include "core.h"
 
+#include "strings.h"
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -27,11 +29,9 @@ static Value type(const Tuple *args, Env *env) {
 
 static Value string(const Tuple *args, Env *env) {
   check_args(1, args, env);
-  Buffer buffer = create_buffer(0);
-  value_to_string(args->values[0], &buffer);
-  Value string = create_string(buffer.data, buffer.size, env->arena);
-  delete_buffer(buffer);
-  return string;
+  StringBuffer buffer = create_string_buffer(0, env->arena);
+  string_buffer_append_value(&buffer, args->values[0]);
+  return finalize_string_buffer(buffer);
 }
 
 static Value error(const Tuple *args, Env *env) {

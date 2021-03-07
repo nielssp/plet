@@ -160,8 +160,7 @@ static Value create_content_object(const char *path, const char *name, PathStack
     Value html = html_parse(content.string_value, env);
     if (html.type != V_NIL) {
       object_def(obj.object_value, "html", html, env);
-      Value title_tag_name = copy_c_string("h1", env->arena);
-      Value title_tag = html_find_tag(title_tag_name, html, env);
+      Value title_tag = html_find_tag(get_symbol("h1", env->symbol_map), html, env);
       if (title_tag.type != V_NIL) {
         StringBuffer title_buffer = create_string_buffer(0, env->arena);
         html_text_content(title_tag, &title_buffer, env);

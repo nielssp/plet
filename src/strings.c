@@ -8,6 +8,7 @@
 
 #include <alloca.h>
 #include <ctype.h>
+#include <errno.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
@@ -307,9 +308,10 @@ static void json_encode_value(Value value, Buffer *buffer) {
       Value entry_key, entry_value;
       int first = 1;
       while (object_iterator_next(&it, &entry_key, &entry_value)) {
-        if (!first) {
-          buffer_printf(buffer, ",");
+        if (first) {
           first = 0;
+        } else {
+          buffer_printf(buffer, ",");
         }
         if (entry_key.type == V_STRING || entry_key.type == V_SYMBOL) {
           json_encode_value(entry_key, buffer);
@@ -454,6 +456,51 @@ void string_buffer_append(StringBuffer *buffer, String *suffix) {
   }
   memcpy(buffer->string->bytes + buffer->string->size, suffix->bytes, suffix->size);
   buffer->string->size += suffix->size;
+}
+
+void string_buffer_append_value(StringBuffer *buffer, Value value) {
+  switch (value.type) {
+    case V_NIL:
+      break;
+    case V_TRUE:
+      string_buffer_printf(buffer, "true");
+      break;
+    case V_INT:
+      string_buffer_printf(buffer, "%" PRId64, value.int_value);
+      break;
+    case V_FLOAT:
+      string_buffer_printf(buffer, "%lg", value.float_value);
+      break;
+    case V_SYMBOL:
+      string_buffer_printf(buffer, "%s", value.symbol_value);
+      break;
+    case V_STRING:
+      for (size_t i = 0; i < value.string_value->size; i++) {
+        string_buffer_put(buffer, value.string_value->bytes[i]);
+      }
+      break;
+    case V_ARRAY:
+    case V_OBJECT:
+      break;
+    case V_TIME: {
+      struct tm *t;
+      char date[26];
+      t = localtime(&value.time_value);
+      if (t) {
+        if (strftime(date, sizeof(date), "%Y-%m-%dT%H:%M:%S%z", t)) {
+          string_buffer_printf(buffer, "%s", date);
+        } else {
+          string_buffer_printf(buffer, "(invalid time: %s)", strerror(errno));
+        }
+      } else {
+        string_buffer_printf(buffer, "(invalid time: %s)", strerror(errno));
+      }
+      break;
+    }
+    case V_FUNCTION:
+    case V_CLOSURE:
+      break;
+  }
 }
 
 void string_buffer_append_bytes(StringBuffer *buffer, const uint8_t *bytes, size_t size) {

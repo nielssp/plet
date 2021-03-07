@@ -6,6 +6,8 @@
 
 #include "interpreter.h"
 
+#include "strings.h"
+
 #include <alloca.h>
 #include <inttypes.h>
 #include <stdarg.h>
@@ -224,12 +226,10 @@ static Value eval_prefix(Node node, Env *env) {
 }
 
 static Value concatenate_strings(Value left, Value right, Env *env) {
-  Buffer buffer = create_buffer(0);
-  value_to_string(left, &buffer);
-  value_to_string(right, &buffer);
-  Value result = create_string(buffer.data, buffer.size, env->arena);
-  delete_buffer(buffer);
-  return result;
+  StringBuffer buffer = create_string_buffer(0, env->arena);
+  string_buffer_append_value(&buffer, left);
+  string_buffer_append_value(&buffer, right);
+  return finalize_string_buffer(buffer);
 }
 
 static Value eval_add(Node node, Value left, Value right, Env *env) {
