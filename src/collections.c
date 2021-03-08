@@ -283,8 +283,8 @@ static int compare_values(const void *pa, const void *pb, void *pc) {
   }
   switch (a.type) {
     case V_NIL:
-      return 0;
     case V_TRUE:
+    case V_FALSE:
       return 0;
     case V_INT:
       return a.int_value - b.int_value;
@@ -684,8 +684,9 @@ static Value contains(const Tuple *args, Env *env) {
     }
   } else {
     arg_error(0, "array|object", args, env);
+    return nil_value;
   }
-  return nil_value;
+  return false_value;
 }
 
 static Value delete(const Tuple *args, Env *env) {
@@ -698,7 +699,7 @@ static Value delete(const Tuple *args, Env *env) {
   if (object_remove(src.object_value, args->values[1], NULL)) {
     return true_value;
   }
-  return nil_value;
+  return false_value;
 }
 
 void import_collections(Env *env) {

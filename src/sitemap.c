@@ -89,6 +89,7 @@ static void create_site_node(String *site_path, String *template_path, Value dat
           env_put(entry_key.symbol_value, copy_value(entry_value, template_env->arena), template_env);
         }
       }
+      env_def("GLOBAL", global, template_env);
     }
     env_def("PATH", copy_value((Value) { .type = V_STRING, .string_value = site_path },
           template_env->arena), template_env);

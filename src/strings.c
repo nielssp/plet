@@ -169,11 +169,11 @@ static Value starts_with(const Tuple *args, Env *env) {
     return true_value;
   }
   if (obj.string_value->size < prefix.string_value->size) {
-    return nil_value;
+    return false_value;
   }
   for (size_t i = 0; i < prefix.string_value->size; i++) {
     if (prefix.string_value->bytes[i] != obj.string_value->bytes[i]) {
-      return nil_value;
+      return false_value;
     }
   }
   return true_value;
@@ -195,11 +195,11 @@ static Value ends_with(const Tuple *args, Env *env) {
     return true_value;
   }
   if (obj.string_value->size < suffix.string_value->size) {
-    return nil_value;
+    return false_value;
   }
   for (size_t i = 0; i < suffix.string_value->size; i++) {
     if (suffix.string_value->bytes[i] != obj.string_value->bytes[obj.string_value->size - suffix.string_value->size + i]) {
-      return nil_value;
+      return false_value;
     }
   }
   return true_value;
@@ -245,6 +245,9 @@ static void json_encode_value(Value value, Buffer *buffer) {
       break;
     case V_TRUE:
       buffer_printf(buffer, "true");
+      break;
+    case V_FALSE:
+      buffer_printf(buffer, "false");
       break;
     case V_INT:
       buffer_printf(buffer, "%" PRId64, value.int_value);
@@ -465,6 +468,8 @@ void string_buffer_append_value(StringBuffer *buffer, Value value) {
     case V_TRUE:
       string_buffer_printf(buffer, "true");
       break;
+    case V_FALSE:
+      break;
     case V_INT:
       string_buffer_printf(buffer, "%" PRId64, value.int_value);
       break;
@@ -561,4 +566,70 @@ void string_buffer_printf(StringBuffer *buffer, const char *format, ...) {
   va_start(va, format);
   string_buffer_vprintf(buffer, format, va);
   va_end(va);
+}
+
+Value combine_string_paths(String *path1, String *path2, Env *env) {
+  if (path2->size) {
+    StringBuffer buffer = create_string_buffer(path1->size + path2->size + 1, env->arena);
+    string_buffer_append(&buffer, path1);
+    if (!path1->size || path1->bytes[path1->size - 1] != '/') {
+      string_buffer_put(&buffer, '/');
+    }
+    if (path2->bytes[0] != '/') {
+      string_buffer_append(&buffer, path2);
+    } else if (path2->size > 1) {
+      string_buffer_append_bytes(&buffer, path2->bytes + 1, path2->size - 1);
+    }
+    return finalize_string_buffer(buffer);
+  } else if (path1->size) {
+    return (Value) { .type = V_STRING, .string_value = path1 };
+  } else {
+    return copy_c_string("/", env->arena);
+  }
+}
+
+Value string_ltrim(String *string, const uint8_t *bytes, size_t num_bytes, Arena *arena) {
+  if (!string->size) {
+    return (Value) { .type = V_STRING, .string_value = string };
+  }
+  size_t offset = 0;
+  while (offset < string->size && memchr(bytes, string->bytes[offset], num_bytes)) {
+    offset++;
+  }
+  if (!offset) {
+    return (Value) { .type = V_STRING, .string_value = string };
+  }
+  return create_string(string->bytes + offset, string->size - offset, arena);
+}
+
+Value string_rtrim(String *string, const uint8_t *bytes, size_t num_bytes, Arena *arena) {
+  if (!string->size) {
+    return (Value) { .type = V_STRING, .string_value = string };
+  }
+  size_t size = string->size;
+  while (size > 0 && memchr(bytes, string->bytes[size - 1], num_bytes)) {
+    size--;
+  }
+  if (size == string->size) {
+    return (Value) { .type = V_STRING, .string_value = string };
+  }
+  return create_string(string->bytes, size, arena);
+}
+
+Value string_trim(String *string, const uint8_t *bytes, size_t num_bytes, Arena *arena) {
+  if (!string->size) {
+    return (Value) { .type = V_STRING, .string_value = string };
+  }
+  size_t size = string->size;
+  while (size > 0 && memchr(bytes, string->bytes[size - 1], num_bytes)) {
+    size--;
+  }
+  size_t offset = 0;
+  while (offset < size && memchr(bytes, string->bytes[offset], num_bytes)) {
+    offset++;
+  }
+  if (!offset && size == string->size) {
+    return (Value) { .type = V_STRING, .string_value = string };
+  }
+  return create_string(string->bytes + offset, size - offset, arena);
 }

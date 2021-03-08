@@ -48,6 +48,7 @@ typedef struct {
 typedef enum {
   V_NIL,
   V_TRUE,
+  V_FALSE,
   V_INT,
   V_FLOAT,
   V_SYMBOL,
@@ -77,6 +78,8 @@ struct Value {
 #define nil_value ((Value) { .type = V_NIL, .int_value = 0 })
 
 #define true_value ((Value) { .type = V_TRUE, .int_value = 0 })
+
+#define false_value ((Value) { .type = V_FALSE, .int_value = 0 })
 
 #define create_int(i) ((Value) { .type = V_INT, .int_value = (i) })
 

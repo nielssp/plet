@@ -33,4 +33,9 @@ void string_buffer_append_bytes(StringBuffer *buffer, const uint8_t *bytes, size
 void string_buffer_vprintf(StringBuffer *buffer, const char *format, va_list va);
 void string_buffer_printf(StringBuffer *buffer, const char *format, ...);
 
+Value combine_string_paths(String *path1, String *path2, Env *env);
+Value string_ltrim(String *string, const uint8_t *bytes, size_t num_bytes, Arena *arena);
+Value string_rtrim(String *string, const uint8_t *bytes, size_t num_bytes, Arena *arena);
+Value string_trim(String *string, const uint8_t *bytes, size_t num_bytes, Arena *arena);
+
 #endif

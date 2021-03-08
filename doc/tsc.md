@@ -185,6 +185,7 @@ name "(" PipeLine ["," Expression_1 {"," Expression_n}] ")"
 ## Types
 nil
 true
+false
 int
 float
 string
@@ -198,14 +199,14 @@ any
 
 ### Boolean
 
-Falsy valus: nil, 0, 0.0, [], {}, ''
+Falsy valus: nil, false, 0, 0.0, [], {}, ''
 
 ## Modules
 
 ### core
 ```
 nil: nil
-false: nil
+false: false
 true: true
 import(name: string): nil
 type(val: any): string
@@ -220,8 +221,8 @@ info(message: string): nil
 lower(str: string): string
 upper(str: string): string
 title(str: string): string
-starts_with(str: string, prefix: string): nil|true
-ends_with(str: string, suffix: string): nil|true
+starts_with(str: string, prefix: string): true|false
+ends_with(str: string, suffix: string): true|false
 symbol(str: string): symbol
 json(var: any): string
 ```
@@ -249,8 +250,8 @@ push(array: array, element: any): array
 push_all(array: array, elements: array): array
 shift(array: array): any
 unshift(array: array, element: any): array
-contains(obj: array|object, key: any): nil|true
-delete(obj: object, key: any): nil|true
+contains(obj: array|object, key: any): true|false
+delete(obj: object, key: any): true|false
 ```
 
 ### datetime
@@ -268,7 +269,7 @@ rfc2822(time: time|string|int): string
 embed(name: string, data: object?): string
 link(link: string?): string
 url(link: string?): string
-is_current(link: string?): nil|true
+is_current(link: string?): true|false
 read(file: string): string
 page_list(n: int, page: int? = PAGE.page, pages: int? = PAGE.pages): array
 page_link(page: int, path: string? = PAGE.path): string
@@ -279,6 +280,9 @@ filter_content(content: object, filters: array?): string
 ```
 h(str: string): string
 href(link: string?, class: string?): string
+html(node: html_node): string
+no_title(node: html_node): html_node
+parse_html(src: string): html_node
 ```
 
 ### sitemap

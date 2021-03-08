@@ -125,6 +125,7 @@ int equals(Value a, Value b) {
   switch (a.type) {
     case V_NIL:
     case V_TRUE:
+    case V_FALSE:
       return 1;
     case V_INT:
       return a.int_value == b.int_value;
@@ -185,6 +186,7 @@ int equals(Value a, Value b) {
 int is_truthy(Value value) {
   switch (value.type) {
     case V_NIL:
+    case V_FALSE:
       return 0;
     case V_TRUE:
       return 1;
@@ -213,6 +215,7 @@ Hash value_hash(Hash h, Value value) {
   switch (value.type) {
     case V_NIL:
     case V_TRUE:
+    case V_FALSE:
       break;
     case V_INT:
       for (int i = 0; i < sizeof(int64_t); i++) {
@@ -288,6 +291,7 @@ static Value copy_value_detect_cycles(Value value, Arena *arena, RefStack *ref_s
   switch (value.type) {
     case V_NIL:
     case V_TRUE:
+    case V_FALSE:
     case V_INT:
     case V_FLOAT:
     case V_SYMBOL:
@@ -351,6 +355,8 @@ void value_to_string(Value value, Buffer *buffer) {
     case V_TRUE:
       buffer_printf(buffer, "true");
       break;
+    case V_FALSE:
+      break;
     case V_INT:
       buffer_printf(buffer, "%" PRId64, value.int_value);
       break;
@@ -395,6 +401,8 @@ const char *value_name(ValueType type) {
       return "nil";
     case V_TRUE:
       return "true";
+    case V_FALSE:
+      return "false";
     case V_INT:
       return "int";
     case V_FLOAT:

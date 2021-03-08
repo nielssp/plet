@@ -81,7 +81,7 @@ static Value info(const Tuple *args, Env *env) {
 
 void import_core(Env *env) {
   env_def("nil", nil_value, env);
-  env_def("false", nil_value, env);
+  env_def("false", false_value, env);
   env_def("true", true_value, env);
   env_def_fn("import", import, env);
   env_def_fn("type", type, env);

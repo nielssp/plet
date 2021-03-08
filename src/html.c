@@ -7,6 +7,7 @@
 #include "html.h"
 
 #include "strings.h"
+#include "template.h"
 
 #ifdef WITH_GUMBO
 #include <gumbo.h>
@@ -84,7 +85,20 @@ static Value href(const Tuple *args, Env *env) {
   } else if (string_ends_with("/index.html", path.string_value)) {
     path = create_string(path.string_value->bytes, path.string_value->size - 11, env->arena);
   }
-  // TODO: class += 'current' if path == PATH
+  if (path_is_current(path.string_value, env)) {
+    if (class.string_value->size) {
+      StringBuffer buffer = create_string_buffer(class.string_value->size + 8, env->arena);
+      string_buffer_append(&buffer, class.string_value);
+      string_buffer_printf(&buffer, " current");
+      class = finalize_string_buffer(buffer);
+    } else {
+      class = copy_c_string("current", env->arena);
+    }
+  }
+  Value root_path;
+  if (env_get(get_symbol("ROOT_PATH", env->symbol_map), &root_path, env) && root_path.type == V_STRING) {
+    path = combine_string_paths(root_path.string_value, path.string_value, env);
+  }
   StringBuffer buffer = create_string_buffer(0, env->arena);
   string_buffer_printf(&buffer, " href=\"");
   for (size_t i = 0; i < path.string_value->size; i++) {

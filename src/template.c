@@ -47,6 +47,7 @@ static Value embed(const Tuple *args, Env *env) {
           env_put(entry_key.symbol_value, copy_value(entry_value, template_env->arena), template_env);
         }
       }
+      env_def("GLOBAL", global, template_env);
     }
     Value current_path;
     if (env_get(get_symbol("PATH", env->symbol_map), &current_path, env)) {
@@ -77,7 +78,10 @@ static Value link(const Tuple *args, Env *env) {
   } else if (string_ends_with("/index.html", path.string_value)) {
     path = create_string(path.string_value->bytes, path.string_value->size - 11, env->arena);
   }
-  // TODO: find prefix for path
+  Value root_path;
+  if (env_get(get_symbol("ROOT_PATH", env->symbol_map), &root_path, env) && root_path.type == V_STRING) {
+    return combine_string_paths(root_path.string_value, path.string_value, env);
+  }
   return path;
 }
 
@@ -99,8 +103,24 @@ static Value url(const Tuple *args, Env *env) {
   } else if (string_ends_with("/index.html", path.string_value)) {
     path = create_string(path.string_value->bytes, path.string_value->size - 11, env->arena);
   }
-  // TODO: find prefix for path
+  Value root_url;
+  if (env_get(get_symbol("ROOT_URL", env->symbol_map), &root_url, env) && root_url.type == V_STRING) {
+    return combine_string_paths(root_url.string_value, path.string_value, env);
+  }
   return path;
+}
+
+static Value is_current(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  Value path = args->values[0];
+  if (path.type != V_STRING) {
+    arg_type_error(0, V_STRING, args, env);
+    return nil_value;
+  }
+  if (path_is_current(path.string_value, env)) {
+    return true_value;
+  }
+  return false_value;
 }
 
 static Value read(const Tuple *args, Env *env) {
@@ -146,8 +166,22 @@ void import_template(Env *env) {
   env_def_fn("embed", embed, env);
   env_def_fn("link", link, env);
   env_def_fn("url", url, env);
-  //env_def_fn("is_current", is_current, env);
+  env_def_fn("is_current", is_current, env);
   env_def_fn("read", read, env);
   //env_def_fn("page_list", page_list, env);
   //env_def_fn("page_link", page_link, env);
+}
+
+int path_is_current(String *path, Env *env) {
+  Value current_path;
+  if (!env_get(get_symbol("PATH", env->symbol_map), &current_path, env) || current_path.type != V_STRING) {
+    return 0;
+  }
+  if (string_equals("index.html", current_path.string_value)) {
+    current_path = copy_c_string("", env->arena);
+  } else if (string_ends_with("/index.html", current_path.string_value)) {
+    current_path = create_string(current_path.string_value->bytes, current_path.string_value->size - 11, env->arena);
+  }
+  return equals(string_trim(path, (uint8_t *) "/", 1, env->arena),
+      string_trim(current_path.string_value, (uint8_t *) "/", 1, env->arena));
 }
