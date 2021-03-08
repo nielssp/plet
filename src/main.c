@@ -11,6 +11,7 @@
 #include "datetime.h"
 #include "html.h"
 #include "interpreter.h"
+#include "lipsum.h"
 #include "markdown.h"
 #include "parser.h"
 #include "reader.h"
@@ -47,6 +48,7 @@ static void print_help(const char *program_name) {
   puts("  build             Build site from index.tss");
   puts("  eval <file>       Evaluate a single source file");
   puts("  init              Create a new site in the current directory");
+  puts("  lipsum            Generate random markdown content");
 }
 
 static int eval(GlobalArgs args) {
@@ -150,6 +152,9 @@ int main(int argc, char *argv[]) {
     return eval(args);
   } else if (strcmp(command, "init") == 0) {
     return init(args);
+  } else if (strcmp(command, "lipsum") == 0) {
+    lipsum();
+    return 0;
   } else {
     fprintf(stderr, ERROR_LABEL "unrecognized command: %s" SGR_RESET "\n", command);
     return 1;
