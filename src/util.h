@@ -29,8 +29,10 @@
 
 #if defined(_WIN32)
 #define PATH_SEP '\\'
+#define IS_PATH_SEP(BYTE) ((BYTE) == '\\' || (BYTE) == '/')
 #else
 #define PATH_SEP '/'
+#define IS_PATH_SEP(BYTE) ((BYTE) == '/')
 #endif
 
 typedef struct Arena Arena;
@@ -80,5 +82,21 @@ char *combine_paths(const char *path1, const char *path2);
 int is_dir(const char *path);
 int copy_file(const char *src_path, const char *dest_path);
 int mkdir_rec(const char *path);
+
+typedef struct PathComponent PathComponent;
+
+typedef struct {
+  int32_t size;
+  char path[];
+} Path;
+
+Path *create_path(const char *path_bytes, int32_t length);
+Path *copy_path(const Path *path);
+void delete_path(Path *path);
+int path_is_absolute(const Path *path);
+Path *path_get_parent(const Path *path);
+const char *path_get_name(const Path *path);
+Path *path_join(const Path *path1, const Path *path2);
+Path *path_get_relative(const Path *start, const Path *end);
 
 #endif

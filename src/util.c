@@ -324,3 +324,195 @@ int mkdir_rec(const char *path) {
   free(buffer);
   return 1;
 }
+
+Path *create_path(const char *path_bytes, int32_t length) {
+  if (length < 0) {
+    length = strlen(path_bytes);
+  }
+  Path *path = allocate(sizeof(Path) + length + 1);
+  if (!length) {
+    path->size = 0;
+    path->path[0] = '\0';
+    return path;
+  }
+  int32_t root_size = 0;
+  int32_t i = 0;
+#if defined(_WIN32)
+  if (length >= 3 && path_bytes[1] == ':' && (path_bytes[2] == '\\' || path_bytes[2] == '/')) {
+    root_size = 3;
+    path->path[0] = path_bytes[0];
+    path->path[1] = ':';
+    path->path[2] = '\\';
+    i += 3;
+  } else if (length >= 2 && ((path_bytes[0] == '\\' && path_bytes[1] == '\\')
+      || (path_bytes[0] == '/' && path_bytes[1] == '/'))) {
+    root_size = 2;
+    path->path[0] = '\\';
+    path->path[1] = '\\';
+    i += 2;
+  } else if (length >= 1 && (path_bytes[0] == '\\' || path_bytes[0] == '/')) {
+    root_size = 1;
+    path->path[0] = '\\';
+    i += 1;
+  }
+#else
+  if (length >= 1 && path_bytes[0] == '/') {
+    root_size = 1;
+    path->path[0] = '/';
+    i += 1;
+  }
+#endif
+  path->size = i;
+  while (1) {
+    while (i < length && IS_PATH_SEP(path_bytes[i])) {
+      i++;
+    }
+    if (i >= length) {
+      break;
+    }
+    int32_t j = i;
+    while (j < length && !IS_PATH_SEP(path_bytes[j])) {
+      j++;
+    }
+    int32_t component_length = j - i;
+    if (component_length == 2 && path_bytes[i] == '.' && path_bytes[i + 1] == '.' && (root_size
+          || (path->size  && !((path->size == 2 || (path->size > 2 && path->path[path->size - 3] == PATH_SEP))
+              && memcmp(path->path + path->size - 2, "..", 2) == 0)))) {
+      while (path->size > root_size) {
+        path->size--;
+        if (IS_PATH_SEP(path->path[path->size])) {
+          break;
+        }
+      }
+    } else if (component_length != 1 || path_bytes[i] != '.') {
+      if (path->size > root_size) {
+        path->path[path->size++] = PATH_SEP;
+      }
+      memcpy(path->path + path->size, path_bytes + i, component_length);
+      path->size += component_length;
+    }
+    i = j;
+  }
+  path->path[path->size] = '\0';
+  return path;
+}
+
+Path *copy_path(const Path *path) {
+  Path *path_copy = allocate(sizeof(Path) + path->size + 1);
+  memcpy(path_copy, path, sizeof(Path) + path->size + 1);
+  return path_copy;
+}
+
+void delete_path(Path *path) {
+  free(path);
+}
+
+int path_is_absolute(const Path *path) {
+#if defined(_WIN32)
+  if (path->size >= 3 && path->path[1] == ':' && path->path[2] == '\\') {
+    return 3;
+  } else if (path->size >= 2 && path->path[0] == '\\' && path->path[1] == '\\') {
+    return 2;
+  } else if (path->size >= 1 && path->path[0] == '\\') {
+    return 1;
+  }
+#else
+  if (path->size >= 1 && path->path[0] == '/') {
+    return 1;
+  }
+#endif
+  return 0;
+}
+
+Path *path_get_parent(const Path *path) {
+  int root_size = path_is_absolute(path);
+  if (path->size == root_size) {
+    if (root_size) {
+      return copy_path(path);
+    }
+    return create_path("..", 2);
+  }
+  if ((path->size == 2 || (path->size > 2 && path->path[path->size - 3] == PATH_SEP))
+      && memcmp(path->path + path->size - 2, "..", 2) == 0) {
+    Path *parent = allocate(sizeof(Path) + path->size + 4);
+    parent->size = path->size + 3;
+    memcpy(parent->path, path->path, path->size);
+    parent->path[path->size] = PATH_SEP;
+    memcpy(parent->path + path->size + 1, "..", 3);
+    return parent;
+  }
+  int32_t size = path->size;
+  while (size > root_size) {
+    size--;
+    if (path->path[size] == PATH_SEP) {
+      break;
+    }
+  }
+  Path *parent = allocate(sizeof(Path) + size + 1);
+  parent->size = size;
+  memcpy(parent->path, path->path, size);
+  parent->path[size] = '\0';
+  return parent;
+}
+
+const char *path_get_name(const Path *path) {
+  int root_size = path_is_absolute(path);
+  if (path->size == root_size) {
+    return path->path;
+  }
+  int32_t size = path->size;
+  while (size > root_size) {
+    size--;
+    if (path->path[size] == PATH_SEP) {
+      size++;
+      break;
+    }
+  }
+  return path->path + size;
+}
+
+Path *path_join(const Path *path1, const Path *path2) {
+  if (path_is_absolute(path2)) {
+    return copy_path(path2);
+  }
+  Path *result = allocate(sizeof(Path) + path1->size + path2->size + 2);
+  result->size = path1->size;
+  memcpy(result->path, path1->path, path1->size);
+  int32_t root_size = path_is_absolute(path1);
+  int32_t i = 0;
+  while (1) {
+    while (i < path2->size && path2->path[i] == PATH_SEP) {
+      i++;
+    }
+    if (i >= path2->size) {
+      break;
+    }
+    int32_t j = i;
+    while (j < path2->size && path2->path[j] != PATH_SEP) {
+      j++;
+    }
+    int32_t component_length = j - i;
+    if (component_length == 2 && path2->path[i] == '.' && path2->path[i + 1] == '.' && (root_size
+          || ((result->size == 2 || (result->size > 2 && result->path[result->size - 3] == PATH_SEP))
+            && memcmp(result->path + result->size - 2, "..", 2) != 0))) {
+      while (result->size > root_size) {
+        result->size--;
+        if (result->path[result->size] == PATH_SEP) {
+          break;
+        }
+      }
+    } else {
+      if (result->size > root_size) {
+        result->path[result->size++] = PATH_SEP;
+      }
+      memcpy(result->path + result->size, path2->path + i, component_length);
+      result->size += component_length;
+    }
+    i = j;
+  }
+  result->path[result->size] = '\0';
+  return result;
+}
+
+Path *path_get_relative(const Path *start, const Path *end) {
+}
