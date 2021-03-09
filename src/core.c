@@ -34,6 +34,14 @@ static Value string(const Tuple *args, Env *env) {
   return finalize_string_buffer(buffer);
 }
 
+static Value bool_(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  if (is_truthy(args->values[0])) {
+    return true_value;
+  }
+  return false_value;
+}
+
 static Value error(const Tuple *args, Env *env) {
   check_args(1, args, env);
   Value message = args->values[0];
@@ -86,6 +94,7 @@ void import_core(Env *env) {
   env_def_fn("import", import, env);
   env_def_fn("type", type, env);
   env_def_fn("string", string, env);
+  env_def_fn("bool", bool_, env);
   env_def_fn("error", error, env);
   env_def_fn("warning", warning, env);
   env_def_fn("info", info, env);

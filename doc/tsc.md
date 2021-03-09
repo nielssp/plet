@@ -211,6 +211,7 @@ true: true
 import(name: string): nil
 type(val: any): string
 string(val: any): string
+bool(val: any): true|false
 error(message: string): nil
 warning(message: string): nil
 info(message: string): nil

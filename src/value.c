@@ -562,6 +562,18 @@ int object_get(Object *object, Value key, Value *value) {
   return 0;
 }
 
+int object_get_symbol(Object *object, const char *key, Value *value) {
+  for (size_t i = 0; i < object->size; i++) {
+    if (object->entries[i].key.type == V_SYMBOL && strcmp(object->entries[i].key.symbol_value, key) == 0) {
+      if (value) {
+        *value = object->entries[i].value;
+      }
+      return 1;
+    }
+  }
+  return 0;
+}
+
 int object_remove(Object *object, Value key, Value *value) {
   for (size_t i = 0; i < object->size; i++) {
     if (equals(key, object->entries[i].key)) {

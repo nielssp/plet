@@ -17,6 +17,11 @@ ifneq ($(WITH_GUMBO), 0)
 	CFLAGS += -DWITH_GUMBO $(shell pkg-config --cflags gumbo)
 endif
 
+ifneq ($(WITH_IMAGEMAGICK), 0)
+	LDFLAGS += $(shell pkg-config --libs MagickWand)
+	CFLAGS += -DWITH_IMAGEMAGICK $(shell pkg-config --cflags MagickWand)
+endif
+
 SOURCES := $(wildcard src/*.c)
 OBJECTS := $(SOURCES:.c=.o)
 

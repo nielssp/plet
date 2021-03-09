@@ -213,6 +213,8 @@ void object_put(Object *object, Value key, Value value, Arena *arena);
 
 int object_get(Object *object, Value key, Value *value);
 
+int object_get_symbol(Object *object, const char *key, Value *value);
+
 int object_remove(Object *object, Value key, Value *value);
 
 size_t object_size(Object *object);

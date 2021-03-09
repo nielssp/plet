@@ -46,6 +46,21 @@ static Value path_stack_to_string(PathStack *path_stack, Arena *arena) {
   return finalize_string_buffer(buffer);
 }
 
+typedef struct {
+  Env *env;
+} ContentLinkArgs;
+
+static HtmlTransformation transform_content_links(Value node, void *context) {
+  ContentLinkArgs *args = context;
+  Value src = html_get_attribute(node, "src");
+  if (src.type == V_STRING) {
+  }
+  src = html_get_attribute(node, "href");
+  if (src.type == V_STRING) {
+  }
+  return HTML_NO_ACTION;
+}
+
 static Value create_content_object(const char *path, const char *name, PathStack *path_stack, Env *env) {
   Value obj = create_object(0, env->arena);
   object_def(obj.object_value, "path", copy_c_string(path, env->arena), env);
@@ -160,12 +175,14 @@ static Value create_content_object(const char *path, const char *name, PathStack
     Value html = html_parse(content.string_value, env);
     if (html.type != V_NIL) {
       object_def(obj.object_value, "html", html, env);
-      Value title_tag = html_find_tag(get_symbol("h1", env->symbol_map), html, env);
+      Value title_tag = html_find_tag(get_symbol("h1", env->symbol_map), html);
       if (title_tag.type != V_NIL) {
         StringBuffer title_buffer = create_string_buffer(0, env->arena);
-        html_text_content(title_tag, &title_buffer, env);
+        html_text_content(title_tag, &title_buffer);
         object_def(obj.object_value, "title", finalize_string_buffer(title_buffer), env);
       }
+      ContentLinkArgs content_link_args = {env};
+      html_transform(html, transform_content_links, &content_link_args);
     }
   }
   return obj;

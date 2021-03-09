@@ -9,6 +9,8 @@
 #include "strings.h"
 #include "template.h"
 
+#include <string.h>
+
 #ifdef WITH_GUMBO
 #include <gumbo.h>
 #endif
@@ -177,12 +179,12 @@ static Value html(const Tuple *args, Env *env) {
 static Value no_title(const Tuple *args, Env *env) {
   check_args(1, args, env);
   Value src = args->values[0];
-  Value title_tag = html_find_tag(get_symbol("h1", env->symbol_map), src, env);
+  Value title_tag = html_find_tag(get_symbol("h1", env->symbol_map), src);
   if (title_tag.type == V_OBJECT) {
     src = copy_value(src, env->arena);
-    title_tag = html_find_tag(get_symbol("h1", env->symbol_map), src, env);
+    title_tag = html_find_tag(get_symbol("h1", env->symbol_map), src);
     if (title_tag.type == V_OBJECT) {
-      html_remove_node(title_tag.object_value, src, env);
+      html_remove_node(title_tag.object_value, src);
     }
   }
   return src;
@@ -286,13 +288,13 @@ Value html_parse(String *html, Env *env) {
 
 #endif /* ifdef WITH_GUMBO */
 
-void html_text_content(Value node, StringBuffer *buffer, Env *env) {
+void html_text_content(Value node, StringBuffer *buffer) {
   if (node.type == V_OBJECT) {
     Value children;
-    if (object_get(node.object_value, create_symbol(get_symbol("children", env->symbol_map)), &children)) {
+    if (object_get_symbol(node.object_value, "children", &children)) {
       if (children.type == V_ARRAY) {
         for (size_t i = 0; i < children.array_value->size; i++) {
-          html_text_content(children.array_value->cells[i], buffer, env);
+          html_text_content(children.array_value->cells[i], buffer);
         }
       }
     }
@@ -301,19 +303,19 @@ void html_text_content(Value node, StringBuffer *buffer, Env *env) {
   }
 }
 
-Value html_find_tag(Symbol tag_name, Value node, Env *env) {
+Value html_find_tag(Symbol tag_name, Value node) {
   if (node.type == V_OBJECT) {
     Value node_tag;
-    if (object_get(node.object_value, create_symbol(get_symbol("tag", env->symbol_map)), &node_tag)) {
+    if (object_get_symbol(node.object_value, "tag", &node_tag)) {
       if (node_tag.type == V_SYMBOL && node_tag.symbol_value == tag_name) {
         return node;
       }
     }
     Value children;
-    if (object_get(node.object_value, create_symbol(get_symbol("children", env->symbol_map)), &children)
+    if (object_get_symbol(node.object_value, "children", &children)
         && children.type == V_ARRAY) {
       for (size_t i = 0; i < children.array_value->size; i++) {
-        Value result = html_find_tag(tag_name, children.array_value->cells[i], env);
+        Value result = html_find_tag(tag_name, children.array_value->cells[i]);
         if (result.type != V_NIL) {
           return result;
         }
@@ -323,16 +325,16 @@ Value html_find_tag(Symbol tag_name, Value node, Env *env) {
   return nil_value;
 }
 
-int html_remove_node(Object *needle, Value haystack, Env *env) {
+int html_remove_node(Object *needle, Value haystack) {
   if (haystack.type == V_OBJECT) {
     if (haystack.object_value == needle) {
       return 1;
     }
     Value children;
-    if (object_get(haystack.object_value, create_symbol(get_symbol("children", env->symbol_map)), &children)
+    if (object_get_symbol(haystack.object_value, "children", &children)
         && children.type == V_ARRAY) {
       for (size_t i = 0; i < children.array_value->size; i++) {
-        if (html_remove_node(needle, children.array_value->cells[i], env)) {
+        if (html_remove_node(needle, children.array_value->cells[i])) {
           array_remove(children.array_value, i);
           break;
         }
@@ -340,4 +342,67 @@ int html_remove_node(Object *needle, Value haystack, Env *env) {
     }
   }
   return 0;
+}
+
+static HtmlTransformation internal_html_transform(Value node, HtmlTransformation (*acceptor)(Value, void *),
+    void *context);
+
+static HtmlTransformation internal_html_transform(Value node, HtmlTransformation (*acceptor)(Value, void *),
+    void *context) {
+  HtmlTransformation transformation = acceptor(node, context);
+  if (transformation.type != HT_NO_ACTION) {
+    return transformation;
+  }
+  if (node.type == V_OBJECT) {
+    Value children;
+    if (object_get_symbol(node.object_value, "children", &children) && children.type == V_ARRAY) {
+      for (size_t i = 0; i < children.array_value->size; i++) {
+        HtmlTransformation child_ht = internal_html_transform(children.array_value->cells[i], acceptor,
+            context);
+        if (child_ht.type == HT_REMOVE) {
+          array_remove(children.array_value, i);
+          i--;
+        } else if (child_ht.type == HT_REPLACE) {
+          children.array_value->cells[i] = child_ht.replacement;
+        }
+      }
+    }
+  }
+  return transformation;
+}
+
+Value html_transform(Value node, HtmlTransformation (*acceptor)(Value, void *), void *context) {
+  HtmlTransformation transformation = internal_html_transform(node, acceptor, context);
+  if (transformation.type == HT_REMOVE) {
+    return nil_value;
+  } else if (transformation.type == HT_REPLACE) {
+    return transformation.replacement;
+  } else {
+    return node;
+  }
+}
+
+int html_is_tag(Value node, const char *tag_name) {
+  if (node.type == V_OBJECT) {
+    Value node_tag;
+    if (object_get_symbol(node.object_value, "tag", &node_tag)) {
+      if (node_tag.type == V_SYMBOL && strcmp(node_tag.symbol_value, tag_name) == 0) {
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+Value html_get_attribute(Value node, const char *attribute_name) {
+  if (node.type == V_OBJECT) {
+    Value attributes;
+    if (object_get_symbol(node.object_value, "attributes", &attributes) && attributes.type == V_OBJECT) {
+      Value attribute;
+      if (object_get_symbol(attributes.object_value, attribute_name, &attribute)) {
+        return attribute;
+      }
+    }
+  }
+  return nil_value;
 }
