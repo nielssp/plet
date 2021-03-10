@@ -101,12 +101,7 @@ static Value create_content_object(const char *path, const char *name, PathStack
     }
   }
   object_def(obj.object_value, "name", name_value, env);
-  struct stat stat_buffer;
-  if (stat(path, &stat_buffer) == 0) {
-    object_def(obj.object_value, "modified", create_time(stat_buffer.st_mtime), env);
-  } else {
-    object_def(obj.object_value, "modified", create_time(0), env);
-  }
+  object_def(obj.object_value, "modified", create_time(get_mtime(path)), env);
   FILE *file = fopen(path, "r");
   if (!file) {
     fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", path, strerror(errno));

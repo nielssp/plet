@@ -235,13 +235,7 @@ static HtmlTransformation transform_links(Value node, void *context) {
   return HTML_NO_ACTION;
 }
 
-static Value links(const Tuple *args, Env *env) {
-  check_args_between(1, 2, args, env);
-  Value src = args->values[0];
-  int absolute = 0;
-  if (args->size > 1) {
-    absolute = is_truthy(args->values[1]);
-  }
+static Value links_or_urls(Value src, int absolute, Env *env) {
   Path *src_root = get_src_root(env);
   if (src_root) {
     Path *dist_root = get_dist_root(env);
@@ -259,6 +253,18 @@ static Value links(const Tuple *args, Env *env) {
     env_error(env, -1, "SRC_ROOT missing or not a string");
   }
   return src;
+}
+
+static Value links(const Tuple *args, Env *env) {
+  check_args(0, args, env);
+  Value src = args->values[0];
+  return links_or_urls(src, 0, env);
+}
+
+static Value urls(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  Value src = args->values[0];
+  return links_or_urls(src, 1, env);
 }
 
 #ifdef WITH_GUMBO
@@ -279,6 +285,7 @@ void import_html(Env *env) {
   env_def_fn("html", html, env);
   env_def_fn("no_title", no_title, env);
   env_def_fn("links", links, env);
+  env_def_fn("urls", urls, env);
 #ifdef WITH_GUMBO
   env_def_fn("parse_html", parse_html, env);
 #endif
