@@ -406,3 +406,13 @@ Value html_get_attribute(Value node, const char *attribute_name) {
   }
   return nil_value;
 }
+
+void html_set_attribute(Value node, const char *attribute_name, String *string_value, Env *env) {
+  if (node.type == V_OBJECT) {
+    Value attributes;
+    if (object_get_symbol(node.object_value, "attributes", &attributes) && attributes.type == V_OBJECT) {
+      Value value = (Value) { .type = V_STRING, .string_value = string_value };
+      object_def(attributes.object_value, attribute_name, value, env);
+    }
+  }
+}

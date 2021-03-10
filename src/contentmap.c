@@ -48,15 +48,36 @@ static Value path_stack_to_string(PathStack *path_stack, Arena *arena) {
 
 typedef struct {
   Env *env;
+  const Path *asset_base;
 } ContentLinkArgs;
+
+static int is_url(String *string) {
+  return string_starts_with("//", string) || memchr(string->bytes, ':', string->size) != NULL;
+}
+
+static int transform_content_link(Value node, const char *attribute_name, ContentLinkArgs *args) {
+  Value src = html_get_attribute(node, attribute_name);
+  if (src.type == V_STRING) {
+    if (!is_url(src.string_value)) {
+      Path *path = create_path((char *) src.string_value->bytes, src.string_value->size);
+      Path *asset_path = path_join(args->asset_base, path);
+      if (path_is_descending(asset_path)) {
+        StringBuffer buffer = create_string_buffer(asset_path->size + sizeof("tscasset:") - 1, args->env->arena);
+        string_buffer_printf(&buffer, "tscasset:%s", asset_path->path);
+        html_set_attribute(node, attribute_name, finalize_string_buffer(buffer).string_value, args->env);
+      }
+      delete_path(asset_path);
+      delete_path(path);
+      return 1;
+    }
+  }
+  return 0;
+}
 
 static HtmlTransformation transform_content_links(Value node, void *context) {
   ContentLinkArgs *args = context;
-  Value src = html_get_attribute(node, "src");
-  if (src.type == V_STRING) {
-  }
-  src = html_get_attribute(node, "href");
-  if (src.type == V_STRING) {
+  if (!transform_content_link(node, "src", args)) {
+    transform_content_link(node, "href", args);
   }
   return HTML_NO_ACTION;
 }
@@ -181,8 +202,19 @@ static Value create_content_object(const char *path, const char *name, PathStack
         html_text_content(title_tag, &title_buffer);
         object_def(obj.object_value, "title", finalize_string_buffer(title_buffer), env);
       }
-      ContentLinkArgs content_link_args = {env};
-      html_transform(html, transform_content_links, &content_link_args);
+      Value src_root;
+      if (env_get_symbol("SRC_ROOT", &src_root, env) && src_root.type == V_STRING) {
+        Path *src_root_path = create_path((char *) src_root.string_value->bytes, src_root.string_value->size);
+        Path *content_file_path = create_path(path, -1); // TODO: replace const char *path with const Path *path
+        Path *abs_asset_base = path_get_parent(content_file_path);
+        delete_path(content_file_path);
+        Path *asset_base = path_get_relative(src_root_path, abs_asset_base);
+        delete_path(abs_asset_base);
+        ContentLinkArgs content_link_args = {env, asset_base};
+        html_transform(html, transform_content_links, &content_link_args);
+        delete_path(asset_base);
+        delete_path(src_root_path);
+      }
     }
   }
   return obj;

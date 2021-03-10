@@ -11,6 +11,7 @@
 #include "core.h"
 #include "datetime.h"
 #include "html.h"
+#include "images.h"
 #include "interpreter.h"
 #include "markdown.h"
 #include "parser.h"
@@ -77,6 +78,7 @@ Env *create_template_env(Value data, Env *parent) {
   import_contentmap(env);
   import_template(env);
   import_html(env);
+  import_images(env);
   import_markdown(env);
   if (data.type == V_OBJECT) {
     ObjectIterator it = iterate_object(data.object_value);
@@ -86,6 +88,24 @@ Env *create_template_env(Value data, Env *parent) {
         env_put(entry_key.symbol_value, copy_value(entry_value, arena), env);
       }
     }
+  }
+  Value global;
+  if (env_get_symbol("GLOBAL", &global, parent) && global.type == V_OBJECT) {
+    ObjectIterator it = iterate_object(global.object_value);
+    Value entry_key, entry_value;
+    while (object_iterator_next(&it, &entry_key, &entry_value)) {
+      if (entry_key.type == V_SYMBOL) {
+        env_put(entry_key.symbol_value, copy_value(entry_value, env->arena), env);
+      }
+    }
+    env_def("GLOBAL", copy_value(global, env->arena), env);
+  }
+  Value src_root, dist_root;
+  if (env_get_symbol("SRC_ROOT", &src_root, parent)) {
+    env_def("SRC_ROOT", copy_value(src_root, env->arena), env);
+  }
+  if (env_get_symbol("DIST_ROOT", &dist_root, parent)) {
+    env_def("DIST_ROOT", copy_value(dist_root, env->arena), env);
   }
   return env;
 }
@@ -102,7 +122,7 @@ Value eval_template(Module *module, Value data, Env *env) {
   free(file_name_copy);
   Value content = interpret(*module->root, env);
   Value layout;
-  if (env_get(get_symbol("LAYOUT", env->symbol_map), &layout, env) && layout.type == V_STRING) {
+  if (env_get_symbol("LAYOUT", &layout, env) && layout.type == V_STRING) {
     env_def("CONTENT", content, env);
     env_def("LAYOUT", nil_value, env);
     char *layout_name = string_to_c_string(layout.string_value);
@@ -177,6 +197,73 @@ char *get_dist_path(String *path, Env *env) {
   free(path_str);
   free(dir);
   return combined;
+}
+
+static Value path_to_web_path(const Path *path, Arena *arena) {
+  Value web_path = allocate_string(path->size, arena);
+#if defined(_WIN32)
+  for (int32_t i = 0; i < path->size; i++) {
+    if (path->path[i] == PATH_SEP) {
+      web_path.string_value->bytes[i] = '/';
+    } else {
+      web_path.string_value->bytes[i] = path->path[i];
+    }
+  }
+#else
+  memcpy(web_path.string_value->bytes, path->path, path->size);
+#endif
+  return web_path;
+}
+
+Value get_web_path(const Path *path, int absolute, Env *env) {
+  if (!path_is_descending(path)) {
+    return copy_c_string("#invalid-path", env->arena);
+  }
+  String *web_path = path_to_web_path(path, env->arena).string_value;
+  Value root_value;
+  String *root = NULL;
+  if (absolute) {
+    if (env_get(get_symbol("ROOT_URL", env->symbol_map), &root_value, env) && root_value.type == V_STRING) {
+      root = root_value.string_value;
+    }
+  } else if (env_get(get_symbol("ROOT_PATH", env->symbol_map), &root_value, env) && root_value.type == V_STRING) {
+    root = root_value.string_value;
+  }
+  if (web_path->size) {
+    StringBuffer buffer = create_string_buffer((root ? root->size : 0) + web_path->size + 1, env->arena);
+    if (root) {
+      string_buffer_append(&buffer, root);
+    }
+    if (!buffer.string->size || buffer.string->bytes[buffer.string->size - 1] != '/') {
+      string_buffer_put(&buffer, '/');
+    }
+    if (web_path->bytes[0] != '/') {
+      string_buffer_append(&buffer, web_path);
+    } else if (web_path->size > 1) {
+      string_buffer_append_bytes(&buffer, web_path->bytes + 1, web_path->size - 1);
+    }
+    return finalize_string_buffer(buffer);
+  } else if (root) {
+    return (Value) { .type = V_STRING, .string_value = root };
+  } else {
+    return copy_c_string("/", env->arena);
+  }
+}
+
+Path *get_src_root(Env *env) {
+  Value value;
+  if (env_get_symbol("SRC_ROOT", &value, env) && value.type == V_STRING) {
+    return create_path((char *) value.string_value->bytes, value.string_value->size);
+  }
+  return NULL;
+}
+
+Path *get_dist_root(Env *env) {
+  Value value;
+  if (env_get_symbol("DIST_ROOT", &value, env) && value.type == V_STRING) {
+    return create_path((char *) value.string_value->bytes, value.string_value->size);
+  }
+  return NULL;
 }
 
 int build(GlobalArgs args) {

@@ -27,4 +27,8 @@ int build(GlobalArgs args);
 char *get_src_path(String *path, Env *env);
 char *get_dist_path(String *path, Env *env);
 
+Value get_web_path(const Path *path, int absolute, Env *env);
+Path *get_src_root(Env *env);
+Path *get_dist_root(Env *env);
+
 #endif

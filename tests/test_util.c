@@ -443,60 +443,6 @@ static void test_path_get_relative(void) {
 #endif
 }
 
-static void test_path_to_web_path(void) {
-  Path *path;
-  char *web_path;
-
-  path = create_path("", -1);
-  web_path = path_to_web_path(path);
-  assert(strcmp(web_path, "") == 0);
-  delete_path(path);
-  free(web_path);
-
-  path = create_path("foo", -1);
-  web_path = path_to_web_path(path);
-  assert(strcmp(web_path, "foo") == 0);
-  delete_path(path);
-  free(web_path);
-
-  path = create_path("foo/bar", -1);
-  web_path = path_to_web_path(path);
-  assert(strcmp(web_path, "foo/bar") == 0);
-  delete_path(path);
-  free(web_path);
-
-  path = create_path("/", -1);
-  web_path = path_to_web_path(path);
-  assert(strcmp(web_path, "/") == 0);
-  delete_path(path);
-  free(web_path);
-
-  path = create_path("/foo/bar/", -1);
-  web_path = path_to_web_path(path);
-  assert(strcmp(web_path, "/foo/bar") == 0);
-  delete_path(path);
-  free(web_path);
-
-  path = create_path("../foo", -1);
-  web_path = path_to_web_path(path);
-  assert(strcmp(web_path, "../foo") == 0);
-  delete_path(path);
-  free(web_path);
-
-  path = create_path("../a/b/../c/d/e/../../f", -1);
-  web_path = path_to_web_path(path);
-  assert(strcmp(web_path, "../a/c/f") == 0);
-  delete_path(path);
-  free(web_path);
-
-  path = create_path("/../a/b/../c/d/e/../../f", -1);
-  web_path = path_to_web_path(path);
-  assert(strcmp(web_path, "/a/c/f") == 0);
-  delete_path(path);
-  free(web_path);
-}
-
-
 void test_util(void) {
   run_test(test_arena);
   run_test(test_arena_reallocate);
@@ -508,6 +454,5 @@ void test_util(void) {
   run_test(test_path_get_name);
   run_test(test_path_join);
   run_test(test_path_get_relative);
-  run_test(test_path_to_web_path);
 }
 

@@ -160,6 +160,8 @@ void env_put(Symbol name, Value value, Env *env);
 
 int env_get(Symbol name, Value *value, Env *env);
 
+int env_get_symbol(const char *name, Value *value, Env *env);
+
 char *get_env_string(const char *name, Env *env);
 
 void env_error(Env *env, int arg, const char *format, ...);

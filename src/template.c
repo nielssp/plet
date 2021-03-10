@@ -39,17 +39,6 @@ static Value embed(const Tuple *args, Env *env) {
     env_error(env, -1, "unable to load template");
   } else {
     Env *template_env = create_template_env(data, env);
-    Value global;
-    if (env_get(get_symbol("GLOBAL", env->symbol_map), &global, env) && global.type == V_OBJECT) {
-      ObjectIterator it = iterate_object(global.object_value);
-      Value entry_key, entry_value;
-      while (object_iterator_next(&it, &entry_key, &entry_value)) {
-        if (entry_key.type == V_SYMBOL) {
-          env_put(entry_key.symbol_value, copy_value(entry_value, template_env->arena), template_env);
-        }
-      }
-      env_def("GLOBAL", global, template_env);
-    }
     Value current_path;
     if (env_get(get_symbol("PATH", env->symbol_map), &current_path, env)) {
       env_def("PATH", current_path, template_env);

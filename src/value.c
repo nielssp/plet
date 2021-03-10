@@ -62,6 +62,10 @@ int env_get(Symbol name, Value *value, Env *env) {
   return 0;
 }
 
+int env_get_symbol(const char *name, Value *value, Env *env) {
+  return env_get(get_symbol(name, env->symbol_map), value, env);
+}
+
 char *get_env_string(const char *name, Env *env) {
   Value value;
   if (!env_get(get_symbol(name, env->symbol_map), &value, env) || value.type != V_STRING) {

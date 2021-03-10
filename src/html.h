@@ -36,5 +36,6 @@ Value html_transform(Value node, HtmlTransformation (*acceptor)(Value, void *), 
 
 int html_is_tag(Value node, const char *tag_name);
 Value html_get_attribute(Value node, const char *attribute_name);
+void html_set_attribute(Value node, const char *attribute_name, String *value, Env *env);
 
 #endif

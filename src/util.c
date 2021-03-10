@@ -424,6 +424,11 @@ int path_is_absolute(const Path *path) {
   return 0;
 }
 
+int path_is_descending(const Path *path) {
+  return !((path->size == 2 || (path->size > 2 && path->path[2] == PATH_SEP))
+    && memcmp(path->path, "..", 2) == 0);
+}
+
 Path *path_get_parent(const Path *path) {
   int root_size = path_is_absolute(path);
   if (path->size == root_size) {
@@ -558,21 +563,4 @@ Path *path_get_relative(const Path *start, const Path *end) {
   memcpy(path->path, buffer.data, buffer.size);
   delete_buffer(buffer);
   return path;
-}
-
-char *path_to_web_path(const Path *path) {
-  char *web_path = allocate(path->size + 1);
-#if defined(_WIN32)
-  for (int32_t i = 0; i < path->size; i++) {
-    if (path->path[i] == PATH_SEP) {
-      web_path[i] = '/';
-    } else {
-      web_path[i] = path->path[i];
-    }
-  }
-  web_path[path->size] = '\0';
-#else
-  memcpy(web_path, path->path, path->size + 1);
-#endif
-  return web_path;
 }
