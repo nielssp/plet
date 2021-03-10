@@ -514,5 +514,65 @@ Path *path_join(const Path *path1, const Path *path2) {
   return result;
 }
 
+static int32_t get_end_of_component(const char *path, int32_t offset, int32_t size) {
+  while (offset < size && path[offset] != PATH_SEP) {
+    offset++;
+  }
+  return offset;
+}
+
 Path *path_get_relative(const Path *start, const Path *end) {
+  int32_t start_root_size = path_is_absolute(start);
+  int32_t end_root_size = path_is_absolute(end);
+  if (start_root_size != end_root_size || (start_root_size && start->path[0] != end->path[0])) {
+    return NULL;
+  }
+  Buffer buffer = create_buffer(end->size > start->size ? end->size : start->size);
+  int32_t i = start_root_size;
+  while (i < start->size && i < end->size) {
+    int32_t start_j = get_end_of_component(start->path, i, start->size);
+    int32_t end_j = get_end_of_component(end->path, i, end->size);
+    if (start_j != end_j || memcmp(start->path + i, end->path + i, start_j - i) != 0) {
+      break;
+    }
+    i = start_j + 1;
+  }
+  int32_t end_offset = i;
+  while (i < start->size) {
+    i = get_end_of_component(start->path, i, start->size);
+    if (buffer.size) {
+      buffer_put(&buffer, PATH_SEP);
+    }
+    buffer_printf(&buffer, "..");
+    i++;
+  }
+  if (end_offset < end->size) {
+    if (buffer.size) {
+      buffer_put(&buffer, PATH_SEP);
+    }
+    buffer_printf(&buffer, "%.*s", end->size - end_offset, end->path + end_offset);
+  }
+  buffer_put(&buffer, '\0');
+  Path *path = allocate(sizeof(Path) + buffer.size);
+  path->size = buffer.size - 1;
+  memcpy(path->path, buffer.data, buffer.size);
+  delete_buffer(buffer);
+  return path;
+}
+
+char *path_to_web_path(const Path *path) {
+  char *web_path = allocate(path->size + 1);
+#if defined(_WIN32)
+  for (int32_t i = 0; i < path->size; i++) {
+    if (path->path[i] == PATH_SEP) {
+      web_path[i] = '/';
+    } else {
+      web_path[i] = path->path[i];
+    }
+  }
+  web_path[path->size] = '\0';
+#else
+  memcpy(web_path, path->path, path->size + 1);
+#endif
+  return web_path;
 }

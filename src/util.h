@@ -98,5 +98,6 @@ Path *path_get_parent(const Path *path);
 const char *path_get_name(const Path *path);
 Path *path_join(const Path *path1, const Path *path2);
 Path *path_get_relative(const Path *start, const Path *end);
+char *path_to_web_path(const Path *path);
 
 #endif

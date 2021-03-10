@@ -8,6 +8,7 @@
 
 #include "test.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 static void test_arena(void) {
@@ -356,6 +357,146 @@ static void test_path_join(void) {
 #endif
 }
 
+static void test_path_get_relative(void) {
+  Path *path1, *path2, *path3;
+
+  path1 = create_path("", -1);
+  path2 = create_path("", -1);
+  path3 = path_get_relative(path1, path2);
+  assert(strcmp(path3->path, "") == 0);
+  delete_path(path1);
+  delete_path(path2);
+  delete_path(path3);
+
+  path1 = create_path("foo", -1);
+  path2 = create_path("", -1);
+  path3 = path_get_relative(path1, path2);
+  assert(strcmp(path3->path, "..") == 0);
+  delete_path(path1);
+  delete_path(path2);
+  delete_path(path3);
+
+  path1 = create_path("", -1);
+  path2 = create_path("foo", -1);
+  path3 = path_get_relative(path1, path2);
+  assert(strcmp(path3->path, "foo") == 0);
+  delete_path(path1);
+  delete_path(path2);
+  delete_path(path3);
+
+#if defined(_WIN32)
+#else
+  path1 = create_path("foo", -1);
+  path2 = create_path("bar", -1);
+  path3 = path_get_relative(path1, path2);
+  assert(strcmp(path3->path, "../bar") == 0);
+  delete_path(path1);
+  delete_path(path2);
+  delete_path(path3);
+
+  path1 = create_path("/foo", -1);
+  path2 = create_path("bar", -1);
+  path3 = path_get_relative(path1, path2);
+  assert(path3 == NULL);
+  delete_path(path1);
+  delete_path(path2);
+
+  path1 = create_path("/foo", -1);
+  path2 = create_path("/bar", -1);
+  path3 = path_get_relative(path1, path2);
+  assert(strcmp(path3->path, "../bar") == 0);
+  delete_path(path1);
+  delete_path(path2);
+  delete_path(path3);
+
+  path1 = create_path("../foo", -1);
+  path2 = create_path("../bar", -1);
+  path3 = path_get_relative(path1, path2);
+  assert(strcmp(path3->path, "../bar") == 0);
+  delete_path(path1);
+  delete_path(path2);
+  delete_path(path3);
+
+  path1 = create_path("..", -1);
+  path2 = create_path("..", -1);
+  path3 = path_get_relative(path1, path2);
+  assert(strcmp(path3->path, "") == 0);
+  delete_path(path1);
+  delete_path(path2);
+  delete_path(path3);
+
+  path1 = create_path("..", -1);
+  path2 = create_path("../foo", -1);
+  path3 = path_get_relative(path1, path2);
+  assert(strcmp(path3->path, "foo") == 0);
+  delete_path(path1);
+  delete_path(path2);
+  delete_path(path3);
+
+  path1 = create_path("/a/b/c/d/e", -1);
+  path2 = create_path("/a/b/f/g", -1);
+  path3 = path_get_relative(path1, path2);
+  assert(strcmp(path3->path, "../../../f/g") == 0);
+  delete_path(path1);
+  delete_path(path2);
+  delete_path(path3);
+#endif
+}
+
+static void test_path_to_web_path(void) {
+  Path *path;
+  char *web_path;
+
+  path = create_path("", -1);
+  web_path = path_to_web_path(path);
+  assert(strcmp(web_path, "") == 0);
+  delete_path(path);
+  free(web_path);
+
+  path = create_path("foo", -1);
+  web_path = path_to_web_path(path);
+  assert(strcmp(web_path, "foo") == 0);
+  delete_path(path);
+  free(web_path);
+
+  path = create_path("foo/bar", -1);
+  web_path = path_to_web_path(path);
+  assert(strcmp(web_path, "foo/bar") == 0);
+  delete_path(path);
+  free(web_path);
+
+  path = create_path("/", -1);
+  web_path = path_to_web_path(path);
+  assert(strcmp(web_path, "/") == 0);
+  delete_path(path);
+  free(web_path);
+
+  path = create_path("/foo/bar/", -1);
+  web_path = path_to_web_path(path);
+  assert(strcmp(web_path, "/foo/bar") == 0);
+  delete_path(path);
+  free(web_path);
+
+  path = create_path("../foo", -1);
+  web_path = path_to_web_path(path);
+  assert(strcmp(web_path, "../foo") == 0);
+  delete_path(path);
+  free(web_path);
+
+  path = create_path("../a/b/../c/d/e/../../f", -1);
+  web_path = path_to_web_path(path);
+  assert(strcmp(web_path, "../a/c/f") == 0);
+  delete_path(path);
+  free(web_path);
+
+  path = create_path("/../a/b/../c/d/e/../../f", -1);
+  web_path = path_to_web_path(path);
+  assert(strcmp(web_path, "/a/c/f") == 0);
+  delete_path(path);
+  free(web_path);
+}
+
+
 void test_util(void) {
   run_test(test_arena);
   run_test(test_arena_reallocate);
@@ -366,5 +507,7 @@ void test_util(void) {
   run_test(test_path_get_parent);
   run_test(test_path_get_name);
   run_test(test_path_join);
+  run_test(test_path_get_relative);
+  run_test(test_path_to_web_path);
 }
 
