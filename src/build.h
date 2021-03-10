@@ -31,4 +31,6 @@ Value get_web_path(const Path *path, int absolute, Env *env);
 Path *get_src_root(Env *env);
 Path *get_dist_root(Env *env);
 
+int copy_asset(const Path *src, const Path *dest);
+
 #endif

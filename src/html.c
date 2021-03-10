@@ -6,6 +6,7 @@
 
 #include "html.h"
 
+#include "build.h"
 #include "strings.h"
 #include "template.h"
 
@@ -190,6 +191,76 @@ static Value no_title(const Tuple *args, Env *env) {
   return src;
 }
 
+typedef struct {
+  int absolute;
+  Path *src_root;
+  Path *dist_root;
+  Path *asset_root;
+  Env *env;
+} LinkArgs;
+
+static int transform_link(Value node, const char *attribute_name, LinkArgs *args) {
+  Value src = html_get_attribute(node, attribute_name);
+  if (src.type != V_STRING) {
+    return 0;
+  }
+  if (string_starts_with("tscasset:", src.string_value)) {
+    Path *asset_path = create_path((char *) src.string_value->bytes + sizeof("tscasset:") - 1,
+        src.string_value->size - (sizeof("tscasset:") - 1));
+    Path *src_path = path_join(args->src_root, asset_path);
+    Path *asset_web_path = path_join(args->asset_root, asset_path);
+    Path *dist_path = path_join(args->dist_root, asset_web_path);
+    copy_asset(src_path, dist_path);
+    html_set_attribute(node, attribute_name, get_web_path(asset_web_path, args->absolute, args->env).string_value,
+        args->env);
+    delete_path(dist_path);
+    delete_path(asset_web_path);
+    delete_path(src_path);
+    delete_path(asset_path);
+  } else if (string_starts_with("tsclink:", src.string_value)) {
+    Path *web_path = create_path((char *) src.string_value->bytes + sizeof("tsclink:") - 1,
+        src.string_value->size - (sizeof("tsclink:") - 1));
+    html_set_attribute(node, attribute_name, get_web_path(web_path, args->absolute, args->env).string_value,
+        args->env);
+    delete_path(web_path);
+  }
+  return 1;
+}
+
+static HtmlTransformation transform_links(Value node, void *context) {
+  LinkArgs *args = context;
+  if (!transform_link(node, "src", args)) {
+    transform_link(node, "href", args);
+  }
+  return HTML_NO_ACTION;
+}
+
+static Value links(const Tuple *args, Env *env) {
+  check_args_between(1, 2, args, env);
+  Value src = args->values[0];
+  int absolute = 0;
+  if (args->size > 1) {
+    absolute = is_truthy(args->values[1]);
+  }
+  Path *src_root = get_src_root(env);
+  if (src_root) {
+    Path *dist_root = get_dist_root(env);
+    if (dist_root) {
+      Path *asset_root = create_path("assets", -1);
+      LinkArgs context = {absolute, src_root, dist_root, asset_root, env};
+      src = html_transform(src, transform_links, &context);
+      delete_path(asset_root);
+      delete_path(dist_root);
+    } else {
+      env_error(env, -1, "DIST_ROOT missing or not a string");
+    }
+    delete_path(src_root);
+  } else {
+    env_error(env, -1, "SRC_ROOT missing or not a string");
+  }
+  return src;
+}
+
 #ifdef WITH_GUMBO
 static Value parse_html(const Tuple *args, Env *env) {
   check_args(1, args, env);
@@ -207,6 +278,7 @@ void import_html(Env *env) {
   env_def_fn("href", href, env);
   env_def_fn("html", html, env);
   env_def_fn("no_title", no_title, env);
+  env_def_fn("links", links, env);
 #ifdef WITH_GUMBO
   env_def_fn("parse_html", parse_html, env);
 #endif

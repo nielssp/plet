@@ -11,6 +11,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <time.h>
 
 #define SGR_RESET "\001\033[0m\002"
 #define SGR_RED "\001\033[31m\002"
@@ -79,6 +80,7 @@ size_t get_line_in_file(int line, char **output, FILE *f);
 void print_error_line(const char *file_name, Pos start, Pos end);
 
 char *combine_paths(const char *path1, const char *path2);
+time_t get_mtime(const char *path);
 int is_dir(const char *path);
 int copy_file(const char *src_path, const char *dest_path);
 int mkdir_rec(const char *path);

@@ -32,12 +32,14 @@ static HtmlTransformation image_acceptor(Value node, void *context) {
     Value src = html_get_attribute(node, "src");
     if (src.type == V_STRING && string_starts_with("tscasset:", src.string_value)) {
       Path *asset_path = create_path((char *) src.string_value->bytes + sizeof("tscasset:") - 1,
-          src.string_value->size - sizeof("tscasset:") + 1);
+          src.string_value->size - (sizeof("tscasset:") - 1));
       Path *src_path = path_join(args->src_root, asset_path);
       Path *asset_web_path = path_join(args->asset_root, asset_path);
       Path *dist_path = path_join(args->dist_root, asset_web_path);
-      copy_file(src_path->path, dist_path->path);
-      html_set_attribute(node, "src", get_web_path(asset_web_path, 0, args->env).string_value, args->env);
+      copy_asset(src_path, dist_path);
+      StringBuffer new_link = create_string_buffer(sizeof("tsclink:") + asset_web_path->size, args->env->arena);
+      string_buffer_printf(&new_link, "tsclink:%s", asset_web_path->path);
+      html_set_attribute(node, "src", finalize_string_buffer(new_link).string_value, args->env);
       delete_path(dist_path);
       delete_path(asset_web_path);
       delete_path(src_path);

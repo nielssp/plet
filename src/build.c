@@ -219,7 +219,14 @@ Value get_web_path(const Path *path, int absolute, Env *env) {
   if (!path_is_descending(path)) {
     return copy_c_string("#invalid-path", env->arena);
   }
-  String *web_path = path_to_web_path(path, env->arena).string_value;
+  String *web_path;
+  if (strcmp(path_get_name(path), "index.html") == 0) {
+    Path *dir = path_get_parent(path);
+    web_path = path_to_web_path(dir, env->arena).string_value;
+    delete_path(dir);
+  } else {
+    web_path = path_to_web_path(path, env->arena).string_value;
+  }
   Value root_value;
   String *root = NULL;
   if (absolute) {
@@ -264,6 +271,16 @@ Path *get_dist_root(Env *env) {
     return create_path((char *) value.string_value->bytes, value.string_value->size);
   }
   return NULL;
+}
+
+int copy_asset(const Path *src, const Path *dest) {
+  int result = 0;
+  Path *dest_dir = path_get_parent(dest);
+  if (mkdir_rec(dest_dir->path)) {
+    result = copy_file(src->path, dest->path);
+  }
+  delete_path(dest_dir);
+  return result;
 }
 
 int build(GlobalArgs args) {

@@ -61,7 +61,11 @@ static int transform_content_link(Value node, const char *attribute_name, Conten
     if (!is_url(src.string_value)) {
       Path *path = create_path((char *) src.string_value->bytes, src.string_value->size);
       Path *asset_path = path_join(args->asset_base, path);
-      if (path_is_descending(asset_path)) {
+      if (path_is_absolute(asset_path)) {
+        StringBuffer buffer = create_string_buffer(asset_path->size + sizeof("tsclink:") - 1, args->env->arena);
+        string_buffer_printf(&buffer, "tsclink:%s", asset_path->path);
+        html_set_attribute(node, attribute_name, finalize_string_buffer(buffer).string_value, args->env);
+      } else if (path_is_descending(asset_path)) {
         StringBuffer buffer = create_string_buffer(asset_path->size + sizeof("tscasset:") - 1, args->env->arena);
         string_buffer_printf(&buffer, "tscasset:%s", asset_path->path);
         html_set_attribute(node, attribute_name, finalize_string_buffer(buffer).string_value, args->env);

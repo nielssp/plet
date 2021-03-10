@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 
 #if defined(_WIN32)
 #include <io.h>
@@ -241,6 +242,14 @@ char *combine_paths(const char *path1, const char *path2) {
   memcpy(combined_path + length1, path2, length2);
   combined_path[length1 + length2] = '\0';
   return combined_path;
+}
+
+time_t get_mtime(const char *path) {
+  struct stat stat_buffer;
+  if (stat(path, &stat_buffer) == 0) {
+    return stat_buffer.st_mtime;
+  }
+  return 0;
 }
 
 int is_dir(const char *path) {
