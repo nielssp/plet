@@ -14,6 +14,8 @@
 
 #define INITIAL_ARRAY_CAPACITY 16
 
+static Node copy_node(Node node, Arena *arena);
+
 struct Object {
   Entry *entries;
   size_t capacity;
@@ -339,7 +341,7 @@ static Value copy_value_detect_cycles(Value value, Arena *arena, RefStack *ref_s
       }
       Closure *copy = arena_allocate(sizeof(Closure), arena);
       copy->params = value.closure_value->params;
-      copy->body = value.closure_value->body;
+      copy->body = copy_node(value.closure_value->body, arena);
       RefStack nested = (RefStack) { .next = ref_stack, .old = value.closure_value, .new = copy };
       copy->env = copy_env(value.closure_value->env, arena, &nested);
       return (Value) { .type = V_CLOSURE, .closure_value = copy };
@@ -619,7 +621,7 @@ int object_iterator_next(ObjectIterator *it, Value *key, Value *value) {
 Value create_closure(NameList *params, NameList *free_variables, Node body, Env *env, Arena *arena) {
   Closure *closure = arena_allocate(sizeof(Closure), arena);
   closure->params = params;
-  closure->body = body;
+  closure->body = copy_node(body, arena);
   closure->env = create_env(arena, env->modules, env->symbol_map);
   for (NameList *name = free_variables; name; name = name->tail) {
     Value value;
@@ -628,4 +630,117 @@ Value create_closure(NameList *params, NameList *free_variables, Node body, Env 
     }
   }
   return (Value) { .type = V_CLOSURE, .closure_value = closure };
+}
+
+static NodeList *copy_node_list(NodeList *list, Arena *arena) {
+  if (!list) {
+    return NULL;
+  }
+  NodeList *copy = arena_allocate(sizeof(NodeList), arena);
+  copy->size = list->size;
+  copy->tail = copy_node_list(list->tail, arena);
+  copy->head = copy_node(list->head, arena);
+  return copy;
+}
+
+static PropertyList *copy_property_list(PropertyList *list, Arena *arena) {
+  if (!list) {
+    return NULL;
+  }
+  PropertyList *copy = arena_allocate(sizeof(PropertyList), arena);
+  copy->size = list->size;
+  copy->tail = copy_property_list(list->tail, arena);
+  copy->key = copy_node(list->key, arena);
+  copy->value = copy_node(list->value, arena);
+  return copy;
+}
+
+static NameList *arena_copy_name_list(NameList *list, Arena *arena) {
+  if (!list) {
+    return NULL;
+  }
+  NameList *copy = arena_allocate(sizeof(NameList), arena);
+  copy->size = list->size;
+  copy->tail = arena_copy_name_list(list->tail, arena);
+  copy->head = list->head;
+  return copy;
+}
+
+static Node *copy_node_pointer(Node *node, Arena *arena) {
+  Node *copy = arena_allocate(sizeof(Node), arena);
+  *copy = *node;
+  return copy;
+}
+
+static Node copy_node(Node node, Arena *arena) {
+  switch (node.type) {
+    case N_NAME:
+    case N_INT:
+    case N_FLOAT:
+      break;
+    case N_STRING: {
+      uint8_t *bytes = arena_allocate(node.string_value.size, arena);
+      memcpy(bytes, node.string_value.bytes, node.string_value.size);
+      node.string_value.bytes = bytes;
+      break;
+    }
+    case N_LIST:
+      node.list_value = copy_node_list(node.list_value, arena);
+      break;
+    case N_OBJECT:
+      node.object_value = copy_property_list(node.object_value, arena);
+      break;
+    case N_APPLY:
+      node.apply_value.callee = copy_node_pointer(node.apply_value.callee, arena);
+      node.apply_value.args = copy_node_list(node.apply_value.args, arena);
+      break;
+    case N_SUBSCRIPT:
+      node.subscript_value.list = copy_node_pointer(node.subscript_value.list, arena);
+      node.subscript_value.index = copy_node_pointer(node.subscript_value.index, arena);
+      break;
+    case N_DOT:
+      node.dot_value.object = copy_node_pointer(node.dot_value.object, arena);
+      break;
+    case N_PREFIX:
+      node.prefix_value.operand = copy_node_pointer(node.prefix_value.operand, arena);
+      break;
+    case N_INFIX:
+      node.infix_value.left = copy_node_pointer(node.infix_value.left, arena);
+      node.infix_value.right = copy_node_pointer(node.infix_value.right, arena);
+      break;
+    case N_TUPLE:
+      node.tuple_value = arena_copy_name_list(node.tuple_value, arena);
+      break;
+    case N_FN:
+      node.fn_value.params = arena_copy_name_list(node.fn_value.params, arena);
+      node.fn_value.free_variables = arena_copy_name_list(node.fn_value.free_variables, arena);
+      node.fn_value.body = copy_node_pointer(node.fn_value.body, arena);
+      break;
+    case N_IF:
+      node.if_value.cond = copy_node_pointer(node.if_value.cond, arena);
+      node.if_value.cons = copy_node_pointer(node.if_value.cons, arena);
+      node.if_value.alt = copy_node_pointer(node.if_value.alt, arena);
+      break;
+    case N_FOR:
+      node.for_value.collection = copy_node_pointer(node.for_value.collection, arena);
+      node.for_value.body = copy_node_pointer(node.for_value.body, arena);
+      node.for_value.alt = copy_node_pointer(node.for_value.alt, arena);
+      break;
+    case N_SWITCH:
+      node.switch_value.expr = copy_node_pointer(node.switch_value.expr, arena);
+      node.switch_value.default_case = copy_node_pointer(node.switch_value.default_case, arena);
+      node.switch_value.cases = copy_property_list(node.switch_value.cases, arena);
+      break;
+    case N_ASSIGN:
+      node.assign_value.left = copy_node_pointer(node.assign_value.left, arena);
+      node.assign_value.right = copy_node_pointer(node.assign_value.right, arena);
+      break;
+    case N_BLOCK:
+      node.block_value = copy_node_list(node.block_value, arena);
+      break;
+    case N_SUPPRESS:
+      node.suppress_value = copy_node_pointer(node.suppress_value, arena);
+      break;
+  }
+  return node;
 }
