@@ -12,6 +12,12 @@
 typedef struct Module Module;
 typedef struct ModuleMap ModuleMap;
 
+typedef enum {
+  M_SYSTEM,
+  M_USER,
+  M_ASSET
+} ModuleType;
+
 struct Module {
   char *file_name;
   Node *root;

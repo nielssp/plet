@@ -99,6 +99,7 @@ int path_is_absolute(const Path *path);
 int path_is_descending(const Path *path);
 Path *path_get_parent(const Path *path);
 const char *path_get_name(const Path *path);
+const char *path_get_extension(const Path *path);
 Path *path_join(const Path *path1, const Path *path2);
 Path *path_get_relative(const Path *start, const Path *end);
 

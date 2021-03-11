@@ -300,7 +300,7 @@ static int check_dir(const char *path) {
     return 1;
   }
 #else
-  if (mkdir(path, S_IRWXU) == 0) {
+  if (mkdir(path, 0777) == 0) {
     return 1;
   }
 #endif
@@ -483,6 +483,15 @@ const char *path_get_name(const Path *path) {
     }
   }
   return path->path + size;
+}
+
+const char *path_get_extension(const Path *path) {
+  const char *name = path_get_name(path);
+  char *extension = strrchr(name, '.');
+  if (extension) {
+    return extension + 1;
+  }
+  return "";
 }
 
 Path *path_join(const Path *path1, const Path *path2) {

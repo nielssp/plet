@@ -270,6 +270,34 @@ static void test_path_get_name(void) {
 #endif
 }
 
+static void test_path_get_extension(void) {
+  Path *path;
+
+  path = create_path("", -1);
+  assert(strcmp(path_get_extension(path), "") == 0);
+  delete_path(path);
+
+  path = create_path("foo", -1);
+  assert(strcmp(path_get_extension(path), "") == 0);
+  delete_path(path);
+
+  path = create_path(".foo", -1);
+  assert(strcmp(path_get_extension(path), "foo") == 0);
+  delete_path(path);
+
+  path = create_path("foo.", -1);
+  assert(strcmp(path_get_extension(path), "") == 0);
+  delete_path(path);
+
+  path = create_path("foo.bar", -1);
+  assert(strcmp(path_get_extension(path), "bar") == 0);
+  delete_path(path);
+
+  path = create_path("foo.bar.baz", -1);
+  assert(strcmp(path_get_extension(path), "baz") == 0);
+  delete_path(path);
+}
+
 static void test_path_join(void) {
   Path *path1, *path2, *path3;
 
@@ -452,6 +480,7 @@ void test_util(void) {
   run_test(test_path_is_absolute);
   run_test(test_path_get_parent);
   run_test(test_path_get_name);
+  run_test(test_path_get_extension);
   run_test(test_path_join);
   run_test(test_path_get_relative);
 }
