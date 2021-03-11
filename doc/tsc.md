@@ -283,12 +283,15 @@ h(str: string): string
 href(link: string?, class: string?): string
 html(node: html_node): string
 no_title(node: html_node): html_node
+links(node: html_node): html_node
+urls(node: html_node): html_node
 parse_html(src: string): html_node
 ```
 
 ### sitemap
 ```
 add_static(path: string): nil
+add_reverse(content_path: string, path: string): nil
 add_page(path: string, template: string, data: object?): nil
 paginate(items: array, per_page: int, path: string, template: string, data: object?): nil
 ```
@@ -297,5 +300,4 @@ paginate(items: array, per_page: int, path: string, template: string, data: obje
 
 ```
 list_content(path: string, options: {recursive: boolean, suffix: string}?): array
-save_content(content: object): nil
 ```

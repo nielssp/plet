@@ -100,12 +100,15 @@ Env *create_template_env(Value data, Env *parent) {
     }
     env_def("GLOBAL", copy_value(global, env->arena), env);
   }
-  Value src_root, dist_root;
-  if (env_get_symbol("SRC_ROOT", &src_root, parent)) {
-    env_def("SRC_ROOT", copy_value(src_root, env->arena), env);
+  Value value;
+  if (env_get_symbol("SRC_ROOT", &value, parent)) {
+    env_def("SRC_ROOT", copy_value(value, env->arena), env);
   }
-  if (env_get_symbol("DIST_ROOT", &dist_root, parent)) {
-    env_def("DIST_ROOT", copy_value(dist_root, env->arena), env);
+  if (env_get_symbol("DIST_ROOT", &value, parent)) {
+    env_def("DIST_ROOT", copy_value(value, env->arena), env);
+  }
+  if (env_get_symbol("REVERSE_PATHS", &value, parent)) {
+    env_def("REVERSE_PATHS", copy_value(value, env->arena), env);
   }
   return env;
 }

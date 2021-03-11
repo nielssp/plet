@@ -65,6 +65,27 @@ static Value add_static(const Tuple *args, Env *env) {
   return nil_value;
 }
 
+static Value add_reverse(const Tuple *args, Env *env) {
+  check_args(2, args, env);
+  Value src_value = args->values[0];
+  if (src_value.type != V_STRING) {
+    arg_type_error(0, V_STRING, args, env);
+    return nil_value;
+  }
+  Value link_value = args->values[1];
+  if (link_value.type != V_STRING) {
+    arg_type_error(1, V_STRING, args, env);
+    return nil_value;
+  }
+  Value reverse_paths;
+  if (!env_get_symbol("REVERSE_PATHS", &reverse_paths, env) || reverse_paths.type != V_OBJECT) {
+    env_error(env, -1, "REVERSE_PATHS is missing or not an object");
+    return nil_value;
+  }
+  object_put(reverse_paths.object_value, src_value, link_value, env->arena);
+  return nil_value;
+}
+
 static void create_site_node(String *site_path, String *template_path, Value data, Env *env) {
   char *src_path = get_src_path(template_path, env);
   if (!src_path) {
@@ -246,7 +267,9 @@ static Value default_handler(const Tuple *args, Env *env) {
 
 void import_sitemap(Env *env) {
   env_def("GLOBAL", create_object(0, env->arena), env);
+  env_def("REVERSE_PATHS", create_object(0, env->arena), env);
   env_def_fn("add_static", add_static, env);
+  env_def_fn("add_reverse", add_reverse, env);
   env_def_fn("add_page", add_page, env);
   env_def_fn("paginate", paginate, env);
   Value content_handlers;

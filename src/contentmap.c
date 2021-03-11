@@ -304,12 +304,6 @@ static Value list_content(const Tuple *args, Env *env) {
   return content;
 }
 
-static Value save_content(const Tuple *args, Env *env) {
-  check_args(1, args, env);
-  return nil_value;
-}
-
 void import_contentmap(Env *env) {
   env_def_fn("list_content", list_content, env);
-  env_def_fn("save_content", save_content, env);
 }

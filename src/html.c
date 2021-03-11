@@ -196,6 +196,7 @@ typedef struct {
   Path *src_root;
   Path *dist_root;
   Path *asset_root;
+  Object *reverse_paths;
   Env *env;
 } LinkArgs;
 
@@ -208,13 +209,23 @@ static int transform_link(Value node, const char *attribute_name, LinkArgs *args
     Path *asset_path = create_path((char *) src.string_value->bytes + sizeof("tscasset:") - 1,
         src.string_value->size - (sizeof("tscasset:") - 1));
     Path *src_path = path_join(args->src_root, asset_path);
-    Path *asset_web_path = path_join(args->asset_root, asset_path);
-    Path *dist_path = path_join(args->dist_root, asset_web_path);
-    copy_asset(src_path, dist_path);
-    html_set_attribute(node, attribute_name, get_web_path(asset_web_path, args->absolute, args->env).string_value,
-        args->env);
-    delete_path(dist_path);
-    delete_path(asset_web_path);
+    Value src_path_string = create_string((uint8_t *) src_path->path, src_path->size, args->env->arena);
+    Value reverse_path_value;
+    if (object_get(args->reverse_paths, src_path_string, &reverse_path_value) && reverse_path_value.type == V_STRING) {
+      Path *reverse_path = create_path((char *) reverse_path_value.string_value->bytes,
+          reverse_path_value.string_value->size);
+      html_set_attribute(node, attribute_name, get_web_path(reverse_path, args->absolute, args->env).string_value,
+          args->env);
+      delete_path(reverse_path);
+    } else {
+      Path *asset_web_path = path_join(args->asset_root, asset_path);
+      Path *dist_path = path_join(args->dist_root, asset_web_path);
+      copy_asset(src_path, dist_path);
+      html_set_attribute(node, attribute_name, get_web_path(asset_web_path, args->absolute, args->env).string_value,
+          args->env);
+      delete_path(dist_path);
+      delete_path(asset_web_path);
+    }
     delete_path(src_path);
     delete_path(asset_path);
   } else if (string_starts_with("tsclink:", src.string_value)) {
@@ -240,10 +251,15 @@ static Value links_or_urls(Value src, int absolute, Env *env) {
   if (src_root) {
     Path *dist_root = get_dist_root(env);
     if (dist_root) {
-      Path *asset_root = create_path("assets", -1);
-      LinkArgs context = {absolute, src_root, dist_root, asset_root, env};
-      src = html_transform(src, transform_links, &context);
-      delete_path(asset_root);
+      Value reverse_paths;
+      if (env_get_symbol("REVERSE_PATHS", &reverse_paths, env) && reverse_paths.type == V_OBJECT) {
+        Path *asset_root = create_path("assets", -1);
+        LinkArgs context = {absolute, src_root, dist_root, asset_root, reverse_paths.object_value, env};
+        src = html_transform(src, transform_links, &context);
+        delete_path(asset_root);
+      } else {
+        env_error(env, -1, "REVERSE_PATHS missing or not an object");
+      }
       delete_path(dist_root);
     } else {
       env_error(env, -1, "DIST_ROOT missing or not a string");
@@ -256,7 +272,7 @@ static Value links_or_urls(Value src, int absolute, Env *env) {
 }
 
 static Value links(const Tuple *args, Env *env) {
-  check_args(0, args, env);
+  check_args(1, args, env);
   Value src = args->values[0];
   return links_or_urls(src, 0, env);
 }
