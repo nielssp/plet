@@ -40,7 +40,7 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
     if (status == MagickFalse) {
       ExceptionType severity;
       char *description = MagickGetException(wand, &severity);
-      env_error(args->env, -1, "%s", description);
+      fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "ImageMagick error: %s" SGR_RESET "\n", src_path->path, description);
       MagickRelinquishMemory(description);
     } else {
       int width = MagickGetImageWidth(wand);
@@ -72,11 +72,14 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
         MagickResizeImage(wand, target_width, target_height, LanczosFilter);
         MagickSetImageCompressionQuality(wand, args->quality);
 
+        *attr_width = target_width;
+        *attr_height = target_height;
+
         const char *name = path_get_name(dist_path);
         const char *ext = path_get_extension(dist_path);
         Buffer new_name = create_buffer(0);
         if (ext[0]) {
-          buffer_printf(&new_name, "%.*s.%dx%dq%d.%s", ext - name, name, target_width, target_height,
+          buffer_printf(&new_name, "%.*s.%dx%dq%d.%s", ext - name - 1, name, target_width, target_height,
               args->quality, ext);
         } else {
           buffer_printf(&new_name, "%s.%dx%dq%d.jpg", name, target_width, target_height, args->quality);
@@ -146,13 +149,26 @@ static HtmlTransformation transform_images(Value node, void *context) {
       Path *src_path = path_join(args->src_root, asset_path);
       int attr_width, attr_height;
       get_size_attributes(node, &attr_width, &attr_height);
+
       Path *asset_web_path = handle_image(asset_path, src_path, &attr_width, &attr_height, args);
+
       StringBuffer new_link = create_string_buffer(sizeof("tsclink:") + asset_web_path->size, args->env->arena);
       string_buffer_printf(&new_link, "tsclink:%s", asset_web_path->path);
       html_set_attribute(node, "src", finalize_string_buffer(new_link).string_value, args->env);
       delete_path(asset_web_path);
       delete_path(src_path);
       delete_path(asset_path);
+
+      if (attr_width) {
+        StringBuffer buffer = create_string_buffer(0, args->env->arena);
+        string_buffer_printf(&buffer, "%d", attr_width);
+        html_set_attribute(node, "width", buffer.string, args->env);
+      }
+      if (attr_height) {
+        StringBuffer buffer = create_string_buffer(0, args->env->arena);
+        string_buffer_printf(&buffer, "%d", attr_height);
+        html_set_attribute(node, "height", buffer.string, args->env);
+      }
     }
   }
   return HTML_NO_ACTION;
