@@ -10,6 +10,8 @@
 #include "html.h"
 
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <utime.h>
 
 #ifdef WITH_IMAGEMAGICK
 #include <MagickWand/MagickWand.h>
@@ -94,7 +96,16 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
         delete_path(dist_path);
         dist_path = path_join(args->dist_root, asset_web_path);
 
-        MagickWriteImage(wand, dist_path->path);
+        status = MagickWriteImage(wand, dist_path->path);
+        if (status == MagickTrue) {
+          struct stat stat_buffer;
+          if (stat(src_path->path, &stat_buffer) == 0) {
+            struct utimbuf utime_buffer;
+            utime_buffer.actime = stat_buffer.st_atime;
+            utime_buffer.modtime = stat_buffer.st_mtime;
+            utime(dist_path->path, &utime_buffer);
+          }
+        }
       } else {
         copy_file(src_path->path, dist_path->path);
       }

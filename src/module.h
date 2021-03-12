@@ -19,9 +19,22 @@ typedef enum {
 } ModuleType;
 
 struct Module {
+  ModuleType type;
   char *file_name;
-  Node *root;
-  int parse_error;
+  time_t mtime;
+  union {
+    /*struct {
+      void import_func(Env *);
+    } system_value;*/
+    struct {
+      Node *root;
+      int parse_error;
+    } user_value;
+    struct {
+      int width;
+      int height;
+    } asset_value;
+  };
 };
 
 Module *create_module(const char *file_name);

@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <utime.h>
 
 #if defined(_WIN32)
 #include <io.h>
@@ -287,7 +288,16 @@ int copy_file(const char *src_path, const char *dest_path) {
     fclose(dest);
   }
   fclose(src);
-  return 1;
+  if (status) {
+    struct stat stat_buffer;
+    if (stat(src_path, &stat_buffer) == 0) {
+      struct utimbuf utime_buffer;
+      utime_buffer.actime = stat_buffer.st_atime;
+      utime_buffer.modtime = stat_buffer.st_mtime;
+      utime(dest_path, &utime_buffer);
+    }
+  }
+  return status;
 }
 
 static int check_dir(const char *path) {
