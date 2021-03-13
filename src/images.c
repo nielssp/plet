@@ -31,7 +31,7 @@ typedef struct {
 #ifdef WITH_IMAGEMAGICK
 
 static Path *handle_image(const Path *asset_path, const Path *src_path, int *attr_width, int *attr_height,
-    ImageArgs *args) {
+    Path **original_asset_web_path, ImageArgs *args) {
   Path *asset_web_path = path_join(args->asset_root, asset_path);
   Path *dist_path = path_join(args->dist_root, asset_web_path);
   Path *dest_dir = path_get_parent(dist_path);
@@ -87,7 +87,14 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
         Path *new_name_path = create_path((char *) new_name.data, new_name.size);
         delete_buffer(new_name);
         Path *asset_web_path_parent = path_get_parent(asset_web_path);
-        delete_path(asset_web_path);
+        if (original_asset_web_path) {
+          if (asset_has_changed(src_path, dist_path)) {
+            copy_file(src_path->path, dist_path->path);
+          }
+          *original_asset_web_path = asset_web_path;
+        } else {
+          delete_path(asset_web_path);
+        }
         asset_web_path = path_join(asset_web_path_parent, new_name_path);
         delete_path(asset_web_path_parent);
         delete_path(new_name_path);
@@ -127,7 +134,7 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
 #else
 
 static Path *handle_image(const Path *asset_path, const Path *src_path, int *attr_width, int *attr_height,
-    ImageArgs *args) {
+    Path **original_asset_web_path, ImageArgs *args) {
   Path *asset_web_path = path_join(args->asset_root, asset_path);
   Path *dist_path = path_join(args->dist_root, asset_web_path);
   copy_asset(src_path, dist_path);
@@ -167,7 +174,10 @@ static HtmlTransformation transform_images(Value node, void *context) {
       int attr_width, attr_height;
       get_size_attributes(node, &attr_width, &attr_height);
 
-      Path *asset_web_path = handle_image(asset_path, src_path, &attr_width, &attr_height, args);
+      Path *original_asset_web_path = NULL;
+
+      Path *asset_web_path = handle_image(asset_path, src_path, &attr_width, &attr_height,
+          args->link_full ? &original_asset_web_path : NULL, args);
 
       StringBuffer new_link = create_string_buffer(sizeof("tsclink:") + asset_web_path->size, args->env->arena);
       string_buffer_printf(&new_link, "tsclink:%s", asset_web_path->path);
@@ -185,6 +195,17 @@ static HtmlTransformation transform_images(Value node, void *context) {
         StringBuffer buffer = create_string_buffer(0, args->env->arena);
         string_buffer_printf(&buffer, "%d", attr_height);
         html_set_attribute(node, "height", buffer.string, args->env);
+      }
+
+      if (original_asset_web_path) {
+        Value link_node = html_create_element("a", 0, args->env);
+        StringBuffer original_link = create_string_buffer(sizeof("tsclink:") + original_asset_web_path->size,
+            args->env->arena);
+        string_buffer_printf(&original_link, "tsclink:%s", original_asset_web_path->path);
+        html_set_attribute(link_node, "href", finalize_string_buffer(original_link).string_value, args->env);
+        html_append_child(link_node, node, args->env->arena);
+        delete_path(original_asset_web_path);
+        return HTML_REPLACE(link_node);
       }
     }
   }

@@ -346,7 +346,7 @@ static Value convert_gumbo_node(GumboNode *node, Env *env) {
       }
       object_def(obj.object_value, "children", children, env);
       object_def(obj.object_value, "self_closing",
-          node->v.element.original_end_tag.length == 0 ? true_value : nil_value, env);
+          node->v.element.original_end_tag.length == 0 ? true_value : false_value, env);
       return obj;
     }
     case GUMBO_NODE_TEXT:
@@ -487,6 +487,27 @@ int html_is_tag(Value node, const char *tag_name) {
     }
   }
   return 0;
+}
+
+Value html_create_element(const char *tag_name, int self_closing, Env *env) {
+  Value node = create_object(5, env->arena);
+  object_def(node.object_value, "type", create_symbol(get_symbol("element", env->symbol_map)), env);
+  object_def(node.object_value, "tag", create_symbol(get_symbol(tag_name, env->symbol_map)), env);
+  Value attributes = create_object(0, env->arena);
+  object_def(node.object_value, "attributes", attributes, env);
+  Value children = create_array(0, env->arena);
+  object_def(node.object_value, "children", children, env);
+  object_def(node.object_value, "self_closing", self_closing ? true_value : false_value, env);
+  return node;
+}
+
+void html_append_child(Value node, Value child, Arena *arena) {
+  if (node.type == V_OBJECT) {
+    Value children;
+    if (object_get_symbol(node.object_value, "children", &children) && children.type == V_ARRAY) {
+      array_push(children.array_value, child, arena);
+    }
+  }
 }
 
 Value html_get_attribute(Value node, const char *attribute_name) {
