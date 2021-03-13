@@ -276,8 +276,16 @@ Path *get_dist_root(Env *env) {
   return NULL;
 }
 
+int asset_has_changed(const Path *src, const Path *dest) {
+  return get_mtime(src->path) != get_mtime(dest->path);
+}
+
 int copy_asset(const Path *src, const Path *dest) {
   int result = 0;
+  if (!asset_has_changed(src, dest)) {
+    fprintf(stderr, INFO_LABEL "%s: unchanged" SGR_RESET "\n", dest->path);
+    return 1;
+  }
   Path *dest_dir = path_get_parent(dest);
   if (mkdir_rec(dest_dir->path)) {
     result = copy_file(src->path, dest->path);

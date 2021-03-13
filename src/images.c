@@ -71,8 +71,6 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
           target_width = requested_width < args->max_width ? requested_width : args->max_width;
           target_height = (int) (target_width / ratio);
         }
-        MagickResizeImage(wand, target_width, target_height, LanczosFilter);
-        MagickSetImageCompressionQuality(wand, args->quality);
 
         *attr_width = target_width;
         *attr_height = target_height;
@@ -96,18 +94,26 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
         delete_path(dist_path);
         dist_path = path_join(args->dist_root, asset_web_path);
 
-        status = MagickWriteImage(wand, dist_path->path);
-        if (status == MagickTrue) {
-          struct stat stat_buffer;
-          if (stat(src_path->path, &stat_buffer) == 0) {
-            struct utimbuf utime_buffer;
-            utime_buffer.actime = stat_buffer.st_atime;
-            utime_buffer.modtime = stat_buffer.st_mtime;
-            utime(dist_path->path, &utime_buffer);
+        if (asset_has_changed(src_path, dist_path)) {
+          MagickResizeImage(wand, target_width, target_height, LanczosFilter);
+          MagickSetImageCompressionQuality(wand, args->quality);
+          status = MagickWriteImage(wand, dist_path->path);
+          if (status == MagickTrue) {
+            struct stat stat_buffer;
+            if (stat(src_path->path, &stat_buffer) == 0) {
+              struct utimbuf utime_buffer;
+              utime_buffer.actime = stat_buffer.st_atime;
+              utime_buffer.modtime = stat_buffer.st_mtime;
+              utime(dist_path->path, &utime_buffer);
+            }
           }
+        } else {
+          fprintf(stderr, INFO_LABEL "%s: unchanged" SGR_RESET "\n", dist_path->path);
         }
-      } else {
+      } else if (asset_has_changed(src_path, dist_path)) {
         copy_file(src_path->path, dist_path->path);
+      } else {
+        fprintf(stderr, INFO_LABEL "%s: unchanged" SGR_RESET "\n", dist_path->path);
       }
     }
     DestroyMagickWand(wand);
