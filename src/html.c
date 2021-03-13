@@ -352,8 +352,12 @@ static Value convert_gumbo_node(GumboNode *node, Env *env) {
     case GUMBO_NODE_TEXT:
     case GUMBO_NODE_CDATA:
       return copy_c_string(node->v.text.text, env->arena);
-    case GUMBO_NODE_COMMENT:
-      return nil_value;
+    case GUMBO_NODE_COMMENT: {
+      Value obj = create_object(2, env->arena);
+      object_def(obj.object_value, "type", create_symbol(get_symbol("comment", env->symbol_map)), env);
+      object_def(obj.object_value, "comment", copy_c_string(node->v.text.text, env->arena), env);
+      return obj;
+    }
     case GUMBO_NODE_WHITESPACE:
       return copy_c_string(node->v.text.text, env->arena);
     case GUMBO_NODE_TEMPLATE:
