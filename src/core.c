@@ -15,10 +15,16 @@ static Value import(const Tuple *args, Env *env) {
   check_args(1, args, env);
   Value name = args->values[0];
   if (name.type != V_STRING) {
+
     arg_type_error(0, V_STRING, args, env);
     return nil_value;
   }
   return nil_value;
+}
+
+static Value copy(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  return copy_value(args->values[0], env->arena);
 }
 
 static Value type(const Tuple *args, Env *env) {
@@ -92,6 +98,7 @@ void import_core(Env *env) {
   env_def("false", false_value, env);
   env_def("true", true_value, env);
   env_def_fn("import", import, env);
+  env_def_fn("copy", copy, env);
   env_def_fn("type", type, env);
   env_def_fn("string", string, env);
   env_def_fn("bool", bool_, env);

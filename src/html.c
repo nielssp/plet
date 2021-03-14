@@ -182,11 +182,7 @@ static Value no_title(const Tuple *args, Env *env) {
   Value src = args->values[0];
   Value title_tag = html_find_tag(get_symbol("h1", env->symbol_map), src);
   if (title_tag.type == V_OBJECT) {
-    src = copy_value(src, env->arena);
-    title_tag = html_find_tag(get_symbol("h1", env->symbol_map), src);
-    if (title_tag.type == V_OBJECT) {
-      html_remove_node(title_tag.object_value, src);
-    }
+    html_remove_node(title_tag.object_value, src);
   }
   return src;
 }
@@ -283,6 +279,43 @@ static Value urls(const Tuple *args, Env *env) {
   return links_or_urls(src, 1, env);
 }
 
+typedef struct {
+  int after_split;
+} ReadMoreArgs;
+
+static HtmlTransformation transform_read_more(Value node, void *context) {
+  ReadMoreArgs *args = context;
+  if (args->after_split) {
+    return HTML_REMOVE;
+  }
+  if (node.type == V_OBJECT) {
+    Value comment;
+    if (object_get_symbol(node.object_value, "comment", &comment) && comment.type == V_STRING) {
+      if (string_equals("more", comment.string_value)) {
+        args->after_split = 1;
+        return HTML_REMOVE;
+      }
+    }
+  }
+  return HTML_NO_ACTION;
+}
+
+static Value read_more(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  Value src = args->values[0];
+  ReadMoreArgs context = {0};
+  src = html_transform(src, transform_read_more, &context);
+  return src;
+}
+
+static Value text_content(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  Value src = args->values[0];
+  StringBuffer buffer = create_string_buffer(0, env->arena);
+  html_text_content(src, &buffer);
+  return finalize_string_buffer(buffer);
+}
+
 #ifdef WITH_GUMBO
 static Value parse_html(const Tuple *args, Env *env) {
   check_args(1, args, env);
@@ -302,6 +335,8 @@ void import_html(Env *env) {
   env_def_fn("no_title", no_title, env);
   env_def_fn("links", links, env);
   env_def_fn("urls", urls, env);
+  env_def_fn("read_more", read_more, env);
+  env_def_fn("text_content", text_content, env);
 #ifdef WITH_GUMBO
   env_def_fn("parse_html", parse_html, env);
 #endif

@@ -209,6 +209,7 @@ nil: nil
 false: false
 true: true
 import(name: string): nil
+copy(val: any): any
 type(val: any): string
 string(val: any): string
 bool(val: any): true|false
@@ -285,6 +286,8 @@ html(node: html_node): string
 no_title(node: html_node): html_node
 links(node: html_node): html_node
 urls(node: html_node): html_node
+read_more(node: html_node): html_node
+text_content(node: html_node): string
 parse_html(src: string): html_node
 ```
 

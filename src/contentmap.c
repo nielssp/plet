@@ -86,6 +86,25 @@ static HtmlTransformation transform_content_links(Value node, void *context) {
   return HTML_NO_ACTION;
 }
 
+static int has_read_more(Value node) {
+  if (node.type == V_OBJECT) {
+    Value comment;
+    if (object_get_symbol(node.object_value, "comment", &comment) && comment.type == V_STRING) {
+      return string_equals("more", comment.string_value);
+    } else {
+      Value children;
+      if (object_get_symbol(node.object_value, "children", &children) && children.type == V_ARRAY) {
+        for (size_t i = 0; i < children.array_value->size; i++) {
+          if (has_read_more(children.array_value->cells[i])) {
+            return 1;
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
+
 static Value create_content_object(const char *path, const char *name, PathStack *path_stack, Env *env) {
   Value obj = create_object(0, env->arena);
   object_def(obj.object_value, "path", copy_c_string(path, env->arena), env);
@@ -201,6 +220,7 @@ static Value create_content_object(const char *path, const char *name, PathStack
         html_text_content(title_tag, &title_buffer);
         object_def(obj.object_value, "title", finalize_string_buffer(title_buffer), env);
       }
+      object_def(obj.object_value, "read_more", has_read_more(html) ? true_value : false_value, env);
       Value src_root;
       if (env_get_symbol("SRC_ROOT", &src_root, env) && src_root.type == V_STRING) {
         Path *src_root_path = create_path((char *) src_root.string_value->bytes, src_root.string_value->size);
