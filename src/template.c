@@ -186,8 +186,12 @@ static Value page_list(const Tuple *args, Env *env) {
       return nil_value;
     }
   } else if (!object_get(page_obj.object_value, create_symbol(get_symbol("pages", env->symbol_map)), &pages)
-      || page.type != V_INT) {
+      || pages.type != V_INT) {
     env_error(env, -1, "PAGE.pages is not set or not an integer");
+    return nil_value;
+  }
+  if (pages.int_value > 0xFFFF) {
+    env_error(env, -1, "too many pages");
     return nil_value;
   }
   // TODO: use n

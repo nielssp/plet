@@ -237,7 +237,9 @@ static Value paginate(const Tuple *args, Env *env) {
       return nil_value;
     }
   }
-  int64_t page_count = (items.array_value->size - 1) / per_page.int_value + 1;
+  int64_t page_count = items.array_value->size
+    ?  (items.array_value->size - 1) / per_page.int_value + 1
+    : 1;
   int64_t page_number = 1;
   Value page = create_page(items.array_value->size, per_page.int_value, page_number, page_count, 0,
       path_template, env);

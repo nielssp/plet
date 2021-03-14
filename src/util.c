@@ -21,7 +21,7 @@
 void *allocate(size_t size) {
   void *p = malloc(size);
   if (!p) {
-    fprintf(stderr, ERROR_LABEL "memory allocation failed!" SGR_RESET "\n");
+    fprintf(stderr, ERROR_LABEL "allocation of %zd bytes failed!" SGR_RESET "\n", size);
     exit(-1);
   }
   return p;
@@ -30,7 +30,7 @@ void *allocate(size_t size) {
 void *reallocate(void *old, size_t size) {
   void *new = realloc(old, size);
   if (!new) {
-    fprintf(stderr, ERROR_LABEL "memory allocation failed!" SGR_RESET "\n");
+    fprintf(stderr, ERROR_LABEL "allocation of %zd bytes failed!" SGR_RESET "\n", size);
     exit(-1);
   }
   return new;
