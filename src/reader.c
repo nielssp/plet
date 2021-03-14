@@ -30,6 +30,7 @@ struct Reader {
   Token *last;
   Pos pos;
   int errors;
+  int silent;
   int la;
   uint8_t buffer[3];
 };
@@ -50,11 +51,16 @@ Reader *open_reader(FILE *file, const char *file_name, SymbolMap *symbol_map) {
   r->pos.column = 1;
   r->la = 0;
   r->errors = 0;
+  r->silent = 0;
   return r;
 }
 
 int reader_errors(Reader *r) {
   return r->errors;
+}
+
+void set_reader_silent(int silent, Reader *r) {
+  r->silent = silent;
 }
 
 static uint8_t get_top_paren(Reader *r) {
@@ -97,6 +103,9 @@ void close_reader(Reader *r) {
 
 static void reader_error(Reader *r, const char *format, ...) {
   va_list va;
+  if (r->silent) {
+    return;
+  }
   fprintf(stderr, SGR_BOLD "%s:%d:%d: " ERROR_LABEL, r->file_name, r->pos.line, r->pos.column);
   va_start(va, format);
   vfprintf(stderr, format, va);

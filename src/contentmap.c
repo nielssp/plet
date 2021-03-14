@@ -132,11 +132,13 @@ static Value create_content_object(const char *path, const char *name, PathStack
     fclose(file);
     return nil_value;
   }
+  set_reader_silent(1, reader);
   TokenStream tokens = read_all(reader, 0);
   while (peek_token(tokens)->type == T_LF) {
     pop_token(tokens);
   }
   if (peek_token(tokens)->type == T_PUNCT && peek_token(tokens)->punct_value == '{') {
+    set_reader_silent(0, reader);
     Module *front_matter = parse_object_notation(tokens, path, 0);
     close_reader(reader);
     if (!front_matter->parse_error) {
