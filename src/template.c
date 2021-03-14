@@ -217,12 +217,11 @@ static Value page_link(const Tuple *args, Env *env) {
       arg_type_error(1, V_STRING, args, env);
       return nil_value;
     }
-  } else if (!env_get(get_symbol("PAGE", env->symbol_map), &page_obj, env) || page_obj.type != V_OBJECT) {
+  } else if (!env_get_symbol("PAGE", &page_obj, env) || page_obj.type != V_OBJECT) {
       env_error(env, -1, "PAGE is not set or not an object");
       return nil_value;
-  } else if (!object_get(page_obj.object_value, create_symbol(get_symbol("path", env->symbol_map)), &path)
-      || path.type != V_STRING) {
-    env_error(env, -1, "PAGE.page is not set or not a string");
+  } else if (!object_get_symbol(page_obj.object_value, "path_template", &path) || path.type != V_STRING) {
+    env_error(env, -1, "PAGE.path_template is not set or not a string");
     return nil_value;
   }
   Value page_name;
@@ -230,7 +229,7 @@ static Value page_link(const Tuple *args, Env *env) {
     page_name = create_string(NULL, 0, env->arena);
   } else {
     StringBuffer page_name_buffer = create_string_buffer(10, env->arena);
-    string_buffer_printf(&page_name_buffer, "/page" PRId64, page.int_value);
+    string_buffer_printf(&page_name_buffer, "/page%" PRId64, page.int_value);
     page_name = finalize_string_buffer(page_name_buffer);
   }
   path = string_replace(copy_c_string("%page%", env->arena).string_value, page_name.string_value,

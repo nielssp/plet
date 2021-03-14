@@ -195,7 +195,7 @@ static void add_page_to_site(Value page, String *src, String *path_template, Val
     page_name = create_string(NULL, 0, env->arena);
   } else {
     StringBuffer page_name_buffer = create_string_buffer(10, env->arena);
-    string_buffer_printf(&page_name_buffer, "/page" PRId64, page_number.int_value);
+    string_buffer_printf(&page_name_buffer, "/page%" PRId64, page_number.int_value);
     page_name = finalize_string_buffer(page_name_buffer);
   }
   Value path = string_replace(copy_c_string("%page%", env->arena).string_value, page_name.string_value,
