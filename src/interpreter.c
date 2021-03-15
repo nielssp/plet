@@ -32,31 +32,6 @@ static void eval_error(Node node, const char *format, ...) {
   }
 }
 
-static void display_env_error(Node node, EnvErrorLevel level, int show_line, const char *format, ...) {
-  va_list va;
-  const char *label;
-  switch (level) {
-    case ENV_INFO:
-      label = INFO_LABEL;
-      break;
-    case ENV_WARN:
-      label = WARN_LABEL;
-      break;
-    case ENV_ERROR:
-    default:
-      label = ERROR_LABEL;
-      break;
-  }
-  fprintf(stderr, SGR_BOLD "%s:%d:%d: %s", node.module.file_name, node.start.line, node.start.column, label);
-  va_start(va, format);
-  vfprintf(stderr, format, va);
-  va_end(va);
-  fprintf(stderr, SGR_RESET "\n");
-  if (show_line && node.module.file_name) {
-    print_error_line(node.module.file_name, node.start, node.end);
-  }
-}
-
 int apply(Value func, const Tuple *args, Value *return_value, Env *env) {
   if (func.type == V_FUNCTION) {
     env_clear_error(env);
@@ -104,6 +79,7 @@ static Value eval_apply(Node node, Env *env) {
   }
   if (callee.type == V_FUNCTION) {
     env_clear_error(env);
+    env->calling_node = &node;
     Value return_value = callee.function_value(args, env);
     if (env->error) {
       if (env->error_arg < 0 || env->error_arg >= args->size) {

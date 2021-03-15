@@ -39,6 +39,7 @@ typedef struct {
   Arena *arena;
   ModuleMap *modules;
   SymbolMap *symbol_map;
+  Node *calling_node;
   char *error;
   int error_arg;
   EnvErrorLevel error_level;
@@ -163,6 +164,8 @@ int env_get(Symbol name, Value *value, Env *env);
 int env_get_symbol(const char *name, Value *value, Env *env);
 
 char *get_env_string(const char *name, Env *env);
+
+void display_env_error(Node node, EnvErrorLevel level, int show_line, const char *format, ...);
 
 void env_error(Env *env, int arg, const char *format, ...);
 

@@ -42,7 +42,7 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
     if (status == MagickFalse) {
       ExceptionType severity;
       char *description = MagickGetException(wand, &severity);
-      fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "ImageMagick error: %s" SGR_RESET "\n", src_path->path, description);
+      env_error(args->env, ENV_ARG_ALL, "ImageMagick error: %s", description);
       MagickRelinquishMemory(description);
     } else {
       int width = MagickGetImageWidth(wand);
@@ -114,13 +114,9 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
               utime(dist_path->path, &utime_buffer);
             }
           }
-        } else {
-          fprintf(stderr, INFO_LABEL "%s: unchanged" SGR_RESET "\n", dist_path->path);
         }
       } else if (asset_has_changed(src_path, dist_path)) {
         copy_file(src_path->path, dist_path->path);
-      } else {
-        fprintf(stderr, INFO_LABEL "%s: unchanged" SGR_RESET "\n", dist_path->path);
       }
     }
     DestroyMagickWand(wand);

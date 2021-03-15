@@ -44,6 +44,7 @@ Env *create_env(Arena *arena, ModuleMap *modules, SymbolMap *symbol_map) {
   env->arena = arena;
   env->modules = modules;
   env->symbol_map = symbol_map;
+  env->calling_node = NULL;
   env->error = NULL;
   env->error_arg = -1;
   env->error_level = ENV_ERROR;
@@ -76,46 +77,96 @@ char *get_env_string(const char *name, Env *env) {
   return string_to_c_string(value.string_value);
 }
 
+static void display_env_error_va(Node node, EnvErrorLevel level, int show_line, const char *format, va_list va) {
+  va_list va2;
+  const char *label;
+  switch (level) {
+    case ENV_INFO:
+      label = INFO_LABEL;
+      break;
+    case ENV_WARN:
+      label = WARN_LABEL;
+      break;
+    case ENV_ERROR:
+    default:
+      label = ERROR_LABEL;
+      break;
+  }
+  fprintf(stderr, SGR_BOLD "%s:%d:%d: %s", node.module.file_name, node.start.line, node.start.column, label);
+  va_copy(va2, va);
+  vfprintf(stderr, format, va2);
+  va_end(va2);
+  fprintf(stderr, SGR_RESET "\n");
+  if (show_line && node.module.file_name) {
+    print_error_line(node.module.file_name, node.start, node.end);
+  }
+}
+
+void display_env_error(Node node, EnvErrorLevel level, int show_line, const char *format, ...) {
+  va_list va;
+  va_start(va, format);
+  display_env_error_va(node, level, show_line, format, va);
+  va_end(va);
+}
+
 void env_error(Env *env, int arg, const char *format, ...) {
   va_list va;
-  env->error_arg = arg;
-  Buffer buffer = create_buffer(0);
-  va_start(va, format);
-  buffer_vprintf(&buffer, format, va);
-  va_end(va);
-  buffer_put(&buffer, '\0');
-  env->error = arena_allocate(buffer.size, env->arena);
-  memcpy(env->error, buffer.data, buffer.size);
-  env->error_level = ENV_ERROR;
-  delete_buffer(buffer);
+  if (arg < 0 && env->calling_node) {
+    va_start(va, format);
+    display_env_error_va(*env->calling_node, ENV_ERROR, arg != ENV_ARG_NONE, format, va);
+    va_end(va);
+  } else {
+    env->error_arg = arg;
+    Buffer buffer = create_buffer(0);
+    va_start(va, format);
+    buffer_vprintf(&buffer, format, va);
+    va_end(va);
+    buffer_put(&buffer, '\0');
+    env->error = arena_allocate(buffer.size, env->arena);
+    memcpy(env->error, buffer.data, buffer.size);
+    env->error_level = ENV_ERROR;
+    delete_buffer(buffer);
+  }
 }
 
 void env_warn(Env *env, int arg, const char *format, ...) {
   va_list va;
-  env->error_arg = arg;
-  Buffer buffer = create_buffer(0);
-  va_start(va, format);
-  buffer_vprintf(&buffer, format, va);
-  va_end(va);
-  buffer_put(&buffer, '\0');
-  env->error = arena_allocate(buffer.size, env->arena);
-  memcpy(env->error, buffer.data, buffer.size);
-  env->error_level = ENV_WARN;
-  delete_buffer(buffer);
+  if (arg < 0 && env->calling_node) {
+    va_start(va, format);
+    display_env_error_va(*env->calling_node, ENV_WARN, arg != ENV_ARG_NONE, format, va);
+    va_end(va);
+  } else {
+    env->error_arg = arg;
+    Buffer buffer = create_buffer(0);
+    va_start(va, format);
+    buffer_vprintf(&buffer, format, va);
+    va_end(va);
+    buffer_put(&buffer, '\0');
+    env->error = arena_allocate(buffer.size, env->arena);
+    memcpy(env->error, buffer.data, buffer.size);
+    env->error_level = ENV_WARN;
+    delete_buffer(buffer);
+  }
 }
 
 void env_info(Env *env, int arg, const char *format, ...) {
   va_list va;
-  env->error_arg = arg;
-  Buffer buffer = create_buffer(0);
-  va_start(va, format);
-  buffer_vprintf(&buffer, format, va);
-  va_end(va);
-  buffer_put(&buffer, '\0');
-  env->error = arena_allocate(buffer.size, env->arena);
-  memcpy(env->error, buffer.data, buffer.size);
-  env->error_level = ENV_INFO;
-  delete_buffer(buffer);
+  if (arg < 0 && env->calling_node) {
+    va_start(va, format);
+    display_env_error_va(*env->calling_node, ENV_INFO, arg != ENV_ARG_NONE, format, va);
+    va_end(va);
+  } else {
+    env->error_arg = arg;
+    Buffer buffer = create_buffer(0);
+    va_start(va, format);
+    buffer_vprintf(&buffer, format, va);
+    va_end(va);
+    buffer_put(&buffer, '\0');
+    env->error = arena_allocate(buffer.size, env->arena);
+    memcpy(env->error, buffer.data, buffer.size);
+    env->error_level = ENV_INFO;
+    delete_buffer(buffer);
+  }
 }
 
 void env_clear_error(Env *env) {

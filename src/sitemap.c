@@ -100,6 +100,8 @@ static void create_site_node(String *site_path, String *template_path, Value dat
   if (!module) {
     env_error(env, -1, "unable to load module");
   } else {
+    fprintf(stderr, "Processing %-50.*s\r", site_path->size > 50 ? 50 : (int) site_path->size, (char *) site_path->bytes);
+    fflush(stderr);
     Env *template_env = create_template_env(data, env);
     env_def("PATH", copy_value((Value) { .type = V_STRING, .string_value = site_path },
           template_env->arena), template_env);

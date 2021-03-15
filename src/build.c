@@ -283,7 +283,6 @@ int asset_has_changed(const Path *src, const Path *dest) {
 int copy_asset(const Path *src, const Path *dest) {
   int result = 0;
   if (!asset_has_changed(src, dest)) {
-    fprintf(stderr, INFO_LABEL "%s: unchanged" SGR_RESET "\n", dest->path);
     return 1;
   }
   Path *dest_dir = path_get_parent(dest);
