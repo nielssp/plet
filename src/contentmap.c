@@ -159,7 +159,6 @@ static Value create_content_object(const char *path, const char *name, PathStack
     delete_module(front_matter);
   } else {
     close_reader(reader);
-    fprintf(stderr, SGR_BOLD "%s: " INFO_LABEL "no front matter" SGR_RESET "\n", path);
     rewind(file);
   }
   Buffer buffer = create_buffer(8192);
