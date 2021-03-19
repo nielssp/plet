@@ -64,6 +64,7 @@ typedef enum {
   N_IF,
   N_FOR,
   N_SWITCH,
+  N_EXPORT,
   N_ASSIGN,
   N_BLOCK,
   N_SUPPRESS
@@ -157,6 +158,10 @@ struct Node {
       PropertyList *cases;
       Node *default_case;
     } switch_value;
+    struct {
+      Symbol left;
+      Node *right;
+    } export_value;
     struct {
       Node *left;
       Node *right;

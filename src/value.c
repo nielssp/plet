@@ -782,6 +782,9 @@ static Node copy_node(Node node, Arena *arena) {
       node.switch_value.default_case = copy_node_pointer(node.switch_value.default_case, arena);
       node.switch_value.cases = copy_property_list(node.switch_value.cases, arena);
       break;
+    case N_EXPORT:
+      node.export_value.right = copy_node_pointer(node.export_value.right, arena);
+      break;
     case N_ASSIGN:
       node.assign_value.left = copy_node_pointer(node.assign_value.left, arena);
       node.assign_value.right = copy_node_pointer(node.assign_value.right, arena);

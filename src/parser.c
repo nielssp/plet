@@ -97,12 +97,15 @@ static Node create_node(NodeType type, Parser *parser) {
       node.for_value.body = NULL;
       node.for_value.alt = NULL;
       break;
-    case N_SWITCH: {
+    case N_SWITCH:
       node.switch_value.expr = NULL;
       node.switch_value.default_case = NULL;
       node.switch_value.cases = NULL;
       break;
-    }
+    case N_EXPORT:
+      node.export_value.left = NULL;
+      node.export_value.right = NULL;
+      break;
     case N_ASSIGN:
       node.assign_value.left = NULL;
       node.assign_value.right = NULL;
@@ -295,6 +298,14 @@ static Node parse_atom(Parser *parser) {
     }
     parser->free_variables = name_list_put(node.name_value, parser->free_variables);
     node.end = parser->end;
+    if (peek_operator("?", parser)) {
+      Node suppress = create_node(N_SUPPRESS, parser);
+      suppress.start = node.start;
+      pop(parser);
+      ASSIGN_NODE(suppress.suppress_value, node);
+      suppress.end = parser->end;
+      node = suppress;
+    }
     return node;
   } else {
     Token *t = peek_token(parser->tokens);
@@ -442,14 +453,6 @@ static Node parse_delimited(Parser *parser) {
 static Node parse_apply_dot(Parser *parser) {
   Node expr = parse_delimited(parser);
   while (1) {
-    if (peek_operator("?", parser)) {
-      Node suppress = create_node(N_SUPPRESS, parser);
-      suppress.start = expr.start;
-      pop(parser);
-      ASSIGN_NODE(suppress.suppress_value, expr);
-      suppress.end = parser->end;
-      expr = suppress;
-    }
     if (peek_punct('(', parser)) {
       Node apply = create_node(N_APPLY, parser);
       apply.start = expr.start;
@@ -482,6 +485,14 @@ static Node parse_apply_dot(Parser *parser) {
       expect_punct(']', parser);
       subscript.end = parser->end;
       expr = subscript;
+      if (peek_operator("?", parser)) {
+        Node suppress = create_node(N_SUPPRESS, parser);
+        suppress.start = expr.start;
+        pop(parser);
+        ASSIGN_NODE(suppress.suppress_value, expr);
+        suppress.end = parser->end;
+        expr = suppress;
+      }
     } else if (peek_operator(".", parser)) {
       Node dot = create_node(N_DOT, parser);
       dot.start = expr.start;
@@ -490,6 +501,14 @@ static Node parse_apply_dot(Parser *parser) {
       dot.dot_value.name = parse_name(parser);
       dot.end = parser->end;
       expr = dot;
+      if (peek_operator("?", parser)) {
+        Node suppress = create_node(N_SUPPRESS, parser);
+        suppress.start = expr.start;
+        pop(parser);
+        ASSIGN_NODE(suppress.suppress_value, expr);
+        suppress.end = parser->end;
+        expr = suppress;
+      }
     } else {
       break;
     }
@@ -796,6 +815,15 @@ static Node parse_switch(Parser *parser) {
   return stmt;
 }
 
+static Node parse_export(Parser *parser) {
+  Node export = create_node(N_EXPORT, parser);
+  expect_keyword("export", parser);
+  export.export_value.left = parse_name(parser);
+  ASSIGN_NODE(export.export_value.right, parse_expression(parser));
+  export.end = parser->end;
+  return export;
+}
+
 static Node parse_assign(Parser *parser) {
   Node expr = parse_expression(parser);
   if (peek_operator("=", parser) || peek_operator("+=", parser) || peek_operator("-=", parser)
@@ -836,6 +864,8 @@ static Node parse_statement(Parser *parser) {
     return parse_for(parser);
   } else if (peek_keyword("switch", parser)) {
     return parse_switch(parser);
+  } else if (peek_keyword("export", parser)) {
+    return parse_export(parser);
   } else {
     return parse_assign(parser);
   }

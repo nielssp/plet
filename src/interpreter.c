@@ -118,8 +118,8 @@ static Value eval_apply(Node node, Env *env) {
   }
 }
 
-static Value eval_subscript(Node node, Env *env) {
-  int suppress = node.subscript_value.list->type == N_SUPPRESS;
+static Value eval_subscript(Node node, Env *env, int suppress_name_error) {
+  int suppress_type_error = node.subscript_value.list->type == N_SUPPRESS;
   Value object = interpret(*node.subscript_value.list, env);
   Value index = interpret(*node.subscript_value.index, env);
   if (object.type == V_OBJECT) {
@@ -130,14 +130,14 @@ static Value eval_subscript(Node node, Env *env) {
     return nil_value;
   }
   if (index.type != V_INT) {
-    if (!suppress) {
+    if (!suppress_name_error) {
       eval_error(*node.subscript_value.index, "value of type %s is not a valid array index", value_name(index.type));
     }
     return nil_value;
   }
   if (object.type == V_ARRAY) {
     if (index.int_value < 0 || index.int_value >= object.array_value->size) {
-      if (!suppress) {
+      if (!suppress_name_error) {
         eval_error(*node.subscript_value.index, "array index out of range: %" PRId64, index.int_value);
       }
       return nil_value;
@@ -145,25 +145,25 @@ static Value eval_subscript(Node node, Env *env) {
     return object.array_value->cells[index.int_value];
   } else if (object.type == V_STRING) {
     if (index.int_value < 0 || index.int_value >= object.string_value->size) {
-      if (!suppress) {
+      if (!suppress_name_error) {
         eval_error(*node.subscript_value.index, "string index out of range: %" PRId64, index.int_value);
       }
       return nil_value;
     }
     return create_int(object.string_value->bytes[index.int_value]);
   } else {
-    if (!suppress) {
+    if (!suppress_type_error) {
       eval_error(*node.subscript_value.list, "value of type %s is not indexable", value_name(object.type));
     }
     return nil_value;
   }
 }
 
-static Value eval_dot(Node node, Env *env) {
-  int suppress = node.dot_value.object->type == N_SUPPRESS;
+static Value eval_dot(Node node, Env *env, int suppress_name_error) {
+  int suppress_type_error = node.dot_value.object->type == N_SUPPRESS;
   Value object = interpret(*node.dot_value.object, env);
   if (object.type != V_OBJECT) {
-    if (!suppress) {
+    if (!suppress_type_error) {
       eval_error(*node.dot_value.object, "value of type %s is not an object", value_name(object.type));
     }
     return nil_value;
@@ -173,7 +173,7 @@ static Value eval_dot(Node node, Env *env) {
   if (object_get(object.object_value, key, &value)) {
     return value;
   }
-  if (!suppress) {
+  if (!suppress_name_error) {
     eval_error(node, "undefined object property: %s", node.dot_value.name);
   }
   return nil_value;
@@ -643,9 +643,9 @@ Value interpret(Node node, Env *env) {
     case N_APPLY:
       return eval_apply(node, env);
     case N_SUBSCRIPT:
-      return eval_subscript(node, env);
+      return eval_subscript(node, env, 0);
     case N_DOT:
-      return eval_dot(node, env);
+      return eval_dot(node, env, 0);
     case N_PREFIX:
       return eval_prefix(node, env);
     case N_INFIX:
@@ -661,6 +661,9 @@ Value interpret(Node node, Env *env) {
       return eval_for(node, env);
     case N_SWITCH:
       return eval_switch(node, env);
+    case N_EXPORT:
+      // TODO
+      return nil_value;
     case N_ASSIGN:
       return eval_assign(node, env);
     case N_BLOCK: {
@@ -673,16 +676,22 @@ Value interpret(Node node, Env *env) {
       delete_buffer(buffer);
       return result;
     }
-    case N_SUPPRESS: {
-      if (node.suppress_value->type == N_NAME) {
-        Value value;
-        if (env_get(node.suppress_value->name_value, &value, env)) {
-          return value;
+    case N_SUPPRESS:
+      switch (node.suppress_value->type) {
+        case N_NAME: {
+          Value value;
+          if (env_get(node.suppress_value->name_value, &value, env)) {
+            return value;
+          }
+          return nil_value;
         }
-        return nil_value;
+        case N_SUBSCRIPT:
+          return eval_subscript(*node.suppress_value, env, 1);
+        case N_DOT:
+          return eval_dot(*node.suppress_value, env, 1);
+        default:
+          return interpret(*node.suppress_value, env);
       }
-      return interpret(*node.suppress_value, env);
-    }
   }
   return nil_value;
 }

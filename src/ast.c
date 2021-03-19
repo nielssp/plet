@@ -83,6 +83,9 @@ void delete_node(Node node) {
       }
       break;
     }
+    case N_EXPORT:
+      DELETE_NODE(node.export_value.right);
+      break;
     case N_ASSIGN:
       DELETE_NODE(node.assign_value.left);
       DELETE_NODE(node.assign_value.right);

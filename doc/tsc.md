@@ -98,6 +98,7 @@ Statements ::= {lf} [Statement {lf {lf} Statement}] {lf}
 Statement ::= If
             | For
             | Switch
+            | Export
             | Assignment
 
 If ::= "if" Expression Block
@@ -113,6 +114,8 @@ Switch ::= "switch" Expression (lf | {lf} [text])
            ["default" Block] "end" "switch"
 
 Assignment ::= Expression [("=" | "+=" | "-=" | "*=" | "/=") Expression]
+
+Export ::= "export" name ["=" Expression]
 
 Expression ::= "." name {"." name}
              | FatArrow
@@ -147,10 +150,10 @@ AddSub ::= AddSub ("+" | "-") Negate
 Negate ::= "-" Negate
          | ApplyDot
 
-ApplyDot ::= ApplyDot ["?"] "(" [Expression {"," Expression} [","]] ")"
-           | ApplyDot ["?"] "." name
-           | ApplyDot ["?"] "[" Expression "]"
-           | Atom ["?"]
+ApplyDot ::= ApplyDot "(" [Expression {"," Expression} [","]] ")"
+           | ApplyDot "." name ["?"] 
+           | ApplyDot "[" Expression "]" ["?"] 
+           | Atom
 
 Key ::= int
       | float
@@ -165,7 +168,7 @@ Atom ::= "[" [Expression {"," Expression} [","]] "]"   -- ignore lf
        | int
        | float
        | string
-       | name
+       | name ["?"]
 ```
 
 ### Syntax transformations
