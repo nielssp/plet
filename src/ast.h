@@ -99,7 +99,7 @@ typedef struct NameList NameList;
 
 struct Node {
   struct {
-    char *file_name;
+    Path *file_name;
   } module;
   Pos start;
   Pos end;

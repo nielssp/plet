@@ -59,8 +59,8 @@ static int transform_content_link(Value node, const char *attribute_name, Conten
   Value src = html_get_attribute(node, attribute_name);
   if (src.type == V_STRING) {
     if (!is_url(src.string_value)) {
-      Path *path = create_path((char *) src.string_value->bytes, src.string_value->size);
-      Path *asset_path = path_join(args->asset_base, path);
+      Path *path = string_to_path(src.string_value);
+      Path *asset_path = path_join(args->asset_base, path, 1);
       if (path_is_absolute(asset_path)) {
         StringBuffer buffer = create_string_buffer(asset_path->size + sizeof("tsclink:") - 1, args->env->arena);
         string_buffer_printf(&buffer, "tsclink:%s", asset_path->path);
@@ -105,9 +105,9 @@ static int has_read_more(Value node) {
   return 0;
 }
 
-static Value create_content_object(const char *path, const char *name, PathStack *path_stack, Env *env) {
+static Value create_content_object(const Path *path, const char *name, PathStack *path_stack, Env *env) {
   Value obj = create_object(0, env->arena);
-  object_def(obj.object_value, "path", copy_c_string(path, env->arena), env);
+  object_def(obj.object_value, "path", path_to_string(path, env->arena), env);
   object_def(obj.object_value, "relative_path", path_stack_to_string(path_stack, env->arena), env);
   Value name_value = copy_c_string(name, env->arena);
   for (size_t i = name_value.string_value->size - 1; i > 0; i--) {
@@ -120,10 +120,10 @@ static Value create_content_object(const char *path, const char *name, PathStack
     }
   }
   object_def(obj.object_value, "name", name_value, env);
-  object_def(obj.object_value, "modified", create_time(get_mtime(path)), env);
-  FILE *file = fopen(path, "r");
+  object_def(obj.object_value, "modified", create_time(get_mtime(path->path)), env);
+  FILE *file = fopen(path->path, "r");
   if (!file) {
-    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", path, strerror(errno));
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", path->path, strerror(errno));
     return nil_value;
   }
   Reader *reader = open_reader(file, path, env->symbol_map);
@@ -141,8 +141,8 @@ static Value create_content_object(const char *path, const char *name, PathStack
     set_reader_silent(0, reader);
     Module *front_matter = parse_object_notation(tokens, path, 0);
     close_reader(reader);
-    if (!front_matter->parse_error) {
-      Value front_matter_obj = interpret(*front_matter->root, env);
+    if (!front_matter->data_value.parse_error) {
+      Value front_matter_obj = interpret(*front_matter->data_value.root, env);
       if (front_matter_obj.type == V_OBJECT) {
         ObjectIterator it = iterate_object(front_matter_obj.object_value);
         Value entry_key, entry_value;
@@ -150,7 +150,7 @@ static Value create_content_object(const char *path, const char *name, PathStack
           object_put(obj.object_value, entry_key, entry_value, env->arena);
         }
       } else {
-        fprintf(stderr, SGR_BOLD "%s: " INFO_LABEL "unexpected front matter of type %s" SGR_RESET "\n", path,
+        fprintf(stderr, SGR_BOLD "%s: " INFO_LABEL "unexpected front matter of type %s" SGR_RESET "\n", path->path,
             value_name(front_matter_obj.type));
       }
     } else {
@@ -172,7 +172,7 @@ static Value create_content_object(const char *path, const char *name, PathStack
     buffer.size += n;
   } while (n == 8192);
   if (!feof(file)) {
-    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "read error: %s" SGR_RESET "\n", path, strerror(errno));
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "read error: %s" SGR_RESET "\n", path->path, strerror(errno));
   }
   Value content = create_string(buffer.data, buffer.size, env->arena);
   delete_buffer(buffer);
@@ -195,20 +195,20 @@ static Value create_content_object(const char *path, const char *name, PathStack
         } else {
           char *type_string = string_to_c_string(type.string_value);
           fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "invalid handler for content type '%s'" SGR_RESET "\n",
-              path, type_string);
+              path->path, type_string);
           free(type_string);
         }
       } else {
         char *type_string = string_to_c_string(type.string_value);
-        fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "handler not found for content type '%s'" SGR_RESET "\n", path,
-            type_string);
+        fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "handler not found for content type '%s'" SGR_RESET "\n",
+            path->path, type_string);
         free(type_string);
       }
     } else {
-      fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "unknown content type" SGR_RESET "\n", path);
+      fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "unknown content type" SGR_RESET "\n", path->path);
     }
   } else {
-    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "CONTENT_HANDLERS not found or invalid" SGR_RESET "\n", path);
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "CONTENT_HANDLERS not found or invalid" SGR_RESET "\n", path->path);
   }
   object_def(obj.object_value, "content", content, env);
   if (content.type == V_STRING) {
@@ -224,10 +224,8 @@ static Value create_content_object(const char *path, const char *name, PathStack
       object_def(obj.object_value, "read_more", has_read_more(html) ? true_value : false_value, env);
       Value src_root;
       if (env_get_symbol("SRC_ROOT", &src_root, env) && src_root.type == V_STRING) {
-        Path *src_root_path = create_path((char *) src_root.string_value->bytes, src_root.string_value->size);
-        Path *content_file_path = create_path(path, -1); // TODO: replace const char *path with const Path *path
-        Path *abs_asset_base = path_get_parent(content_file_path);
-        delete_path(content_file_path);
+        Path *src_root_path = string_to_path(src_root.string_value);
+        Path *abs_asset_base = path_get_parent(path);
         Path *asset_base = path_get_relative(src_root_path, abs_asset_base);
         delete_path(abs_asset_base);
         ContentLinkArgs content_link_args = {env, asset_base};
@@ -240,16 +238,16 @@ static Value create_content_object(const char *path, const char *name, PathStack
   return obj;
 }
 
-static int find_content(const char *path, int recursive, const char *suffix, size_t suffix_length,
+static int find_content(const Path *path, int recursive, const char *suffix, size_t suffix_length,
     PathStack *path_stack, Array *content, Env *env) {
-  DIR *dir = opendir(path);
+  DIR *dir = opendir(path->path);
   int status = 1;
   if (dir) {
     struct dirent *file;
     while ((file = readdir(dir))) {
       if (file->d_name[0] != '.') {
-        char *subpath = combine_paths(path, file->d_name);
-        if (!is_dir(subpath)) {
+        Path *subpath = path_append(path, file->d_name);
+        if (!is_dir(subpath->path)) {
           int match = 1;
           if (suffix_length) {
             size_t name_length = strlen(file->d_name);
@@ -274,7 +272,7 @@ static int find_content(const char *path, int recursive, const char *suffix, siz
           }
           status = status && find_content(subpath, recursive, suffix, suffix_length, &next, content, env);
         }
-        free(subpath);
+        delete_path(subpath);
       }
     }
     closedir(dir);
@@ -306,22 +304,25 @@ static Value list_content(const Tuple *args, Env *env) {
       suffix = string_to_c_string(value.string_value);
     }
   }
-  char *path = get_src_path(path_value.string_value, env);
-  if (!path) {
+  Path *path = string_to_path(path_value.string_value);
+  Path *src_path = get_src_path(path, env);
+  if (!src_path) {
     if (suffix) {
       free(suffix);
     }
+    delete_path(path);
     return nil_value;
   }
   Value content = create_array(0, env->arena);
-  int result = find_content(path, recursive, suffix, suffix ? strlen(suffix) : 0, NULL, content.array_value, env);
+  int result = find_content(src_path, recursive, suffix, suffix ? strlen(suffix) : 0, NULL, content.array_value, env);
   if (!result) {
     env_error(env, -1, "encountered one or more errors when listing content");
   }
   if (suffix) {
     free(suffix);
   }
-  free(path);
+  delete_path(src_path);
+  delete_path(path);
   return content;
 }
 

@@ -95,12 +95,14 @@ typedef struct {
 Path *create_path(const char *path_bytes, int32_t length);
 Path *copy_path(const Path *path);
 void delete_path(Path *path);
+Path *get_cwd_path(void);
 int path_is_absolute(const Path *path);
 int path_is_descending(const Path *path);
 Path *path_get_parent(const Path *path);
 const char *path_get_name(const Path *path);
 const char *path_get_extension(const Path *path);
-Path *path_join(const Path *path1, const Path *path2);
+Path *path_join(const Path *path1, const Path *path2, int path1_is_root);
+Path *path_append(const Path *path, const char *component);
 Path *path_get_relative(const Path *start, const Path *end);
 
 #endif

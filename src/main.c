@@ -56,10 +56,11 @@ static int eval(GlobalArgs args) {
     printf("usage: %s eval <file>\n", args.program_name);
     return 1;
   }
-  char *infile = args.argv[0];
-  FILE *in = fopen(infile, "r");
+  Path *infile = create_path(args.argv[0], -1);
+  FILE *in = fopen(infile->path, "r");
   if (!in) {
-    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", infile, strerror(errno));
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", infile->path, strerror(errno));
+    delete_path(infile);
     return errno;
   }
   SymbolMap *symbol_map = create_symbol_map();
@@ -70,7 +71,7 @@ static int eval(GlobalArgs args) {
     close_reader(reader);
     fclose(in);
 
-    if (!module->parse_error) {
+    if (!module->user_value.parse_error) {
       ModuleMap *modules = create_module_map();
       add_module(module, modules);
 
@@ -84,7 +85,7 @@ static int eval(GlobalArgs args) {
       import_contentmap(env);
       import_html(env);
       import_markdown(env);
-      Value output = interpret(*module->root, env);
+      Value output = interpret(*module->user_value.root, env);
       if (output.type == V_STRING) {
         for (size_t i = 0 ; i < output.string_value->size; i++) {
           putchar((char) output.string_value->bytes[i]);
@@ -99,6 +100,7 @@ static int eval(GlobalArgs args) {
     close_reader(reader);
   }
   delete_symbol_map(symbol_map);
+  delete_path(infile);
   return 0;
 }
 

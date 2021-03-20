@@ -7,6 +7,8 @@
 #include "module.h"
 
 #include "hashmap.h"
+#include "parser.h"
+#include "reader.h"
 #include "util.h"
 
 #include <stdlib.h>
@@ -17,12 +19,12 @@ struct ModuleMap {
 };
 
 typedef struct {
-  const char *key;
+  const Path *key;
   Module *value;
 } ModuleEntry;
 
 static Hash module_hash(const void *p) {
-  const char *name = ((ModuleEntry *) p)->key;
+  const char *name = ((ModuleEntry *) p)->key->path;
   Hash h = INIT_HASH;
   while (*name) {
     h = HASH_ADD_BYTE(*name, h);
@@ -32,7 +34,7 @@ static Hash module_hash(const void *p) {
 }
 
 static int module_equals(const void *a, const void *b) {
-  return strcmp(((ModuleEntry *) a)->key, ((ModuleEntry *) b)->key) == 0;
+  return strcmp(((ModuleEntry *) a)->key->path, ((ModuleEntry *) b)->key->path) == 0;
 }
 
 ModuleMap *create_module_map(void) {
@@ -51,7 +53,7 @@ void delete_module_map(ModuleMap *module_map) {
   free(module_map);
 }
 
-Module *get_module(const char *file_name, ModuleMap *module_map) {
+Module *get_module(const Path *file_name, ModuleMap *module_map) {
   ModuleEntry entry;
   ModuleEntry query;
   query.key = file_name;
@@ -65,16 +67,51 @@ void add_module(Module *module, ModuleMap *module_map) {
   generic_hash_map_add(&module_map->map, &(ModuleEntry) { .key = module->file_name, .value = module });
 }
 
-Module *create_module(const char *file_name) {
+Module *create_module(const Path *file_name, ModuleType type) {
   Module *module = allocate(sizeof(Module));
-  module->file_name = copy_string(file_name);
-  module->root = NULL;
-  module->parse_error = 0;
+  module->type = type;
+  module->file_name = copy_path(file_name);
+  module->mtime = (time_t) 0;
+  switch (type) {
+    case M_SYSTEM:
+      module->system_value.import_func = NULL;
+      break;
+    case M_USER:
+      module->user_value.root = NULL;
+      module->user_value.parse_error = 0;
+      break;
+    case M_DATA:
+      module->data_value.root = NULL;
+      module->data_value.parse_error = 0;
+      break;
+    case M_ASSET:
+      module->asset_value.width = -1;
+      module->asset_value.height = -1;
+      break;
+  }
   return module;
 }
 
 void delete_module(Module *module) {
-  DELETE_NODE(module->root);
+  switch (module->type) {
+    case M_USER:
+      DELETE_NODE(module->user_value.root);
+      break;
+    case M_DATA:
+      DELETE_NODE(module->data_value.root);
+      break;
+    case M_SYSTEM:
+    case M_ASSET:
+      break;
+  }
   free(module->file_name);
   free(module);
+}
+
+Module *load_module(const Path *name, Env *env) {
+  Module *m = get_module(name, env->modules);
+  if (m) {
+    return m;
+  }
+  return m;
 }

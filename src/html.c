@@ -204,7 +204,7 @@ static int transform_link(Value node, const char *attribute_name, LinkArgs *args
   if (string_starts_with("tscasset:", src.string_value)) {
     Path *asset_path = create_path((char *) src.string_value->bytes + sizeof("tscasset:") - 1,
         src.string_value->size - (sizeof("tscasset:") - 1));
-    Path *src_path = path_join(args->src_root, asset_path);
+    Path *src_path = path_join(args->src_root, asset_path, 1);
     Value src_path_string = create_string((uint8_t *) src_path->path, src_path->size, args->env->arena);
     Value reverse_path_value;
     if (object_get(args->reverse_paths, src_path_string, &reverse_path_value) && reverse_path_value.type == V_STRING) {
@@ -214,8 +214,8 @@ static int transform_link(Value node, const char *attribute_name, LinkArgs *args
           args->env);
       delete_path(reverse_path);
     } else {
-      Path *asset_web_path = path_join(args->asset_root, asset_path);
-      Path *dist_path = path_join(args->dist_root, asset_web_path);
+      Path *asset_web_path = path_join(args->asset_root, asset_path, 1);
+      Path *dist_path = path_join(args->dist_root, asset_web_path, 1);
       copy_asset(src_path, dist_path);
       html_set_attribute(node, attribute_name, get_web_path(asset_web_path, args->absolute, args->env).string_value,
           args->env);

@@ -16,29 +16,29 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int copy_static_files(const char *src_path, const char *dest_path) {
-  if (is_dir(src_path)) {
-    if (!mkdir_rec(dest_path)) {
+static int copy_static_files(const Path *src_path, const Path *dest_path) {
+  if (is_dir(src_path->path)) {
+    if (!mkdir_rec(dest_path->path)) {
       return 0;
     }
-    DIR *dir = opendir(src_path);
+    DIR *dir = opendir(src_path->path);
     int status = 1;
     if (dir) {
       struct dirent *file;
       while ((file = readdir(dir))) {
         if (file->d_name[0] != '.') {
-          char *child_src_path = combine_paths(src_path, file->d_name);
-          char *child_dest_path = combine_paths(dest_path, file->d_name);
+          Path *child_src_path = path_append(src_path, file->d_name);
+          Path *child_dest_path = path_append(dest_path, file->d_name);
           status = status && copy_static_files(child_src_path, child_dest_path);
-          free(child_dest_path);
-          free(child_src_path);
+          delete_path(child_dest_path);
+          delete_path(child_src_path);
         }
       }
       closedir(dir);
     }
     return status;
   }
-  return copy_file(src_path, dest_path);
+  return copy_file(src_path->path, dest_path->path);
 }
 
 static Value add_static(const Tuple *args, Env *env) {
@@ -48,20 +48,20 @@ static Value add_static(const Tuple *args, Env *env) {
     arg_type_error(0, V_STRING, args, env);
     return nil_value;
   }
-  char *src_path = get_src_path(src_value.string_value, env);
+  Path *src_path = string_to_src_path(src_value.string_value, env);
   if (!src_path) {
     return nil_value;
   }
-  char *dest_path = get_dist_path(src_value.string_value, env);
+  Path *dest_path = string_to_dist_path(src_value.string_value, env);
   if (!dest_path) {
-    free(src_path);
+    delete_path(src_path);
     return nil_value;
   }
   if (!copy_static_files(src_path, dest_path)) {
     env_error(env, -1, "failed copying one or more files to dist");
   }
-  free(dest_path);
-  free(src_path);
+  delete_path(dest_path);
+  delete_path(src_path);
   return nil_value;
 }
 
@@ -87,13 +87,13 @@ static Value add_reverse(const Tuple *args, Env *env) {
 }
 
 static void create_site_node(String *site_path, String *template_path, Value data, Env *env) {
-  char *src_path = get_src_path(template_path, env);
+  Path *src_path = string_to_src_path(template_path, env);
   if (!src_path) {
     return;
   }
-  char *dest_path = get_dist_path(site_path, env);
+  Path *dest_path = string_to_dist_path(site_path, env);
   if (!dest_path) {
-    free(src_path);
+    delete_path(src_path);
     return;
   }
   Module *module = get_template(src_path, env);
@@ -107,17 +107,16 @@ static void create_site_node(String *site_path, String *template_path, Value dat
           template_env->arena), template_env);
     Value output = eval_template(module, data, template_env);
     if (output.type == V_STRING) {
-      char *dest_path_copy = copy_string(dest_path);
-      char *dir = dirname(dest_path_copy);
-      if (mkdir_rec(dir)) {
-        FILE *dest = fopen(dest_path, "w");
+      Path *dir = path_get_parent(dest_path);
+      if (mkdir_rec(dir->path)) {
+        FILE *dest = fopen(dest_path->path, "w");
         int error = 0;
         if (!dest) {
-          fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", dest_path, strerror(errno));
+          fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", dest_path->path, strerror(errno));
           error = 1;
         } else {
           if (fwrite(output.string_value->bytes, 1, output.string_value->size, dest) != output.string_value->size) {
-            fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "write error: %s" SGR_RESET "\n", dest_path, strerror(errno));
+            fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "write error: %s" SGR_RESET "\n", dest_path->path, strerror(errno));
             error = 1;
           }
           fclose(dest);
@@ -128,12 +127,12 @@ static void create_site_node(String *site_path, String *template_path, Value dat
       } else {
         env_error(env, -1, "unable to create output directory");
       }
-      free(dest_path_copy);
+      delete_path(dir);
     }
     delete_template_env(template_env);
   }
-  free(dest_path);
-  free(src_path);
+  delete_path(dest_path);
+  delete_path(src_path);
 }
 
 static Value add_page(const Tuple *args, Env *env) {

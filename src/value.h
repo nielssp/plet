@@ -9,11 +9,13 @@
 
 #include "ast.h"
 #include "hashmap.h"
-#include "module.h"
 
 #include <stddef.h>
 #include <stdint.h>
 #include <time.h>
+
+typedef struct Module Module;
+typedef struct ModuleMap ModuleMap;
 
 typedef struct Value Value;
 typedef struct String String;
@@ -44,7 +46,38 @@ typedef struct {
   int error_arg;
   EnvErrorLevel error_level;
   GenericHashMap global;
+  Array *exports;
 } Env;
+
+typedef enum {
+  M_SYSTEM,
+  M_USER,
+  M_DATA,
+  M_ASSET
+} ModuleType;
+
+struct Module {
+  ModuleType type;
+  Path *file_name;
+  time_t mtime;
+  union {
+    struct {
+      void (*import_func)(Env *);
+    } system_value;
+    struct {
+      Node *root;
+      int parse_error;
+    } user_value;
+    struct {
+      Node *root;
+      int parse_error;
+    } data_value;
+    struct {
+      int width;
+      int height;
+    } asset_value;
+  };
+};
 
 typedef enum {
   V_NIL,
@@ -163,7 +196,7 @@ int env_get(Symbol name, Value *value, Env *env);
 
 int env_get_symbol(const char *name, Value *value, Env *env);
 
-char *get_env_string(const char *name, Env *env);
+const String *get_env_string(const char *name, Env *env);
 
 void display_env_error(Node node, EnvErrorLevel level, int show_line, const char *format, ...);
 
@@ -188,6 +221,9 @@ void value_to_string(Value value, Buffer *buffer);
 const char *value_name(ValueType type);
 
 Value create_string(const uint8_t *bytes, size_t size, Arena *arena);
+
+Value path_to_string(const Path *path, Arena *arena);
+Path *string_to_path(const String *string);
 
 Value copy_c_string(const char *str, Arena *arena);
 

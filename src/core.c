@@ -6,20 +6,39 @@
 
 #include "core.h"
 
+#include "build.h"
+#include "parser.h"
+#include "reader.h"
 #include "strings.h"
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
 static Value import(const Tuple *args, Env *env) {
   check_args(1, args, env);
-  Value name = args->values[0];
-  if (name.type != V_STRING) {
-
+  Value name_value = args->values[0];
+  if (name_value.type != V_STRING) {
     arg_type_error(0, V_STRING, args, env);
     return nil_value;
   }
-  return nil_value;
+  Path *name = string_to_path(name_value.string_value);
+  Module *m = load_module(name, env);
+  Value result = nil_value;
+  delete_path(name);
+  switch (m->type) {
+    case M_SYSTEM:
+      m->system_value.import_func(env);
+      break;
+    case M_USER:
+      break;
+    case M_DATA:
+      break;
+    case M_ASSET:
+      result = path_to_string(m->file_name, env->arena);
+      break;
+  }
+  return result;
 }
 
 static Value copy(const Tuple *args, Env *env) {

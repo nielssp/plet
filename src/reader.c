@@ -23,7 +23,7 @@ struct ParenStack {
 
 struct Reader {
   FILE *file;
-  char *file_name;
+  Path *file_name;
   SymbolMap *symbol_map;
   ParenStack *parens;
   Token *tokens;
@@ -39,10 +39,10 @@ const char *keywords[] = {
   "if", "then", "else", "for", "in", "switch", "case", "default", "end", "and", "or", "not", "do", "export", NULL
 };
 
-Reader *open_reader(FILE *file, const char *file_name, SymbolMap *symbol_map) {
+Reader *open_reader(FILE *file, const Path *file_name, SymbolMap *symbol_map) {
   Reader *r = allocate(sizeof(Reader));
   r->file = file;
-  r->file_name = copy_string(file_name);
+  r->file_name = copy_path(file_name);
   r->symbol_map = symbol_map;
   r->parens = NULL;
   r->tokens = NULL;
@@ -97,7 +97,7 @@ static void clear_parens(Reader *r) {
 void close_reader(Reader *r) {
   clear_parens(r);
   delete_tokens(r->tokens);
-  free(r->file_name);
+  delete_path(r->file_name);
   free(r);
 }
 
@@ -106,14 +106,12 @@ static void reader_error(Reader *r, const char *format, ...) {
   if (r->silent) {
     return;
   }
-  fprintf(stderr, SGR_BOLD "%s:%d:%d: " ERROR_LABEL, r->file_name, r->pos.line, r->pos.column);
+  fprintf(stderr, SGR_BOLD "%s:%d:%d: " ERROR_LABEL, r->file_name->path, r->pos.line, r->pos.column);
   va_start(va, format);
   vfprintf(stderr, format, va);
   va_end(va);
   fprintf(stderr, SGR_RESET "\n");
-  if (r->file_name) {
-    print_error_line(r->file_name, r->pos, r->pos);
-  }
+  print_error_line(r->file_name->path, r->pos, r->pos);
 }
 
 static int peek_n(uint8_t n, Reader *r) {

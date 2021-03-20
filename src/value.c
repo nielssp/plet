@@ -49,6 +49,7 @@ Env *create_env(Arena *arena, ModuleMap *modules, SymbolMap *symbol_map) {
   env->error_arg = -1;
   env->error_level = ENV_ERROR;
   init_generic_hash_map(&env->global, sizeof(Entry), 0, entry_hash, entry_equals, arena);
+  env->exports = create_array(0, arena).array_value;
   return env;
 }
 
@@ -69,12 +70,12 @@ int env_get_symbol(const char *name, Value *value, Env *env) {
   return env_get(get_symbol(name, env->symbol_map), value, env);
 }
 
-char *get_env_string(const char *name, Env *env) {
+const String *get_env_string(const char *name, Env *env) {
   Value value;
   if (!env_get(get_symbol(name, env->symbol_map), &value, env) || value.type != V_STRING) {
     return NULL;
   }
-  return string_to_c_string(value.string_value);
+  return value.string_value;
 }
 
 static void display_env_error_va(Node node, EnvErrorLevel level, int show_line, const char *format, va_list va) {
@@ -92,13 +93,13 @@ static void display_env_error_va(Node node, EnvErrorLevel level, int show_line, 
       label = ERROR_LABEL;
       break;
   }
-  fprintf(stderr, SGR_BOLD "%s:%d:%d: %s", node.module.file_name, node.start.line, node.start.column, label);
+  fprintf(stderr, SGR_BOLD "%s:%d:%d: %s", node.module.file_name->path, node.start.line, node.start.column, label);
   va_copy(va2, va);
   vfprintf(stderr, format, va2);
   va_end(va2);
   fprintf(stderr, SGR_RESET "\n");
-  if (show_line && node.module.file_name) {
-    print_error_line(node.module.file_name, node.start, node.end);
+  if (show_line) {
+    print_error_line(node.module.file_name->path, node.start, node.end);
   }
 }
 
@@ -491,6 +492,14 @@ Value create_string(const uint8_t *bytes, size_t size, Arena *arena) {
   return (Value) { .type = V_STRING, .string_value = string };
 }
 
+Value path_to_string(const Path *path, Arena *arena) {
+  return create_string((uint8_t *) path->path, path->size, arena);
+}
+
+Path *string_to_path(const String *string) {
+  return create_path((char *) string->bytes, string->size);
+}
+
 Value copy_c_string(const char *str, Arena *arena) {
   return create_string((uint8_t *) str, strlen(str), arena);
 }
@@ -596,7 +605,6 @@ void object_put(Object *object, Value key, Value value, Arena *arena) {
   Value old;
   object_remove(object, key, &old);
   if (object->size >= object->capacity) {
-    object->capacity <<= 1;
     size_t new_capacity = object->capacity << 1;
     Entry *new_entries = arena_allocate(new_capacity * sizeof(Entry), arena);
     memcpy(new_entries, object->entries, object->capacity * sizeof(Entry));
@@ -718,6 +726,9 @@ static NameList *arena_copy_name_list(NameList *list, Arena *arena) {
 }
 
 static Node *copy_node_pointer(Node *node, Arena *arena) {
+  if (!node) {
+    return NULL;
+  }
   Node *copy = arena_allocate(sizeof(Node), arena);
   *copy = *node;
   return copy;

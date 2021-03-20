@@ -26,28 +26,30 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 typedef struct {
-  char *src_root;
-  char *dist_root;
+  Path *src_root;
+  Path *dist_root;
   SymbolMap *symbol_map;
   ModuleMap *modules;
 } BuildInfo;
 
 static void import_build_info(BuildInfo *build_info, Env *env) {
-  env_def("SRC_ROOT", copy_c_string(build_info->src_root, env->arena), env);
-  env_def("DIST_ROOT", copy_c_string(build_info->dist_root, env->arena), env);
+  env_def("SRC_ROOT", path_to_string(build_info->src_root, env->arena), env);
+  env_def("DIST_ROOT", path_to_string(build_info->dist_root, env->arena), env);
 }
 
-Module *get_template(const char *name, Env *env) {
+Module *get_template(const Path *name, Env *env) {
   Module *m = get_module(name, env->modules);
   if (m) {
+    if (m->type != M_USER) {
+      return m;
+    }
     return m;
   }
-  FILE *file = fopen(name, "r");
+  FILE *file = fopen(name->path, "r");
   if (!file) {
-    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", name, strerror(errno));
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", name->path, strerror(errno));
     return NULL;
   }
   Reader *reader = open_reader(file, name, env->symbol_map);
@@ -60,7 +62,7 @@ Module *get_template(const char *name, Env *env) {
   m = parse(tokens, name);
   close_reader(reader);
   fclose(file);
-  if (m->parse_error) {
+  if (m->user_value.parse_error) {
     delete_module(m);
     return NULL;
   }
@@ -118,30 +120,31 @@ void delete_template_env(Env *env) {
 }
 
 Value eval_template(Module *module, Value data, Env *env) {
-  env_def("FILE", copy_c_string(module->file_name, env->arena), env);
-  char *file_name_copy = copy_string(module->file_name);
-  char *dir = copy_string(dirname(file_name_copy));
-  env_def("DIR", copy_c_string(dir, env->arena), env);
-  free(file_name_copy);
-  Value content = interpret(*module->root, env);
+  if (module->type != M_USER) {
+    return nil_value;
+  }
+  env_def("FILE", path_to_string(module->file_name, env->arena), env);
+  Path *dir = path_get_parent(module->file_name);
+  env_def("DIR", path_to_string(dir, env->arena), env);
+  Value content = interpret(*module->user_value.root, env);
   Value layout;
   if (env_get_symbol("LAYOUT", &layout, env) && layout.type == V_STRING) {
     env_def("CONTENT", content, env);
     env_def("LAYOUT", nil_value, env);
-    char *layout_name = string_to_c_string(layout.string_value);
-    char *layout_path = combine_paths(dir, layout_name);
+    Path *layout_name = string_to_path(layout.string_value);
+    Path *layout_path = path_join(dir, layout_name, 0);
     Module *layout_module = get_template(layout_path, env);
     if (layout_module) {
       content = eval_template(layout_module, nil_value, env);
     }
-    free(layout_path);
-    free(layout_name);
+    delete_path(layout_path);
+    delete_path(layout_name);
   }
-  free(dir);
+  delete_path(dir);
   return content;
 }
 
-static int eval_script(FILE *file, const char *file_name, BuildInfo *build_info) {
+static int eval_script(FILE *file, const Path *file_name, BuildInfo *build_info) {
   Reader *reader = open_reader(file, file_name, build_info->symbol_map);
   TokenStream tokens = read_all(reader, 0);
   if (reader_errors(reader)) {
@@ -150,7 +153,7 @@ static int eval_script(FILE *file, const char *file_name, BuildInfo *build_info)
   }
   Module *module = parse(tokens, file_name);
   close_reader(reader);
-  if (module->parse_error) {
+  if (module->user_value.parse_error) {
     delete_module(module);
     return 0;
   }
@@ -166,40 +169,51 @@ static int eval_script(FILE *file, const char *file_name, BuildInfo *build_info)
   import_contentmap(env);
   import_markdown(env);
   import_build_info(build_info, env);
-  env_def("FILE", copy_c_string(file_name, env->arena), env);
-  char *file_name_copy = copy_string(file_name);
-  char *dir = dirname(file_name_copy);
-  env_def("DIR", copy_c_string(dir, env->arena), env);
-  free(file_name_copy);
-  interpret(*module->root, env);
+  env_def("FILE", path_to_string(file_name, env->arena), env);
+  Path *dir = path_get_parent(file_name);
+  env_def("DIR", path_to_string(dir, env->arena), env);
+  delete_path(dir);
+  interpret(*module->user_value.root, env);
   delete_arena(arena);
   return 1;
 }
 
-char *get_src_path(String *path, Env *env) {
-  char *dir = get_env_string("DIR", env);
-  if (!dir) {
+Path *get_src_path(Path *path, Env *env) {
+  const String *dir_string = get_env_string("DIR", env);
+  if (!dir_string) {
     env_error(env, -1, "missing or invalid DIR");
     return NULL;
   }
-  char *path_str = string_to_c_string(path);
-  char *combined = combine_paths(dir, path_str);
-  free(path_str);
-  free(dir);
+  Path *dir = string_to_path(dir_string);
+  Path *combined = path_join(dir, path, 0);
+  delete_path(dir);
   return combined;
 }
 
-char *get_dist_path(String *path, Env *env) {
-  char *dir = get_env_string("DIST_ROOT", env);
-  if (!dir) {
+Path *get_dist_path(Path *path, Env *env) {
+  const String *dir_string = get_env_string("DIST_ROOT", env);
+  if (!dir_string) {
     env_error(env, -1, "missing or invalid DIST_ROOT");
     return NULL;
   }
-  char *path_str = string_to_c_string(path);
-  char *combined = combine_paths(dir, path_str);
-  free(path_str);
-  free(dir);
+  Path *dir = string_to_path(dir_string);
+  Path *combined = path_join(dir, path, 1);
+  delete_path(dir);
   return combined;
+}
+
+Path *string_to_src_path(String *string, Env *env) {
+  Path *path = string_to_path(string);
+  Path *result = get_src_path(path, env);
+  delete_path(path);
+  return result;
+}
+
+Path *string_to_dist_path(String *string, Env *env) {
+  Path *path = string_to_path(string);
+  Path *result = get_dist_path(path, env);
+  delete_path(path);
+  return result;
 }
 
 static Value path_to_web_path(const Path *path, Arena *arena) {
@@ -261,17 +275,17 @@ Value get_web_path(const Path *path, int absolute, Env *env) {
 }
 
 Path *get_src_root(Env *env) {
-  Value value;
-  if (env_get_symbol("SRC_ROOT", &value, env) && value.type == V_STRING) {
-    return create_path((char *) value.string_value->bytes, value.string_value->size);
+  const String *src_root = get_env_string("SRC_ROOT", env);
+  if (src_root) {
+    return string_to_path(src_root);
   }
   return NULL;
 }
 
 Path *get_dist_root(Env *env) {
-  Value value;
-  if (env_get_symbol("DIST_ROOT", &value, env) && value.type == V_STRING) {
-    return create_path((char *) value.string_value->bytes, value.string_value->size);
+  const String *dist_root = get_env_string("DIST_ROOT", env);
+  if (dist_root) {
+    return string_to_path(dist_root);
   }
   return NULL;
 }
@@ -294,46 +308,44 @@ int copy_asset(const Path *src, const Path *dest) {
 }
 
 int build(GlobalArgs args) {
-  char *index_name = "index.tss";
-  size_t name_length = strlen(index_name);
-  char *cwd = getcwd(NULL, 0);
-  size_t length = strlen(cwd);
-  char *index_path = allocate(length + 1 + name_length + 1);
-  memcpy(index_path, cwd, length);
-  index_path[length] = PATH_SEP;
-  memcpy(index_path + length + 1, index_name, name_length + 1);
-  FILE *index = fopen(index_path, "r");
+  Path *cwd = get_cwd_path();
+  Path *index_path = path_append(cwd, "index.tss");
+  FILE *index = fopen(index_path->path, "r");
   if (!index) {
-    do {
-      length--;
-      if (cwd[length] == PATH_SEP) {
-        memcpy(index_path + length + 1, index_name, name_length + 1);
-        index = fopen(index_path, "r");
-        if (index) {
-          cwd[length] = '\0';
-          break;
-        }
+    while (1) {
+      Path *parent = path_get_parent(cwd);
+      if (parent->size >= cwd->size) {
+        delete_path(parent);
+        break;
       }
-    } while (length > 0);
+      delete_path(cwd);
+      cwd = parent;
+      delete_path(index_path);
+      index_path = path_append(cwd, "index.tss");
+      index = fopen(index_path->path, "r");
+      if (index) {
+        break;
+      }
+    }
   }
   if (index) {
-    fprintf(stderr, INFO_LABEL "building %s" SGR_RESET "\n", index_path);
+    fprintf(stderr, INFO_LABEL "building %s" SGR_RESET "\n", index_path->path);
     BuildInfo build_info;
     build_info.src_root = cwd;
-    build_info.dist_root = combine_paths(cwd, "dist");
-    if (mkdir_rec(build_info.dist_root)) {
+    build_info.dist_root = path_append(cwd, "dist");
+    if (mkdir_rec(build_info.dist_root->path)) {
       build_info.symbol_map = create_symbol_map();
       build_info.modules = create_module_map();
       eval_script(index, index_path, &build_info);
       delete_symbol_map(build_info.symbol_map);
       delete_module_map(build_info.modules);
     }
-    free(build_info.dist_root);
+    delete_path(build_info.dist_root);
     fclose(index);
   } else {
     fprintf(stderr, ERROR_LABEL "index.tss not found" SGR_RESET "\n");
   }
-  free(index_path);
-  free(cwd);
+  delete_path(index_path);
+  delete_path(cwd);
   return 0;
 }

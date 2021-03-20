@@ -29,7 +29,7 @@ static Value embed(const Tuple *args, Env *env) {
       return nil_value;
     }
   }
-  char *src_path = get_src_path(src_value.string_value, env);
+  Path *src_path = string_to_src_path(src_value.string_value, env);
   if (!src_path) {
     return nil_value;
   }
@@ -46,7 +46,7 @@ static Value embed(const Tuple *args, Env *env) {
     output = copy_value(eval_template(module, data, template_env), env->arena);
     delete_template_env(template_env);
   }
-  free(src_path);
+  delete_path(src_path);
   return output;
 }
 
@@ -120,13 +120,13 @@ static Value read(const Tuple *args, Env *env) {
     arg_type_error(0, V_STRING, args, env);
     return nil_value;
   }
-  char *src_path = get_src_path(src_value.string_value, env);
+  Path *src_path = string_to_src_path(src_value.string_value, env);
   if (!src_path) {
     return nil_value;
   }
-  FILE *file = fopen(src_path, "r");
+  FILE *file = fopen(src_path->path, "r");
   if (!file) {
-    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", src_path, strerror(errno));
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", src_path->path, strerror(errno));
     env_error(env, -1, "error reading file");
     free(src_path);
     return nil_value;
@@ -142,13 +142,13 @@ static Value read(const Tuple *args, Env *env) {
     buffer.size += n;
   } while (n == 8192);
   if (!feof(file)) {
-    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "read error: %s" SGR_RESET "\n", src_path, strerror(errno));
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "read error: %s" SGR_RESET "\n", src_path->path, strerror(errno));
     env_error(env, -1, "error reading file");
   }
   Value content = create_string(buffer.data, buffer.size, env->arena);
   delete_buffer(buffer);
   fclose(file);
-  free(src_path);
+  delete_path(src_path);
   return content;
 }
 

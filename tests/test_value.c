@@ -4,6 +4,7 @@
  * See the LICENSE file or http://opensource.org/licenses/MIT for more information.
  */
 
+#include "../src/module.h"
 #include "../src/value.h"
 
 #include "test.h"

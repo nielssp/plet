@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <unistd.h>
 #include <utime.h>
 
 #if defined(_WIN32)
@@ -426,6 +427,13 @@ void delete_path(Path *path) {
   free(path);
 }
 
+Path *get_cwd_path(void) {
+  char *cwd = getcwd(NULL, 0);
+  Path *path = create_path(cwd, -1);
+  free(cwd);
+  return path;
+}
+
 int path_is_absolute(const Path *path) {
 #if defined(_WIN32)
   if (path->size >= 3 && path->path[1] == ':' && path->path[2] == '\\') {
@@ -504,15 +512,16 @@ const char *path_get_extension(const Path *path) {
   return "";
 }
 
-Path *path_join(const Path *path1, const Path *path2) {
-  if (path_is_absolute(path2)) {
+Path *path_join(const Path *path1, const Path *path2, int path1_is_root) {
+  int32_t path2_root_size = path_is_absolute(path2);
+  if (!path1_is_root && path2_root_size) {
     return copy_path(path2);
   }
   Path *result = allocate(sizeof(Path) + path1->size + path2->size + 2);
   result->size = path1->size;
   memcpy(result->path, path1->path, path1->size);
   int32_t root_size = path_is_absolute(path1);
-  int32_t i = 0;
+  int32_t i = path2_root_size;
   while (1) {
     while (i < path2->size && path2->path[i] == PATH_SEP) {
       i++;
@@ -528,10 +537,12 @@ Path *path_join(const Path *path1, const Path *path2) {
     if (component_length == 2 && path2->path[i] == '.' && path2->path[i + 1] == '.' && (root_size
           || ((result->size == 2 || (result->size > 2 && result->path[result->size - 3] == PATH_SEP))
             && memcmp(result->path + result->size - 2, "..", 2) != 0))) {
-      while (result->size > root_size) {
-        result->size--;
-        if (result->path[result->size] == PATH_SEP) {
-          break;
+      if (!path1_is_root) {
+        while (result->size > root_size) {
+          result->size--;
+          if (result->path[result->size] == PATH_SEP) {
+            break;
+          }
         }
       }
     } else {
@@ -542,6 +553,27 @@ Path *path_join(const Path *path1, const Path *path2) {
       result->size += component_length;
     }
     i = j;
+  }
+  result->path[result->size] = '\0';
+  return result;
+}
+
+Path *path_append(const Path *path, const char *component) {
+  size_t component_size = strlen(component);
+  if (!component_size) {
+    return copy_path(path);
+  }
+  Path *result = allocate(sizeof(Path) + path->size + component_size + 2);
+  result->size = path->size;
+  memcpy(result->path, path->path, path->size);
+  int32_t root_size = path_is_absolute(path);
+  if (root_size == path->size) {
+    result->size = path->size + component_size;
+    memcpy(result->path + path->size, component, component_size);
+  } else {
+    result->size = path->size + component_size + 1;
+    result->path[path->size] = PATH_SEP;
+    memcpy(result->path + path->size + 1, component, component_size);
   }
   result->path[result->size] = '\0';
   return result;

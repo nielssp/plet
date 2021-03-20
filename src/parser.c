@@ -124,9 +124,9 @@ static Node create_node(NodeType type, Parser *parser) {
 static void parser_error(Parser *parser, Token *token, const char *format, ...) {
   va_list va;
   if (token) {
-    fprintf(stderr, SGR_BOLD "%s:%d:%d: " ERROR_LABEL, parser->module->file_name, token->start.line, token->start.column);
+    fprintf(stderr, SGR_BOLD "%s:%d:%d: " ERROR_LABEL, parser->module->file_name->path, token->start.line, token->start.column);
   } else {
-    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL, parser->module->file_name);
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL, parser->module->file_name->path);
   }
   va_start(va, format);
   vfprintf(stderr, format, va);
@@ -134,7 +134,7 @@ static void parser_error(Parser *parser, Token *token, const char *format, ...) 
   fprintf(stderr, SGR_RESET "\n");
   parser->errors++;
   if (parser->module->file_name && token) {
-    print_error_line(parser->module->file_name, token->start, token->end);
+    print_error_line(parser->module->file_name->path, token->start, token->end);
   }
 }
 
@@ -819,7 +819,10 @@ static Node parse_export(Parser *parser) {
   Node export = create_node(N_EXPORT, parser);
   expect_keyword("export", parser);
   export.export_value.left = parse_name(parser);
-  ASSIGN_NODE(export.export_value.right, parse_expression(parser));
+  if (peek_operator("=", parser)) {
+    pop(parser);
+    ASSIGN_NODE(export.export_value.right, parse_expression(parser));
+  }
   export.end = parser->end;
   return export;
 }
@@ -914,26 +917,26 @@ static Node parse_template(Parser *parser) {
   return block;
 }
 
-Module *parse(TokenStream tokens, const char *file_name) {
-  Module *m = create_module(file_name);
+Module *parse(TokenStream tokens, const Path *file_name) {
+  Module *m = create_module(file_name, M_USER);
   Parser parser = (Parser) { .tokens = tokens, .module = m, .free_variables = NULL, .errors = 0,
     .end.line = 1, .end.column = 1, .ignore_lf = 0, .object_notation = 0 };
-  ASSIGN_NODE(m->root, parse_template(&parser));
+  ASSIGN_NODE(m->user_value.root, parse_template(&parser));
   expect_type(T_EOF, &parser);
   delete_name_list(parser.free_variables);
-  m->parse_error = parser.errors;
+  m->user_value.parse_error = parser.errors;
   return m;
 }
 
-Module *parse_object_notation(TokenStream tokens, const char *file_name, int expect_eof) {
-  Module *m = create_module(file_name);
+Module *parse_object_notation(TokenStream tokens, const Path *file_name, int expect_eof) {
+  Module *m = create_module(file_name, M_DATA);
   Parser parser = (Parser) { .tokens = tokens, .module = m, .free_variables = NULL, .errors = 0,
     .end.line = 1, .end.column = 1, .ignore_lf = 0, .object_notation = 1 };
-  ASSIGN_NODE(m->root, parse_delimited(&parser));
+  ASSIGN_NODE(m->data_value.root, parse_delimited(&parser));
   if (expect_eof) {
     expect_type(T_EOF, &parser);
   }
   delete_name_list(parser.free_variables);
-  m->parse_error = parser.errors;
+  m->data_value.parse_error = parser.errors;
   return m;
 }

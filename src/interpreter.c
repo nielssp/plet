@@ -22,14 +22,12 @@ typedef enum {
 
 static void eval_error(Node node, const char *format, ...) {
   va_list va;
-  fprintf(stderr, SGR_BOLD "%s:%d:%d: " ERROR_LABEL, node.module.file_name, node.start.line, node.start.column);
+  fprintf(stderr, SGR_BOLD "%s:%d:%d: " ERROR_LABEL, node.module.file_name->path, node.start.line, node.start.column);
   va_start(va, format);
   vfprintf(stderr, format, va);
   va_end(va);
   fprintf(stderr, SGR_RESET "\n");
-  if (node.module.file_name) {
-    print_error_line(node.module.file_name, node.start, node.end);
-  }
+  print_error_line(node.module.file_name->path, node.start, node.end);
 }
 
 int apply(Value func, const Tuple *args, Value *return_value, Env *env) {
@@ -111,7 +109,7 @@ static Value eval_apply(Node node, Env *env) {
     }
     return interpret(callee.closure_value->body, callee.closure_value->env);
   } else {
-    if (!suppress) {
+    if (!suppress || callee.type != V_NIL) {
       eval_error(*node.apply_value.callee, "value of type %s is not a function", value_name(callee.type));
     }
     return nil_value;
@@ -152,7 +150,7 @@ static Value eval_subscript(Node node, Env *env, int suppress_name_error) {
     }
     return create_int(object.string_value->bytes[index.int_value]);
   } else {
-    if (!suppress_type_error) {
+    if (!suppress_type_error || object.type != V_NIL) {
       eval_error(*node.subscript_value.list, "value of type %s is not indexable", value_name(object.type));
     }
     return nil_value;
@@ -163,7 +161,7 @@ static Value eval_dot(Node node, Env *env, int suppress_name_error) {
   int suppress_type_error = node.dot_value.object->type == N_SUPPRESS;
   Value object = interpret(*node.dot_value.object, env);
   if (object.type != V_OBJECT) {
-    if (!suppress_type_error) {
+    if (!suppress_type_error || object.type != V_NIL) {
       eval_error(*node.dot_value.object, "value of type %s is not an object", value_name(object.type));
     }
     return nil_value;
@@ -662,7 +660,8 @@ Value interpret(Node node, Env *env) {
     case N_SWITCH:
       return eval_switch(node, env);
     case N_EXPORT:
-      // TODO
+      env_put(node.export_value.left, interpret(*node.export_value.right, env), env);
+      array_push(env->exports, create_symbol(node.export_value.left), env->arena);
       return nil_value;
     case N_ASSIGN:
       return eval_assign(node, env);

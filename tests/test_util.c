@@ -303,7 +303,7 @@ static void test_path_join(void) {
 
   path1 = create_path("", -1);
   path2 = create_path("", -1);
-  path3 = path_join(path1, path2);
+  path3 = path_join(path1, path2, 0);
   assert(strcmp(path3->path, "") == 0);
   delete_path(path1);
   delete_path(path2);
@@ -311,7 +311,7 @@ static void test_path_join(void) {
 
   path1 = create_path("foo", -1);
   path2 = create_path("", -1);
-  path3 = path_join(path1, path2);
+  path3 = path_join(path1, path2, 0);
   assert(strcmp(path3->path, "foo") == 0);
   delete_path(path1);
   delete_path(path2);
@@ -319,7 +319,7 @@ static void test_path_join(void) {
 
   path1 = create_path("", -1);
   path2 = create_path("foo", -1);
-  path3 = path_join(path1, path2);
+  path3 = path_join(path1, path2, 0);
   assert(strcmp(path3->path, "foo") == 0);
   delete_path(path1);
   delete_path(path2);
@@ -329,7 +329,7 @@ static void test_path_join(void) {
 #else
   path1 = create_path("foo", -1);
   path2 = create_path("bar", -1);
-  path3 = path_join(path1, path2);
+  path3 = path_join(path1, path2, 0);
   assert(strcmp(path3->path, "foo/bar") == 0);
   delete_path(path1);
   delete_path(path2);
@@ -337,7 +337,7 @@ static void test_path_join(void) {
 
   path1 = create_path("/foo", -1);
   path2 = create_path("bar", -1);
-  path3 = path_join(path1, path2);
+  path3 = path_join(path1, path2, 0);
   assert(strcmp(path3->path, "/foo/bar") == 0);
   delete_path(path1);
   delete_path(path2);
@@ -345,7 +345,23 @@ static void test_path_join(void) {
 
   path1 = create_path("/foo", -1);
   path2 = create_path("/bar", -1);
-  path3 = path_join(path1, path2);
+  path3 = path_join(path1, path2, 0);
+  assert(strcmp(path3->path, "/bar") == 0);
+  delete_path(path1);
+  delete_path(path2);
+  delete_path(path3);
+
+  path1 = create_path("/foo", -1);
+  path2 = create_path("/bar", -1);
+  path3 = path_join(path1, path2, 1);
+  assert(strcmp(path3->path, "/foo/bar") == 0);
+  delete_path(path1);
+  delete_path(path2);
+  delete_path(path3);
+
+  path1 = create_path("/foo", -1);
+  path2 = create_path("../bar", -1);
+  path3 = path_join(path1, path2, 0);
   assert(strcmp(path3->path, "/bar") == 0);
   delete_path(path1);
   delete_path(path2);
@@ -353,15 +369,15 @@ static void test_path_join(void) {
 
   path1 = create_path("/foo", -1);
   path2 = create_path("../bar", -1);
-  path3 = path_join(path1, path2);
-  assert(strcmp(path3->path, "/bar") == 0);
+  path3 = path_join(path1, path2, 1);
+  assert(strcmp(path3->path, "/foo/bar") == 0);
   delete_path(path1);
   delete_path(path2);
   delete_path(path3);
 
   path1 = create_path("..", -1);
   path2 = create_path("..", -1);
-  path3 = path_join(path1, path2);
+  path3 = path_join(path1, path2, 0);
   assert(strcmp(path3->path, "../..") == 0);
   delete_path(path1);
   delete_path(path2);
@@ -369,7 +385,7 @@ static void test_path_join(void) {
 
   path1 = create_path("..", -1);
   path2 = create_path("../foo", -1);
-  path3 = path_join(path1, path2);
+  path3 = path_join(path1, path2, 0);
   assert(strcmp(path3->path, "../../foo") == 0);
   delete_path(path1);
   delete_path(path2);
@@ -377,11 +393,54 @@ static void test_path_join(void) {
 
   path1 = create_path("/a/b", -1);
   path2 = create_path("../../../c/d", -1);
-  path3 = path_join(path1, path2);
+  path3 = path_join(path1, path2, 0);
   assert(strcmp(path3->path, "/c/d") == 0);
   delete_path(path1);
   delete_path(path2);
   delete_path(path3);
+#endif
+}
+
+static void test_path_append(void) {
+  Path *path1, *path2;
+
+  path1 = create_path("", -1);
+  path2 = path_append(path1, "");
+  assert(strcmp(path2->path, "") == 0);
+  delete_path(path1);
+  delete_path(path2);
+
+  path1 = create_path("foo", -1);
+  path2 = path_append(path1, "");
+  assert(strcmp(path2->path, "foo") == 0);
+  delete_path(path1);
+  delete_path(path2);
+
+  path1 = create_path("", -1);
+  path2 = path_append(path1, "foo");
+  assert(strcmp(path2->path, "foo") == 0);
+  delete_path(path1);
+  delete_path(path2);
+
+#if defined(_WIN32)
+#else
+  path1 = create_path("foo", -1);
+  path2 = path_append(path1, "bar");
+  assert(strcmp(path2->path, "foo/bar") == 0);
+  delete_path(path1);
+  delete_path(path2);
+
+  path1 = create_path("/", -1);
+  path2 = path_append(path1, "bar");
+  assert(strcmp(path2->path, "/bar") == 0);
+  delete_path(path1);
+  delete_path(path2);
+
+  path1 = create_path("/foo", -1);
+  path2 = path_append(path1, "bar");
+  assert(strcmp(path2->path, "/foo/bar") == 0);
+  delete_path(path1);
+  delete_path(path2);
 #endif
 }
 
@@ -482,6 +541,7 @@ void test_util(void) {
   run_test(test_path_get_name);
   run_test(test_path_get_extension);
   run_test(test_path_join);
+  run_test(test_path_append);
   run_test(test_path_get_relative);
 }
 

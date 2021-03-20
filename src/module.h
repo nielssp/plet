@@ -7,46 +7,16 @@
 #ifndef MODULE_H
 #define MODULE_H
 
-#include "ast.h"
+#include "value.h"
 
-typedef struct Module Module;
-typedef struct ModuleMap ModuleMap;
-
-typedef enum {
-  M_SYSTEM,
-  M_USER,
-  M_ASSET
-} ModuleType;
-
-struct Module {
-  ModuleType type;
-  char *file_name;
-  Node *root;
-  int parse_error;
-  /*
-  time_t mtime;
-  union {
-    struct {
-      void import_func(Env *);
-    } system_value;
-    struct {
-      Node *root;
-      int parse_error;
-    } user_value;
-    struct {
-      int width;
-      int height;
-    } asset_value;
-  };
-  */
-};
-
-Module *create_module(const char *file_name);
+Module *create_module(const Path *file_name, ModuleType type);
 void delete_module(Module *module);
 
 ModuleMap *create_module_map(void);
 void delete_module_map(ModuleMap *module_map);
-Module *get_module(const char *file_name, ModuleMap *module_map);
+Module *get_module(const Path *file_name, ModuleMap *module_map);
 void add_module(Module *module, ModuleMap *module_map);
+
+Module *load_module(const Path *name, Env *env);
 
 #endif

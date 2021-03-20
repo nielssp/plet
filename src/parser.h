@@ -10,9 +10,9 @@
 #include "module.h"
 #include "token.h"
 
-Module *parse(TokenStream tokens, const char *file_name);
+Module *parse(TokenStream tokens, const Path *file_name);
 
-Module *parse_object_notation(TokenStream tokens, const char *file_name, int expect_eof);
+Module *parse_object_notation(TokenStream tokens, const Path *file_name, int expect_eof);
 
 #endif
 

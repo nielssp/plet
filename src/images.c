@@ -32,8 +32,8 @@ typedef struct {
 
 static Path *handle_image(const Path *asset_path, const Path *src_path, int *attr_width, int *attr_height,
     Path **original_asset_web_path, ImageArgs *args) {
-  Path *asset_web_path = path_join(args->asset_root, asset_path);
-  Path *dist_path = path_join(args->dist_root, asset_web_path);
+  Path *asset_web_path = path_join(args->asset_root, asset_path, 1);
+  Path *dist_path = path_join(args->dist_root, asset_web_path, 1);
   Path *dest_dir = path_get_parent(dist_path);
   if (mkdir_rec(dest_dir->path)) {
     MagickWandGenesis();
@@ -95,11 +95,11 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
         } else {
           delete_path(asset_web_path);
         }
-        asset_web_path = path_join(asset_web_path_parent, new_name_path);
+        asset_web_path = path_join(asset_web_path_parent, new_name_path, 1);
         delete_path(asset_web_path_parent);
         delete_path(new_name_path);
         delete_path(dist_path);
-        dist_path = path_join(args->dist_root, asset_web_path);
+        dist_path = path_join(args->dist_root, asset_web_path, 1);
 
         if (asset_has_changed(src_path, dist_path)) {
           MagickResizeImage(wand, target_width, target_height, LanczosFilter);
@@ -131,8 +131,8 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
 
 static Path *handle_image(const Path *asset_path, const Path *src_path, int *attr_width, int *attr_height,
     Path **original_asset_web_path, ImageArgs *args) {
-  Path *asset_web_path = path_join(args->asset_root, asset_path);
-  Path *dist_path = path_join(args->dist_root, asset_web_path);
+  Path *asset_web_path = path_join(args->asset_root, asset_path, 1);
+  Path *dist_path = path_join(args->dist_root, asset_web_path, 1);
   copy_asset(src_path, dist_path);
   delete_path(dist_path);
   return asset_web_path;
@@ -166,7 +166,7 @@ static HtmlTransformation transform_images(Value node, void *context) {
     if (src.type == V_STRING && string_starts_with("tscasset:", src.string_value)) {
       Path *asset_path = create_path((char *) src.string_value->bytes + sizeof("tscasset:") - 1,
           src.string_value->size - (sizeof("tscasset:") - 1));
-      Path *src_path = path_join(args->src_root, asset_path);
+      Path *src_path = path_join(args->src_root, asset_path, 1);
       int attr_width, attr_height;
       get_size_attributes(node, &attr_width, &attr_height);
 

@@ -17,15 +17,17 @@ typedef struct {
   int parse_as_template;
 } GlobalArgs;
 
-Module *get_template(const char *name, Env *env);
+Module *get_template(const Path *name, Env *env);
 Env *create_template_env(Value data, Env *parent);
 void delete_template_env(Env *env);
 Value eval_template(Module *module, Value data, Env *env);
 
 int build(GlobalArgs args);
 
-char *get_src_path(String *path, Env *env);
-char *get_dist_path(String *path, Env *env);
+Path *get_src_path(Path *path, Env *env);
+Path *get_dist_path(Path *path, Env *env);
+Path *string_to_src_path(String *string, Env *env);
+Path *string_to_dist_path(String *string, Env *env);
 
 Value get_web_path(const Path *path, int absolute, Env *env);
 Path *get_src_root(Env *env);

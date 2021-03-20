@@ -14,11 +14,11 @@
 
 typedef struct Reader Reader;
 
-Reader *open_reader(FILE *file, const char *file_name, SymbolMap *symbol_map);
+Reader *open_reader(FILE *file, const Path *file_name, SymbolMap *symbol_map);
 void close_reader(Reader *r);
 int reader_errors(Reader *r);
 void set_reader_silent(int silent, Reader *r);
 
-TokenStream read_all(Reader *r, int template);
+TokenStream read_all(Reader *r, int is_template);
 
 #endif
