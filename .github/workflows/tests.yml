@@ -14,6 +14,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install dependencies
-      run: sudo apt install valgrind icu
+      run: sudo apt install valgrind libicu-dev
     - name: Build and run tests
       run: make WITH_GUMBO=0 WITH_MARKDOWN=0 WITH_IMAGEMAGICK=0 test
