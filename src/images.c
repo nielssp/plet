@@ -9,13 +9,17 @@
 #include "build.h"
 #include "html.h"
 
+#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <utime.h>
 
 #ifdef WITH_IMAGEMAGICK
 #include <MagickWand/MagickWand.h>
 #endif
+
+const char *supported_image_types[] = {"png", "jpg", "jpeg"};
 
 typedef struct {
   int64_t max_width;
@@ -28,7 +32,46 @@ typedef struct {
   Env *env;
 } ImageArgs;
 
+static int is_supported(const char *extension) {
+  size_t length = sizeof(supported_image_types) / sizeof(char *);
+  for (size_t i = 0; i < length; i++) {
+    if (strcmp(extension, supported_image_types[i]) == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static void resize_image(const Path *src_path, const Path *dist_path, int width, int height, ImageArgs *args) {
 #ifdef WITH_IMAGEMAGICK
+  MagickWandGenesis();
+  MagickWand *wand = NewMagickWand();
+  MagickBooleanType status = MagickReadImage(wand, src_path->path);
+  if (status == MagickFalse) {
+    ExceptionType severity;
+    char *description = MagickGetException(wand, &severity);
+    env_error(args->env, ENV_ARG_ALL, "ImageMagick error: %s", description);
+    MagickRelinquishMemory(description);
+  } else {
+    MagickResizeImage(wand, width, height, LanczosFilter);
+    MagickSetImageCompressionQuality(wand, args->quality);
+    status = MagickWriteImage(wand, dist_path->path);
+    if (status == MagickTrue) {
+      struct stat stat_buffer;
+      if (stat(src_path->path, &stat_buffer) == 0) {
+        struct utimbuf utime_buffer;
+        utime_buffer.actime = stat_buffer.st_atime;
+        utime_buffer.modtime = stat_buffer.st_mtime;
+        utime(dist_path->path, &utime_buffer);
+      }
+    }
+  }
+  DestroyMagickWand(wand);
+  MagickWandTerminus();
+#else
+  copy_file(src_path->path, dist_path->path);
+#endif
+}
 
 static Path *handle_image(const Path *asset_path, const Path *src_path, int *attr_width, int *attr_height,
     Path **original_asset_web_path, ImageArgs *args) {
@@ -36,109 +79,88 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
   Path *dist_path = path_join(args->dist_root, asset_web_path, 1);
   Path *dest_dir = path_get_parent(dist_path);
   if (mkdir_rec(dest_dir->path)) {
-    MagickWandGenesis();
-    MagickWand *wand = NewMagickWand();
-    MagickBooleanType status = MagickReadImage(wand, src_path->path);
-    if (status == MagickFalse) {
-      ExceptionType severity;
-      char *description = MagickGetException(wand, &severity);
-      env_error(args->env, ENV_ARG_ALL, "ImageMagick error: %s", description);
-      MagickRelinquishMemory(description);
-    } else {
-      int width = MagickGetImageWidth(wand);
-      int height = MagickGetImageHeight(wand);
-      if (width > args->max_width || height > args->max_height || *attr_width || *attr_height) {
-        int requested_width, requested_height;
-        if (*attr_width && *attr_height) {
-          requested_width = *attr_width;
-          requested_height = *attr_height;
-        } else if (*attr_width) {
-          requested_width = *attr_width;
-          requested_height = requested_width * height / width;
-        } else if (*attr_height) {
-          requested_height = *attr_height;
-          requested_width = requested_height * width / height;
-        } else {
-          requested_width = width;
-          requested_height = height;
-        }
-        int target_width, target_height;
-        double ratio = requested_width / (double) requested_height;
-        if (ratio < args->max_width / (double) args->max_height) {
-          target_height = requested_height < args->max_height ? requested_height : args->max_height;
-          target_width = (int) (target_height * ratio);
-        } else {
-          target_width = requested_width < args->max_width ? requested_width : args->max_width;
-          target_height = (int) (target_width / ratio);
-        }
+    char *extension = path_get_lowercase_extension(src_path);
+    if (is_supported(extension)) {
+      TscImageInfo info = get_image_info(src_path);
+      if (info.type == IMG_UNKNOWN) {
+        env_error(args->env, ENV_ARG_ALL, "unknown image type: %s", src_path->path);
+      } else if (info.type == IMG_NOT_FOUND) {
+        env_error(args->env, ENV_ARG_ALL, "error reading image");
+      } else {
+        int width = info.width;
+        int height = info.height;
+        if (width > args->max_width || height > args->max_height || *attr_width || *attr_height) {
+          int requested_width, requested_height;
+          if (*attr_width && *attr_height) {
+            requested_width = *attr_width;
+            requested_height = *attr_height;
+          } else if (*attr_width) {
+            requested_width = *attr_width;
+            requested_height = requested_width * height / width;
+          } else if (*attr_height) {
+            requested_height = *attr_height;
+            requested_width = requested_height * width / height;
+          } else {
+            requested_width = width;
+            requested_height = height;
+          }
+          int target_width, target_height;
+          double ratio = requested_width / (double) requested_height;
+          if (ratio < args->max_width / (double) args->max_height) {
+            target_height = requested_height < args->max_height ? requested_height : args->max_height;
+            target_width = (int) (target_height * ratio);
+          } else {
+            target_width = requested_width < args->max_width ? requested_width : args->max_width;
+            target_height = (int) (target_width / ratio);
+          }
+          *attr_width = target_width;
+          *attr_height = target_height;
+          const char *name = path_get_name(dist_path);
+          const char *ext = path_get_extension(dist_path);
+          Buffer new_name = create_buffer(0);
+          if (extension[0]) {
+            buffer_printf(&new_name, "%.*s.%dx%dq%d.%s", ext - name - 1, name, target_width, target_height,
+                args->quality, ext);
+          } else {
+            buffer_printf(&new_name, "%s.%dx%dq%d.jpg", name, target_width, target_height, args->quality);
+          }
+          Path *new_name_path = create_path((char *) new_name.data, new_name.size);
+          delete_buffer(new_name);
+          Path *asset_web_path_parent = path_get_parent(asset_web_path);
+          if (original_asset_web_path) {
+            if (asset_has_changed(src_path, dist_path)) {
+              copy_file(src_path->path, dist_path->path);
+            }
+            *original_asset_web_path = asset_web_path;
+          } else {
+            delete_path(asset_web_path);
+          }
+          asset_web_path = path_join(asset_web_path_parent, new_name_path, 1);
+          delete_path(asset_web_path_parent);
+          delete_path(new_name_path);
+          delete_path(dist_path);
+          dist_path = path_join(args->dist_root, asset_web_path, 1);
 
-        *attr_width = target_width;
-        *attr_height = target_height;
-
-        const char *name = path_get_name(dist_path);
-        const char *ext = path_get_extension(dist_path);
-        Buffer new_name = create_buffer(0);
-        if (ext[0]) {
-          buffer_printf(&new_name, "%.*s.%dx%dq%d.%s", ext - name - 1, name, target_width, target_height,
-              args->quality, ext);
+          if (asset_has_changed(src_path, dist_path)) {
+            resize_image(src_path, dist_path, target_width, target_height, args);
+          }
         } else {
-          buffer_printf(&new_name, "%s.%dx%dq%d.jpg", name, target_width, target_height, args->quality);
-        }
-        Path *new_name_path = create_path((char *) new_name.data, new_name.size);
-        delete_buffer(new_name);
-        Path *asset_web_path_parent = path_get_parent(asset_web_path);
-        if (original_asset_web_path) {
+          *attr_width = width;
+          *attr_height = height;
           if (asset_has_changed(src_path, dist_path)) {
             copy_file(src_path->path, dist_path->path);
           }
-          *original_asset_web_path = asset_web_path;
-        } else {
-          delete_path(asset_web_path);
         }
-        asset_web_path = path_join(asset_web_path_parent, new_name_path, 1);
-        delete_path(asset_web_path_parent);
-        delete_path(new_name_path);
-        delete_path(dist_path);
-        dist_path = path_join(args->dist_root, asset_web_path, 1);
-
-        if (asset_has_changed(src_path, dist_path)) {
-          MagickResizeImage(wand, target_width, target_height, LanczosFilter);
-          MagickSetImageCompressionQuality(wand, args->quality);
-          status = MagickWriteImage(wand, dist_path->path);
-          if (status == MagickTrue) {
-            struct stat stat_buffer;
-            if (stat(src_path->path, &stat_buffer) == 0) {
-              struct utimbuf utime_buffer;
-              utime_buffer.actime = stat_buffer.st_atime;
-              utime_buffer.modtime = stat_buffer.st_mtime;
-              utime(dist_path->path, &utime_buffer);
-            }
-          }
-        }
-      } else if (asset_has_changed(src_path, dist_path)) {
-        copy_file(src_path->path, dist_path->path);
       }
+    } else if (asset_has_changed(src_path, dist_path)) {
+      copy_file(src_path->path, dist_path->path);
     }
-    DestroyMagickWand(wand);
-    MagickWandTerminus();
+    free(extension);
   }
   delete_path(dest_dir);
   delete_path(dist_path);
   return asset_web_path;
 }
-
-#else
-
-static Path *handle_image(const Path *asset_path, const Path *src_path, int *attr_width, int *attr_height,
-    Path **original_asset_web_path, ImageArgs *args) {
-  Path *asset_web_path = path_join(args->asset_root, asset_path, 1);
-  Path *dist_path = path_join(args->dist_root, asset_web_path, 1);
-  copy_asset(src_path, dist_path);
-  delete_path(dist_path);
-  return asset_web_path;
-}
-
-#endif
 
 static void get_size_attributes(Value node, int *width, int *height) {
   Value value = html_get_attribute(node, "width");
@@ -261,4 +283,86 @@ static Value images(const Tuple *args, Env *env) {
 
 void import_images(Env *env) {
   env_def_fn("images", images, env);
+}
+
+static TscImageInfo get_jpeg_size(FILE *f) {
+  TscImageInfo info = { IMG_UNKNOWN };
+  while (1) {
+    int c = fgetc(f);
+    if (c == EOF) {
+      break;
+    } else if (c == 0xFF) {
+      int marker = fgetc(f);
+      if (marker == EOF || marker == 0xDA || marker == 0xD9) { // Start of scan, end of image
+        break;
+      }
+      if ((marker >> 4) == 0xC && marker != 0xC4 && marker != 0xC8 && marker != 0xCC) { // Start of frame
+        if (fseek(f, 3, SEEK_CUR)) {
+          break;
+        }
+        uint8_t dimensions[4];
+        if (fread(dimensions, 1, 4, f) != 4) {
+          break;
+        }
+        info.height = (dimensions[0] << 8) | dimensions[1];
+        info.width = (dimensions[2] << 8) | dimensions[3];
+        info.type = IMG_JPEG;
+        break;
+      }
+      uint8_t length_bytes[2];
+      if (fread(length_bytes, 1, 2, f) != 2) {
+        break;
+      }
+      uint16_t length = (length_bytes[0] << 8) | length_bytes[1];
+      if (length > 2) {
+        if (fseek(f, length - 2, SEEK_CUR)) {
+          break;
+        }
+      }
+    }
+  }
+  return info;
+}
+
+static TscImageInfo get_png_size(FILE *f) {
+  TscImageInfo info = { IMG_UNKNOWN };
+  if (fseek(f, 8, SEEK_CUR)) {
+    return info;
+  }
+  uint8_t dimensions[8];
+  if (fread(dimensions, 1, 8, f) != 8) {
+    return info;
+  }
+  info.width = (dimensions[0] << 24) | (dimensions[1] << 16) | (dimensions[2] << 8) | dimensions[3];
+  info.height = (dimensions[4] << 24) | (dimensions[5] << 16) | (dimensions[6] << 8) | dimensions[7];
+  info.type = IMG_PNG;
+  return info;
+}
+
+#define JPEG_SIGNATURE "\xff\xd8\xff"
+#define PNG_SIGNATURE "\x89\x50\x4e\x47\x0d\x0a\x1a\x0a"
+
+TscImageInfo get_image_info(const Path *path) {
+  TscImageInfo info = { IMG_UNKNOWN };
+  FILE *f = fopen(path->path, "r");
+  if (!f) {
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", path->path, strerror(errno));
+    info.type = IMG_NOT_FOUND;
+    return info;
+  }
+  uint8_t signature[8];
+  if (fread(signature, 1, 3, f) == 3) {
+    if (memcmp(signature, JPEG_SIGNATURE, 3) == 0) {
+      info = get_jpeg_size(f);
+    } else if (memcmp(signature, PNG_SIGNATURE, 3) == 0) {
+      if (fread(signature + 3, 1, 5, f) == 5 && memcmp(signature, PNG_SIGNATURE, 8) == 0) {
+        info = get_png_size(f);
+      } else {
+        fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "invalid or corrupt PNG signature" SGR_RESET "\n", path->path);
+        // corrupt png? error?
+      }
+    }
+  }
+  fclose(f);
+  return info;
 }

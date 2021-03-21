@@ -6,6 +6,7 @@
 
 #include "util.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -510,6 +511,17 @@ const char *path_get_extension(const Path *path) {
     return extension + 1;
   }
   return "";
+}
+
+char *path_get_lowercase_extension(const Path *path) {
+  const char *extension = path_get_extension(path);
+  size_t length = strlen(extension);
+  char *lowercase = allocate(length + 1);
+  for (size_t i = 0; i < length; i++) {
+    lowercase[i] = tolower(extension[i]);
+  }
+  lowercase[length] = '\0';
+  return lowercase;
 }
 
 Path *path_join(const Path *path1, const Path *path2, int path1_is_root) {

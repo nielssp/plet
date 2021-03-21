@@ -101,6 +101,7 @@ int path_is_descending(const Path *path);
 Path *path_get_parent(const Path *path);
 const char *path_get_name(const Path *path);
 const char *path_get_extension(const Path *path);
+char *path_get_lowercase_extension(const Path *path);
 Path *path_join(const Path *path1, const Path *path2, int path1_is_root);
 Path *path_append(const Path *path, const char *component);
 Path *path_get_relative(const Path *start, const Path *end);
