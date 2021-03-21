@@ -37,7 +37,7 @@ token ::= keyword
         | name
 
 keyword ::= "if" | "else" | "end" | "for" | "in" | "switch" | "case" | "default"
-          | "do" | "and" | "or" | "not"
+          | "do" | "and" | "or" | "not" | "export" | "return" | "break" | "continue"
 
 operator ::= "." | "," | ":" | "=>"
            | "==" | "!=" | "<=" | ">=" | "<" | ">"
@@ -99,6 +99,9 @@ Statement ::= If
             | For
             | Switch
             | Export
+            | "return" [Expression]
+            | "break" [int]
+            | "continue" [int]
             | Assignment
 
 If ::= "if" Expression Block

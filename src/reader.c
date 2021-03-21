@@ -36,7 +36,8 @@ struct Reader {
 };
 
 const char *keywords[] = {
-  "if", "then", "else", "for", "in", "switch", "case", "default", "end", "and", "or", "not", "do", "export", NULL
+  "if", "then", "else", "for", "in", "switch", "case", "default", "end", "and", "or", "not", "do", "export",
+  "return", "break", "continue", NULL
 };
 
 Reader *open_reader(FILE *file, const Path *file_name, SymbolMap *symbol_map) {

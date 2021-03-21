@@ -85,7 +85,7 @@ static int eval(GlobalArgs args) {
       import_contentmap(env);
       import_html(env);
       import_markdown(env);
-      Value output = interpret(*module->user_value.root, env);
+      Value output = interpret(*module->user_value.root, env).value;
       if (output.type == V_STRING) {
         for (size_t i = 0 ; i < output.string_value->size; i++) {
           putchar((char) output.string_value->bytes[i]);

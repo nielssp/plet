@@ -17,6 +17,10 @@ void delete_module_map(ModuleMap *module_map);
 Module *get_module(const Path *file_name, ModuleMap *module_map);
 void add_module(Module *module, ModuleMap *module_map);
 
+Path *get_src_path(const Path *path, Env *env);
+Module *load_asset_module(const Path *name, Env *env);
+Module *load_data_module(const Path *name, Env *env);
+Module *load_user_module(const Path *name, Env *env);
 Module *load_module(const Path *name, Env *env);
 
 #endif

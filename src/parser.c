@@ -117,6 +117,15 @@ static Node create_node(NodeType type, Parser *parser) {
     case N_SUPPRESS:
       node.suppress_value = NULL;
       break;
+    case N_RETURN:
+      node.return_value = NULL;
+      break;
+    case N_BREAK:
+      node.break_value = 1;
+      break;
+    case N_CONTINUE:
+      node.continue_value = 1;
+      break;
   }
   return node;
 }
@@ -860,6 +869,36 @@ static Node parse_assign(Parser *parser) {
   return expr;
 }
 
+static Node parse_return(Parser *parser) {
+  Node node = create_node(N_RETURN, parser);
+  expect_keyword("return", parser);
+  if (!peek_type(T_LF, parser) && !peek_type(T_EOF, parser) && !peek_type(T_TEXT, parser)) {
+    ASSIGN_NODE(node.return_value, parse_expression(parser));
+  }
+  node.end = parser->end;
+  return node;
+}
+
+static Node parse_break(Parser *parser) {
+  Node node = create_node(N_BREAK, parser);
+  expect_keyword("break", parser);
+  if (peek_type(T_INT, parser)) {
+    node.break_value = pop(parser)->int_value;
+  }
+  node.end = parser->end;
+  return node;
+}
+
+static Node parse_continue(Parser *parser) {
+  Node node = create_node(N_CONTINUE, parser);
+  expect_keyword("continue", parser);
+  if (peek_type(T_INT, parser)) {
+    node.continue_value = pop(parser)->int_value;
+  }
+  node.end = parser->end;
+  return node;
+}
+
 static Node parse_statement(Parser *parser) {
   if (peek_keyword("if", parser)) {
     return parse_if(parser);
@@ -869,6 +908,12 @@ static Node parse_statement(Parser *parser) {
     return parse_switch(parser);
   } else if (peek_keyword("export", parser)) {
     return parse_export(parser);
+  } else if (peek_keyword("return", parser)) {
+    return parse_return(parser);
+  } else if (peek_keyword("break", parser)) {
+    return parse_break(parser);
+  } else if (peek_keyword("continue", parser)) {
+    return parse_continue(parser);
   } else {
     return parse_assign(parser);
   }

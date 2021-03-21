@@ -67,7 +67,10 @@ typedef enum {
   N_EXPORT,
   N_ASSIGN,
   N_BLOCK,
-  N_SUPPRESS
+  N_SUPPRESS,
+  N_RETURN,
+  N_BREAK,
+  N_CONTINUE
 } NodeType;
 
 typedef enum {
@@ -169,6 +172,9 @@ struct Node {
     } assign_value;
     NodeList *block_value;
     Node *suppress_value;
+    Node *return_value;
+    int64_t break_value;
+    int64_t continue_value;
   };
 };
 

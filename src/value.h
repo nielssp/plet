@@ -47,6 +47,7 @@ typedef struct {
   EnvErrorLevel error_level;
   GenericHashMap global;
   Array *exports;
+  int64_t loops;
 } Env;
 
 typedef enum {

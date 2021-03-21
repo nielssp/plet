@@ -26,6 +26,10 @@ static Value import(const Tuple *args, Env *env) {
   Module *m = load_module(name, env);
   Value result = nil_value;
   delete_path(name);
+  if (!m) {
+    env_error(env, -1, "unable to load module");
+    return nil_value;
+  }
   switch (m->type) {
     case M_SYSTEM:
       m->system_value.import_func(env);

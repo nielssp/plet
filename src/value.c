@@ -50,6 +50,7 @@ Env *create_env(Arena *arena, ModuleMap *modules, SymbolMap *symbol_map) {
   env->error_level = ENV_ERROR;
   init_generic_hash_map(&env->global, sizeof(Entry), 0, entry_hash, entry_equals, arena);
   env->exports = create_array(0, arena).array_value;
+  env->loops = 0;
   return env;
 }
 
@@ -805,6 +806,12 @@ static Node copy_node(Node node, Arena *arena) {
       break;
     case N_SUPPRESS:
       node.suppress_value = copy_node_pointer(node.suppress_value, arena);
+      break;
+    case N_RETURN:
+      node.return_value = copy_node_pointer(node.return_value, arena);
+      break;
+    case N_BREAK:
+    case N_CONTINUE:
       break;
   }
   return node;

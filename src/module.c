@@ -11,6 +11,7 @@
 #include "reader.h"
 #include "util.h"
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -71,7 +72,7 @@ Module *create_module(const Path *file_name, ModuleType type) {
   Module *module = allocate(sizeof(Module));
   module->type = type;
   module->file_name = copy_path(file_name);
-  module->mtime = (time_t) 0;
+  module->mtime = get_mtime(file_name->path);
   switch (type) {
     case M_SYSTEM:
       module->system_value.import_func = NULL;
@@ -108,10 +109,109 @@ void delete_module(Module *module) {
   free(module);
 }
 
+Path *get_src_path(const Path *path, Env *env) {
+  const String *dir_string = get_env_string("DIR", env);
+  if (!dir_string) {
+    env_error(env, -1, "missing or invalid DIR");
+    return NULL;
+  }
+  Path *dir = string_to_path(dir_string);
+  Path *combined = path_join(dir, path, 0);
+  delete_path(dir);
+  return combined;
+}
+
+Module *load_user_module(const Path *name, Env *env) {
+  Module *m = get_module(name, env->modules);
+  if (m) {
+    if (m->type != M_USER) {
+      return NULL;
+    }
+    return m;
+  }
+  FILE *file = fopen(name->path, "r");
+  if (!file) {
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", name->path, strerror(errno));
+    return NULL;
+  }
+  Reader *reader = open_reader(file, name, env->symbol_map);
+  if (reader_errors(reader)) {
+    close_reader(reader);
+    fclose(file);
+    return NULL;
+  }
+  TokenStream tokens = read_all(reader, 0);
+  m = parse(tokens, name);
+  close_reader(reader);
+  fclose(file);
+  if (m->user_value.parse_error) {
+    delete_module(m);
+    return NULL;
+  }
+  add_module(m, env->modules);
+  return m;
+}
+
+Module *load_data_module(const Path *name, Env *env) {
+  Module *m = get_module(name, env->modules);
+  if (m) {
+    if (m->type != M_DATA) {
+      return NULL;
+    }
+    return m;
+  }
+  FILE *file = fopen(name->path, "r");
+  if (!file) {
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", name->path, strerror(errno));
+    return NULL;
+  }
+  Reader *reader = open_reader(file, name, env->symbol_map);
+  if (reader_errors(reader)) {
+    close_reader(reader);
+    fclose(file);
+    return NULL;
+  }
+  TokenStream tokens = read_all(reader, 0);
+  m = parse_object_notation(tokens, name, 1);
+  close_reader(reader);
+  fclose(file);
+  if (m->user_value.parse_error) {
+    delete_module(m);
+    return NULL;
+  }
+  add_module(m, env->modules);
+  return m;
+}
+
+Module *load_asset_module(const Path *name, Env *env) {
+  Module *m = get_module(name, env->modules);
+  if (m) {
+    if (m->type != M_ASSET) {
+      return NULL;
+    }
+    return m;
+  }
+  return create_module(name, M_ASSET);
+}
+
 Module *load_module(const Path *name, Env *env) {
   Module *m = get_module(name, env->modules);
   if (m) {
     return m;
   }
+  Path *path = get_src_path(name, env);
+  if (!path) {
+    return NULL;
+  }
+  const char *extension = path_get_extension(path);
+  // TODO: case insensitive
+  if (strcmp(extension, "tss") == 0) {
+    m = load_user_module(path, env);
+  } else if (strcmp(extension, "json") == 0 || strcmp(extension, "tson") == 0) {
+    m = load_data_module(path, env);
+  } else {
+    m = load_asset_module(path, env);
+  }
+  delete_path(path);
   return m;
 }

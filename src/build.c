@@ -43,7 +43,7 @@ Module *get_template(const Path *name, Env *env) {
   Module *m = get_module(name, env->modules);
   if (m) {
     if (m->type != M_USER) {
-      return m;
+      return NULL;
     }
     return m;
   }
@@ -126,7 +126,7 @@ Value eval_template(Module *module, Value data, Env *env) {
   env_def("FILE", path_to_string(module->file_name, env->arena), env);
   Path *dir = path_get_parent(module->file_name);
   env_def("DIR", path_to_string(dir, env->arena), env);
-  Value content = interpret(*module->user_value.root, env);
+  Value content = interpret(*module->user_value.root, env).value;
   Value layout;
   if (env_get_symbol("LAYOUT", &layout, env) && layout.type == V_STRING) {
     env_def("CONTENT", content, env);
@@ -178,19 +178,7 @@ static int eval_script(FILE *file, const Path *file_name, BuildInfo *build_info)
   return 1;
 }
 
-Path *get_src_path(Path *path, Env *env) {
-  const String *dir_string = get_env_string("DIR", env);
-  if (!dir_string) {
-    env_error(env, -1, "missing or invalid DIR");
-    return NULL;
-  }
-  Path *dir = string_to_path(dir_string);
-  Path *combined = path_join(dir, path, 0);
-  delete_path(dir);
-  return combined;
-}
-
-Path *get_dist_path(Path *path, Env *env) {
+Path *get_dist_path(const Path *path, Env *env) {
   const String *dir_string = get_env_string("DIST_ROOT", env);
   if (!dir_string) {
     env_error(env, -1, "missing or invalid DIST_ROOT");
@@ -202,14 +190,14 @@ Path *get_dist_path(Path *path, Env *env) {
   return combined;
 }
 
-Path *string_to_src_path(String *string, Env *env) {
+Path *string_to_src_path(const String *string, Env *env) {
   Path *path = string_to_path(string);
   Path *result = get_src_path(path, env);
   delete_path(path);
   return result;
 }
 
-Path *string_to_dist_path(String *string, Env *env) {
+Path *string_to_dist_path(const String *string, Env *env) {
   Path *path = string_to_path(string);
   Path *result = get_dist_path(path, env);
   delete_path(path);

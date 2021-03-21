@@ -142,7 +142,7 @@ static Value create_content_object(const Path *path, const char *name, PathStack
     Module *front_matter = parse_object_notation(tokens, path, 0);
     close_reader(reader);
     if (!front_matter->data_value.parse_error) {
-      Value front_matter_obj = interpret(*front_matter->data_value.root, env);
+      Value front_matter_obj = interpret(*front_matter->data_value.root, env).value;
       if (front_matter_obj.type == V_OBJECT) {
         ObjectIterator it = iterate_object(front_matter_obj.object_value);
         Value entry_key, entry_value;

@@ -96,6 +96,12 @@ void delete_node(Node node) {
     case N_SUPPRESS:
       DELETE_NODE(node.suppress_value);
       break;
+    case N_RETURN:
+      DELETE_NODE(node.return_value);
+      break;
+    case N_BREAK:
+    case N_CONTINUE:
+      break;
   }
 }
 

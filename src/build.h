@@ -24,10 +24,9 @@ Value eval_template(Module *module, Value data, Env *env);
 
 int build(GlobalArgs args);
 
-Path *get_src_path(Path *path, Env *env);
-Path *get_dist_path(Path *path, Env *env);
-Path *string_to_src_path(String *string, Env *env);
-Path *string_to_dist_path(String *string, Env *env);
+Path *get_dist_path(const Path *path, Env *env);
+Path *string_to_src_path(const String *string, Env *env);
+Path *string_to_dist_path(const String *string, Env *env);
 
 Value get_web_path(const Path *path, int absolute, Env *env);
 Path *get_src_root(Env *env);
