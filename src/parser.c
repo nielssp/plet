@@ -979,6 +979,7 @@ Module *parse_object_notation(TokenStream tokens, const Path *file_name, int exp
     .end.line = 1, .end.column = 1, .ignore_lf = 0, .object_notation = 1 };
   ASSIGN_NODE(m->data_value.root, parse_delimited(&parser));
   if (expect_eof) {
+    skip_lf(&parser);
     expect_type(T_EOF, &parser);
   }
   delete_name_list(parser.free_variables);

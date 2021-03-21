@@ -269,8 +269,8 @@ static Value default_handler(const Tuple *args, Env *env) {
 }
 
 void import_sitemap(Env *env) {
-  env_def("GLOBAL", create_object(0, env->arena), env);
   env_def("REVERSE_PATHS", create_object(0, env->arena), env);
+  env_export("REVERSE_PATHS", env);
   env_def_fn("add_static", add_static, env);
   env_def_fn("add_reverse", add_reverse, env);
   env_def_fn("add_page", add_page, env);
@@ -280,6 +280,7 @@ void import_sitemap(Env *env) {
     content_handlers = create_object(0, env->arena);
     env_def("CONTENT_HANDLERS", content_handlers, env);
   }
+  env_export("CONTENT_HANDLERS", env);
   if (content_handlers.type == V_OBJECT) {
     object_put(content_handlers.object_value, copy_c_string("txt", env->arena),
         (Value) { .type = V_FUNCTION, .function_value = default_handler }, env->arena);

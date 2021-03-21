@@ -37,6 +37,8 @@ typedef struct {
 static void import_build_info(BuildInfo *build_info, Env *env) {
   env_def("SRC_ROOT", path_to_string(build_info->src_root, env->arena), env);
   env_def("DIST_ROOT", path_to_string(build_info->dist_root, env->arena), env);
+  env_export("SRC_ROOT", env);
+  env_export("DIST_ROOT", env);
 }
 
 Module *get_template(const Path *name, Env *env) {
@@ -91,26 +93,16 @@ Env *create_template_env(Value data, Env *parent) {
       }
     }
   }
-  Value global;
-  if (env_get_symbol("GLOBAL", &global, parent) && global.type == V_OBJECT) {
-    ObjectIterator it = iterate_object(global.object_value);
-    Value entry_key, entry_value;
-    while (object_iterator_next(&it, &entry_key, &entry_value)) {
-      if (entry_key.type == V_SYMBOL) {
-        env_put(entry_key.symbol_value, copy_value(entry_value, env->arena), env);
+  for (size_t i = 0; i < parent->exports->size; i++) {
+    if (parent->exports->cells[i].type == V_SYMBOL) {
+      Symbol symbol = parent->exports->cells[i].symbol_value;
+      Value value;
+      if (env_get(symbol, &value, parent)) {
+        env_put(symbol, copy_value(value, env->arena), env);
+        // Values exported in index trickle down into templates
+        array_push(env->exports, create_symbol(symbol), env->arena);
       }
     }
-    env_def("GLOBAL", copy_value(global, env->arena), env);
-  }
-  Value value;
-  if (env_get_symbol("SRC_ROOT", &value, parent)) {
-    env_def("SRC_ROOT", copy_value(value, env->arena), env);
-  }
-  if (env_get_symbol("DIST_ROOT", &value, parent)) {
-    env_def("DIST_ROOT", copy_value(value, env->arena), env);
-  }
-  if (env_get_symbol("REVERSE_PATHS", &value, parent)) {
-    env_def("REVERSE_PATHS", copy_value(value, env->arena), env);
   }
   return env;
 }
@@ -159,22 +151,13 @@ static int eval_script(FILE *file, const Path *file_name, BuildInfo *build_info)
   }
   add_module(module, build_info->modules);
 
-  Arena *arena = create_arena();
-  Env *env = create_env(arena, build_info->modules, build_info->symbol_map);
-  import_core(env);
-  import_strings(env);
-  import_collections(env);
-  import_datetime(env);
+  Env *env = create_user_env(module, build_info->modules, build_info->symbol_map);
   import_sitemap(env);
   import_contentmap(env);
   import_markdown(env);
   import_build_info(build_info, env);
-  env_def("FILE", path_to_string(file_name, env->arena), env);
-  Path *dir = path_get_parent(file_name);
-  env_def("DIR", path_to_string(dir, env->arena), env);
-  delete_path(dir);
   interpret(*module->user_value.root, env);
-  delete_arena(arena);
+  delete_arena(env->arena);
   return 1;
 }
 

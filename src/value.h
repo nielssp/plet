@@ -165,6 +165,9 @@ void env_put(Symbol name, Value value, Env *env);
 #define env_def_fn(name, func, env) \
   env_put(get_symbol((name), (env)->symbol_map), (Value) { .type = V_FUNCTION, .function_value = (func) }, (env))
 
+#define env_export(name, env) \
+  array_push((env)->exports, create_symbol(get_symbol((name), (env)->symbol_map)), (env)->arena)
+
 #define check_args(length, args, env) \
   do {\
     if ((args)->size < (length)) {\
