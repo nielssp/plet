@@ -6,9 +6,14 @@
 
 #include "module.h"
 
+#include "collections.h"
+#include "core.h"
+#include "datetime.h"
 #include "hashmap.h"
+#include "interpreter.h"
 #include "parser.h"
 #include "reader.h"
+#include "strings.h"
 #include "util.h"
 
 #include <errno.h>
@@ -214,4 +219,50 @@ Module *load_module(const Path *name, Env *env) {
   }
   delete_path(path);
   return m;
+}
+
+Env *create_user_env(Module *module, ModuleMap *modules, SymbolMap *symbol_map) {
+  Arena *arena = create_arena();
+  Env *env = create_env(arena, modules, symbol_map);
+  import_core(env);
+  import_strings(env);
+  import_collections(env);
+  import_datetime(env);
+  env_def("FILE", path_to_string(module->file_name, env->arena), env);
+  Path *dir = path_get_parent(module->file_name);
+  env_def("DIR", path_to_string(dir, env->arena), env);
+  delete_path(dir);
+  return env;
+}
+
+Value import_module(Module *module, Env *env) {
+  switch (module->type) {
+    case M_SYSTEM:
+      module->system_value.import_func(env);
+      return nil_value;
+    case M_USER: {
+      Env *user_env = create_user_env(module, env->modules, env->symbol_map);
+      Value result_value = nil_value;
+      InterpreterResult result = interpret(*module->user_value.root, user_env);
+      if (result.type == IR_RETURN) {
+        result_value = copy_value(result.value, env->arena);
+      }
+      for (size_t i = 0; i < user_env->exports->size; i++) {
+        if (user_env->exports->cells[i].type == V_SYMBOL) {
+          Symbol symbol = user_env->exports->cells[i].symbol_value;
+          Value value;
+          if (env_get(symbol, &value, user_env)) {
+            env_put(symbol, copy_value(value, env->arena), env);
+          }
+        }
+      }
+      delete_arena(user_env->arena);
+      return result_value;
+    }
+    case M_DATA:
+      return interpret(*module->data_value.root, env).value;
+    case M_ASSET:
+      return path_to_string(module->file_name, env->arena);
+  }
+  return nil_value;
 }

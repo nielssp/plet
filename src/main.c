@@ -75,12 +75,7 @@ static int eval(GlobalArgs args) {
       ModuleMap *modules = create_module_map();
       add_module(module, modules);
 
-      Arena *arena = create_arena();
-      Env *env = create_env(arena, modules, symbol_map);
-      import_core(env);
-      import_strings(env);
-      import_collections(env);
-      import_datetime(env);
+      Env *env = create_user_env(module, modules, symbol_map);
       import_sitemap(env);
       import_contentmap(env);
       import_html(env);
@@ -91,7 +86,7 @@ static int eval(GlobalArgs args) {
           putchar((char) output.string_value->bytes[i]);
         }
       }
-      delete_arena(arena);
+      delete_arena(env->arena);
       delete_module_map(modules);
     } else {
       delete_module(module);

@@ -23,4 +23,7 @@ Module *load_data_module(const Path *name, Env *env);
 Module *load_user_module(const Path *name, Env *env);
 Module *load_module(const Path *name, Env *env);
 
+Env *create_user_env(Module *module, ModuleMap *modules, SymbolMap *symbol_map);
+Value import_module(Module *module, Env *env);
+
 #endif

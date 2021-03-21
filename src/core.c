@@ -24,25 +24,12 @@ static Value import(const Tuple *args, Env *env) {
   }
   Path *name = string_to_path(name_value.string_value);
   Module *m = load_module(name, env);
-  Value result = nil_value;
   delete_path(name);
   if (!m) {
     env_error(env, -1, "unable to load module");
     return nil_value;
   }
-  switch (m->type) {
-    case M_SYSTEM:
-      m->system_value.import_func(env);
-      break;
-    case M_USER:
-      break;
-    case M_DATA:
-      break;
-    case M_ASSET:
-      result = path_to_string(m->file_name, env->arena);
-      break;
-  }
-  return result;
+  return import_module(m, env);
 }
 
 static Value copy(const Tuple *args, Env *env) {
