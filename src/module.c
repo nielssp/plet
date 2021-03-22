@@ -9,6 +9,7 @@
 #include "collections.h"
 #include "core.h"
 #include "datetime.h"
+#include "exec.h"
 #include "hashmap.h"
 #include "interpreter.h"
 #include "parser.h"
@@ -228,6 +229,7 @@ Env *create_user_env(Module *module, ModuleMap *modules, SymbolMap *symbol_map) 
   import_strings(env);
   import_collections(env);
   import_datetime(env);
+  import_exec(env);
   env_def("FILE", path_to_string(module->file_name, env->arena), env);
   Path *dir = path_get_parent(module->file_name);
   env_def("DIR", path_to_string(dir, env->arena), env);
