@@ -307,6 +307,7 @@ int build(GlobalArgs args) {
     if (mkdir_rec(build_info.dist_root->path)) {
       build_info.symbol_map = create_symbol_map();
       build_info.modules = create_module_map();
+      add_system_modules(build_info.modules);
       eval_script(index, index_path, &build_info);
       delete_symbol_map(build_info.symbol_map);
       delete_module_map(build_info.modules);

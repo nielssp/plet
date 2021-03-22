@@ -7,13 +7,17 @@
 #include "module.h"
 
 #include "collections.h"
+#include "contentmap.h"
 #include "core.h"
 #include "datetime.h"
 #include "exec.h"
 #include "hashmap.h"
+#include "html.h"
+#include "images.h"
 #include "interpreter.h"
 #include "parser.h"
 #include "reader.h"
+#include "sitemap.h"
 #include "strings.h"
 #include "util.h"
 
@@ -72,6 +76,27 @@ Module *get_module(const Path *file_name, ModuleMap *module_map) {
 
 void add_module(Module *module, ModuleMap *module_map) {
   generic_hash_map_add(&module_map->map, &(ModuleEntry) { .key = module->file_name, .value = module });
+}
+
+void add_system_module(const char *name, void (*import_func)(Env *), ModuleMap *module_map) {
+  Module *module = allocate(sizeof(Module));
+  module->type = M_SYSTEM;
+  module->file_name = create_path(name, -1);
+  module->mtime = 0;
+  module->system_value.import_func = import_func;
+  add_module(module, module_map);
+}
+
+void add_system_modules(ModuleMap *module_map) {
+  add_system_module("core", import_core, module_map);
+  add_system_module("strings", import_strings, module_map);
+  add_system_module("collections", import_collections, module_map);
+  add_system_module("datetime", import_datetime, module_map);
+  add_system_module("exec", import_exec, module_map);
+  add_system_module("images", import_images, module_map);
+  add_system_module("html", import_html, module_map);
+  add_system_module("sitemap", import_sitemap, module_map);
+  add_system_module("contentmap", import_contentmap, module_map);
 }
 
 Module *create_module(const Path *file_name, ModuleType type) {

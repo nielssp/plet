@@ -15,7 +15,8 @@ typedef enum {
   IMG_NOT_FOUND,
   IMG_UNKNOWN,
   IMG_PNG,
-  IMG_JPEG
+  IMG_JPEG,
+  IMG_WEBP
 } TscImageType;
 
 typedef struct {

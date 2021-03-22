@@ -73,6 +73,7 @@ static int eval(GlobalArgs args) {
 
     if (!module->user_value.parse_error) {
       ModuleMap *modules = create_module_map();
+      add_system_modules(modules);
       add_module(module, modules);
 
       Env *env = create_user_env(module, modules, symbol_map);

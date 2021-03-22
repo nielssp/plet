@@ -16,6 +16,8 @@ ModuleMap *create_module_map(void);
 void delete_module_map(ModuleMap *module_map);
 Module *get_module(const Path *file_name, ModuleMap *module_map);
 void add_module(Module *module, ModuleMap *module_map);
+void add_system_module(const char *name, void (*import_func)(Env *), ModuleMap *module_map);
+void add_system_modules(ModuleMap *module_map);
 
 Path *get_src_path(const Path *path, Env *env);
 Module *load_asset_module(const Path *name, Env *env);

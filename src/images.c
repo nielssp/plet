@@ -19,7 +19,7 @@
 #include <MagickWand/MagickWand.h>
 #endif
 
-const char *supported_image_types[] = {"png", "jpg", "jpeg"};
+const char *supported_image_types[] = {"png", "jpg", "jpeg", "webp"};
 
 typedef struct {
   int64_t max_width;
@@ -281,8 +281,42 @@ static Value images(const Tuple *args, Env *env) {
   return src;
 }
 
+static Value image_info(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  Value src = args->values[0];
+  if (src.type != V_STRING) {
+    arg_type_error(0, V_STRING, args, env);
+    return nil_value;
+  }
+  Path *path = string_to_src_path(src.string_value, env);
+  TscImageInfo info = get_image_info(path);
+  delete_path(path);
+  if (info.type == IMG_UNKNOWN || IMG_NOT_FOUND) {
+    return nil_value;
+  }
+  Value result = create_object(3, env->arena);
+  object_def(result.object_value, "width", create_int(info.width), env);
+  object_def(result.object_value, "height", create_int(info.height), env);
+  switch (info.type) {
+    case IMG_PNG:
+      object_def(result.object_value, "type", copy_c_string("png", env->arena), env);
+      break;
+    case IMG_JPEG:
+      object_def(result.object_value, "type", copy_c_string("jpeg", env->arena), env);
+      break;
+    case IMG_WEBP:
+      object_def(result.object_value, "type", copy_c_string("webp", env->arena), env);
+      break;
+    case IMG_UNKNOWN:
+    case IMG_NOT_FOUND:
+      break;
+  }
+  return result;
+}
+
 void import_images(Env *env) {
   env_def_fn("images", images, env);
+  env_def_fn("image_info", image_info, env);
 }
 
 static TscImageInfo get_jpeg_size(FILE *f) {
@@ -339,8 +373,60 @@ static TscImageInfo get_png_size(FILE *f) {
   return info;
 }
 
+static TscImageInfo get_webp_size(FILE *f) {
+  TscImageInfo info = { IMG_UNKNOWN };
+  uint8_t chunk_header[4];
+  if (fread(chunk_header, 1, 4, f) != 4 || memcmp(chunk_header, "VP8", 3) != 0) {
+    return info;
+  }
+  switch (chunk_header[3]) {
+    case ' ': {
+      if (fseek(f, 10, SEEK_CUR)) {
+        break;
+      }
+      uint8_t dimensions[4];
+      if (fread(dimensions, 1, 4, f) != 4) {
+        break;
+      }
+      info.width = dimensions[0] | ((dimensions[1] & 0x3F) << 8);
+      info.height = dimensions[2] | ((dimensions[3] & 0x3F) << 8);
+      info.type = IMG_WEBP;
+      break;
+    }
+    case 'L': {
+      if (fseek(f, 5, SEEK_CUR)) {
+        break;
+      }
+      uint8_t dimensions[4];
+      if (fread(dimensions, 1, 4, f) != 4) {
+        break;
+      }
+      info.width = (dimensions[0] | ((dimensions[1] & 0x3F) << 8)) + 1;
+      info.height = ((dimensions[1] >> 6) | (dimensions[2] << 2) | ((dimensions[1] & 0x0F) << 10)) + 1;
+      info.type = IMG_WEBP;
+      break;
+    }
+    case 'X':
+      if (fseek(f, 8, SEEK_CUR)) {
+        break;
+      }
+      uint8_t dimensions[6];
+      if (fread(dimensions, 1, 6, f) != 6) {
+        break;
+      }
+      info.width = (dimensions[0] | (dimensions[1] << 8) | (dimensions[2] << 16)) + 1;
+      info.height = (dimensions[3] | (dimensions[4] << 8) | (dimensions[5] << 16)) + 1;
+      info.type = IMG_WEBP;
+    default:
+      break;
+  }
+  return info;
+}
+
 #define JPEG_SIGNATURE "\xff\xd8\xff"
 #define PNG_SIGNATURE "\x89\x50\x4e\x47\x0d\x0a\x1a\x0a"
+#define RIFF_SIGNATURE "RIFF"
+#define WEBP_SIGNATURE "WEBP"
 
 TscImageInfo get_image_info(const Path *path) {
   TscImageInfo info = { IMG_UNKNOWN };
@@ -350,7 +436,7 @@ TscImageInfo get_image_info(const Path *path) {
     info.type = IMG_NOT_FOUND;
     return info;
   }
-  uint8_t signature[8];
+  uint8_t signature[12];
   if (fread(signature, 1, 3, f) == 3) {
     if (memcmp(signature, JPEG_SIGNATURE, 3) == 0) {
       info = get_jpeg_size(f);
@@ -359,7 +445,10 @@ TscImageInfo get_image_info(const Path *path) {
         info = get_png_size(f);
       } else {
         fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "invalid or corrupt PNG signature" SGR_RESET "\n", path->path);
-        // corrupt png? error?
+      }
+    } else if (memcmp(signature, RIFF_SIGNATURE, 3) == 0) {
+      if (!fseek(f, 5, SEEK_CUR) && fread(signature, 1, 4, f) == 4 && memcmp(signature, WEBP_SIGNATURE, 4) == 0) {
+        info = get_webp_size(f);
       }
     }
   }
