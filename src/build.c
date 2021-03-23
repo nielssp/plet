@@ -84,12 +84,13 @@ Env *create_template_env(Value data, Env *parent) {
   import_html(env);
   import_images(env);
   import_markdown(env);
+  Env *export_env = create_env(env->arena, env->modules, env->symbol_map);
   if (data.type == V_OBJECT) {
     ObjectIterator it = iterate_object(data.object_value);
     Value entry_key, entry_value;
     while (object_iterator_next(&it, &entry_key, &entry_value)) {
       if (entry_key.type == V_SYMBOL) {
-        env_put(entry_key.symbol_value, copy_value(entry_value, arena), env);
+        env_put(entry_key.symbol_value, copy_value(entry_value, export_env), env);
       }
     }
   }
@@ -98,7 +99,7 @@ Env *create_template_env(Value data, Env *parent) {
       Symbol symbol = parent->exports->cells[i].symbol_value;
       Value value;
       if (env_get(symbol, &value, parent)) {
-        env_put(symbol, copy_value(value, env->arena), env);
+        env_put(symbol, copy_value(value, export_env), env);
         // Values exported in index trickle down into templates
         array_push(env->exports, create_symbol(symbol), env->arena);
       }

@@ -148,6 +148,7 @@ struct Entry {
 struct Closure {
   NameList *params;
   Node body;
+  NameList *free_variables;
   Env *env;
 };
 
@@ -218,7 +219,7 @@ int is_truthy(Value value);
 
 Hash value_hash(Hash h, Value value);
 
-Value copy_value(Value value, Arena *arena);
+Value copy_value(Value value, Env *env);
 
 void value_to_string(Value value, Buffer *buffer);
 

@@ -14,6 +14,7 @@
 
 #define INITIAL_ARRAY_CAPACITY 16
 
+static NameList *arena_copy_name_list(NameList *list, Arena *arena);
 static Node copy_node(Node node, Arena *arena);
 
 struct Object {
@@ -333,20 +334,9 @@ static void *get_existing_ref(RefStack *ref_stack, void *old) {
   return NULL;
 }
 
-static Value copy_value_detect_cycles(Value value, Arena *arena, RefStack *ref_stack);
+static Value copy_value_detect_cycles(Value value, Env *env, RefStack *ref_stack);
 
-static Env *copy_env(Env *env, Arena *arena, RefStack *ref_stack) {
-  Env *copy = create_env(arena, env->modules, env->symbol_map);
-  HashMapIterator it = generic_hash_map_iterate(&env->global);
-  Entry entry;
-  while (generic_hash_map_next(&it, &entry)) {
-    generic_hash_map_set(&copy->global, &(Entry) { .key = copy_value_detect_cycles(entry.key, arena, ref_stack),
-        .value = copy_value_detect_cycles(entry.value, arena, ref_stack) }, NULL, NULL);\
-  }
-  return copy;
-}
-
-static Value copy_value_detect_cycles(Value value, Arena *arena, RefStack *ref_stack) {
+static Value copy_value_detect_cycles(Value value, Env *env, RefStack *ref_stack) {
   switch (value.type) {
     case V_NIL:
     case V_TRUE:
@@ -356,16 +346,16 @@ static Value copy_value_detect_cycles(Value value, Arena *arena, RefStack *ref_s
     case V_SYMBOL:
       return value;
     case V_STRING:
-      return create_string(value.string_value->bytes, value.string_value->size, arena);
+      return create_string(value.string_value->bytes, value.string_value->size, env->arena);
     case V_ARRAY: {
       Array *existing = get_existing_ref(ref_stack, value.array_value);
       if (existing) {
         return (Value) { .type = V_ARRAY, .array_value = existing };
       }
-      Value copy = create_array(value.array_value->size, arena);
+      Value copy = create_array(value.array_value->size, env->arena);
       RefStack nested = (RefStack) { .next = ref_stack, .old = value.array_value, .new = copy.array_value };
       for (size_t i = 0; i < value.array_value->size; i++) {
-        array_push(copy.array_value, copy_value_detect_cycles(value.array_value->cells[i], arena, &nested), arena);
+        array_push(copy.array_value, copy_value_detect_cycles(value.array_value->cells[i], env, &nested), env->arena);
       }
       return copy;
     }
@@ -374,13 +364,13 @@ static Value copy_value_detect_cycles(Value value, Arena *arena, RefStack *ref_s
       if (existing) {
         return (Value) { .type = V_OBJECT, .object_value = existing };
       }
-      Value copy = create_object(value.object_value->size, arena);
+      Value copy = create_object(value.object_value->size, env->arena);
       RefStack nested = (RefStack) { .next = ref_stack, .old = value.object_value, .new = copy.object_value };
       ObjectIterator it = iterate_object(value.object_value);
       Value entry_key, entry_value;
       while (object_iterator_next(&it, &entry_key, &entry_value)) {
-        object_put(copy.object_value, copy_value_detect_cycles(entry_key, arena, &nested),
-            copy_value_detect_cycles(entry_value, arena, &nested), arena);
+        object_put(copy.object_value, copy_value_detect_cycles(entry_key, env, &nested),
+            copy_value_detect_cycles(entry_value, env, &nested), env->arena);
       }
       return copy;
     }
@@ -392,19 +382,28 @@ static Value copy_value_detect_cycles(Value value, Arena *arena, RefStack *ref_s
       if (existing) {
         return (Value) { .type = V_CLOSURE, .closure_value = existing };
       }
-      Closure *copy = arena_allocate(sizeof(Closure), arena);
+      Closure *copy = arena_allocate(sizeof(Closure), env->arena);
       copy->params = value.closure_value->params;
-      copy->body = copy_node(value.closure_value->body, arena);
+      copy->body = copy_node(value.closure_value->body, env->arena);
+      copy->free_variables = arena_copy_name_list(value.closure_value->free_variables, env->arena);
       RefStack nested = (RefStack) { .next = ref_stack, .old = value.closure_value, .new = copy };
-      copy->env = copy_env(value.closure_value->env, arena, &nested);
+      copy->env = env;
+      for (NameList *name = value.closure_value->free_variables; name; name = name->tail) {
+        Value env_value;
+        if (!env_get(name->head, &env_value, env)) {
+          if (env_get(name->head, &env_value, value.closure_value->env)) {
+            env_put(name->head, copy_value_detect_cycles(env_value, env, &nested), env);
+          }
+        }
+      }
       return (Value) { .type = V_CLOSURE, .closure_value = copy };
     }
   }
   return nil_value;
 }
 
-Value copy_value(Value value, Arena *arena) {
-  return copy_value_detect_cycles(value, arena, NULL);
+Value copy_value(Value value, Env *env) {
+  return copy_value_detect_cycles(value, env, NULL);
 }
 
 void value_to_string(Value value, Buffer *buffer) {
@@ -682,13 +681,8 @@ Value create_closure(NameList *params, NameList *free_variables, Node body, Env 
   Closure *closure = arena_allocate(sizeof(Closure), arena);
   closure->params = params;
   closure->body = copy_node(body, arena);
-  closure->env = create_env(arena, env->modules, env->symbol_map);
-  for (NameList *name = free_variables; name; name = name->tail) {
-    Value value;
-    if (env_get(name->head, &value, env)) {
-      env_put(name->head, value, closure->env);
-    }
-  }
+  closure->free_variables = arena_copy_name_list(free_variables, arena);
+  closure->env = env;
   return (Value) { .type = V_CLOSURE, .closure_value = closure };
 }
 

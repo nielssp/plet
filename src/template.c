@@ -43,7 +43,7 @@ static Value embed(const Tuple *args, Env *env) {
     if (env_get(get_symbol("PATH", env->symbol_map), &current_path, env)) {
       env_def("PATH", current_path, template_env);
     }
-    output = copy_value(eval_template(module, data, template_env), env->arena);
+    output = copy_value(eval_template(module, data, template_env), env);
     delete_template_env(template_env);
   }
   delete_path(src_path);

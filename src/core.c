@@ -34,7 +34,7 @@ static Value import(const Tuple *args, Env *env) {
 
 static Value copy(const Tuple *args, Env *env) {
   check_args(1, args, env);
-  return copy_value(args->values[0], env->arena);
+  return copy_value(args->values[0], env);
 }
 
 static Value type(const Tuple *args, Env *env) {

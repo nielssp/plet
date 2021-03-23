@@ -271,15 +271,16 @@ Value import_module(Module *module, Env *env) {
       Env *user_env = create_user_env(module, env->modules, env->symbol_map);
       Value result_value = nil_value;
       InterpreterResult result = interpret(*module->user_value.root, user_env);
+      Env *export_env = create_env(env->arena, env->modules, env->symbol_map);
       if (result.type == IR_RETURN) {
-        result_value = copy_value(result.value, env->arena);
+        result_value = copy_value(result.value, export_env);
       }
       for (size_t i = 0; i < user_env->exports->size; i++) {
         if (user_env->exports->cells[i].type == V_SYMBOL) {
           Symbol symbol = user_env->exports->cells[i].symbol_value;
           Value value;
           if (env_get(symbol, &value, user_env)) {
-            env_put(symbol, copy_value(value, env->arena), env);
+            env_put(symbol, copy_value(value, export_env), env);
           }
         }
       }
