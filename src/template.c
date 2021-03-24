@@ -38,13 +38,9 @@ static Value embed(const Tuple *args, Env *env) {
   if (!module) {
     env_error(env, -1, "unable to load template");
   } else {
-    Env *template_env = create_template_env(data, env);
-    Value current_path;
-    if (env_get(get_symbol("PATH", env->symbol_map), &current_path, env)) {
-      env_def("PATH", current_path, template_env);
-    }
-    output = copy_value(eval_template(module, data, template_env), env);
-    delete_template_env(template_env);
+    Env *template_env = create_child_env(env);
+    env_def("LAYOUT", nil_value, template_env);
+    output = eval_template(module, template_env);
   }
   delete_path(src_path);
   return output;

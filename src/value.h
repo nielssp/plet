@@ -17,6 +17,8 @@
 typedef struct Module Module;
 typedef struct ModuleMap ModuleMap;
 
+typedef struct Env Env;
+
 typedef struct Value Value;
 typedef struct String String;
 typedef struct Array Array;
@@ -37,10 +39,11 @@ typedef enum {
   ENV_INFO
 } EnvErrorLevel;
 
-typedef struct {
+struct Env {
   Arena *arena;
   ModuleMap *modules;
   SymbolMap *symbol_map;
+  Env *parent_env;
   Node *calling_node;
   char *error;
   int error_arg;
@@ -48,7 +51,7 @@ typedef struct {
   GenericHashMap global;
   Array *exports;
   int64_t loops;
-} Env;
+};
 
 typedef enum {
   M_SYSTEM,
@@ -158,6 +161,8 @@ struct Tuple {
 };
 
 Env *create_env(Arena *arena, ModuleMap *modules, SymbolMap *symbol_map);
+
+Env *create_child_env(Env *parent);
 
 void env_put(Symbol name, Value value, Env *env);
 

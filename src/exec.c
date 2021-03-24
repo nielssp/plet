@@ -7,6 +7,7 @@
 #include "exec.h"
 
 #include <errno.h>
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,7 +40,7 @@ static Value tsc_exec(const Tuple *args, Env *env) {
   if (!feof(p)) {
     env_error(env, -1, "read error: %s", strerror(errno));
   }
-  int status = pclose(p);
+  pclose(p);
   Value output = create_string(buffer.data, buffer.size, env->arena);
   delete_buffer(buffer);
   return output;

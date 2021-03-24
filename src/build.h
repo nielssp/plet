@@ -20,7 +20,7 @@ typedef struct {
 Module *get_template(const Path *name, Env *env);
 Env *create_template_env(Value data, Env *parent);
 void delete_template_env(Env *env);
-Value eval_template(Module *module, Value data, Env *env);
+Value eval_template(Module *module, Env *env);
 
 int build(GlobalArgs args);
 

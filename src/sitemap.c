@@ -104,8 +104,8 @@ static void create_site_node(String *site_path, String *template_path, Value dat
     fflush(stderr);
     Env *template_env = create_template_env(data, env);
     env_def("PATH", copy_value((Value) { .type = V_STRING, .string_value = site_path },
-          template_env->arena), template_env);
-    Value output = eval_template(module, data, template_env);
+          template_env), template_env);
+    Value output = eval_template(module, template_env);
     if (output.type == V_STRING) {
       Path *dir = path_get_parent(dest_path);
       if (mkdir_rec(dir->path)) {

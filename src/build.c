@@ -100,8 +100,6 @@ Env *create_template_env(Value data, Env *parent) {
       Value value;
       if (env_get(symbol, &value, parent)) {
         env_put(symbol, copy_value(value, export_env), env);
-        // Values exported in index trickle down into templates
-        array_push(env->exports, create_symbol(symbol), env->arena);
       }
     }
   }
@@ -112,7 +110,7 @@ void delete_template_env(Env *env) {
   delete_arena(env->arena);
 }
 
-Value eval_template(Module *module, Value data, Env *env) {
+Value eval_template(Module *module, Env *env) {
   if (module->type != M_USER) {
     return nil_value;
   }
@@ -128,7 +126,7 @@ Value eval_template(Module *module, Value data, Env *env) {
     Path *layout_path = path_join(dir, layout_name, 0);
     Module *layout_module = get_template(layout_path, env);
     if (layout_module) {
-      content = eval_template(layout_module, nil_value, env);
+      content = eval_template(layout_module, env);
     }
     delete_path(layout_path);
     delete_path(layout_name);

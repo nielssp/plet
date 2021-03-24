@@ -45,6 +45,7 @@ Env *create_env(Arena *arena, ModuleMap *modules, SymbolMap *symbol_map) {
   env->arena = arena;
   env->modules = modules;
   env->symbol_map = symbol_map;
+  env->parent_env = NULL;
   env->calling_node = NULL;
   env->error = NULL;
   env->error_arg = -1;
@@ -52,6 +53,12 @@ Env *create_env(Arena *arena, ModuleMap *modules, SymbolMap *symbol_map) {
   init_generic_hash_map(&env->global, sizeof(Entry), 0, entry_hash, entry_equals, arena);
   env->exports = create_array(0, arena).array_value;
   env->loops = 0;
+  return env;
+}
+
+Env *create_child_env(Env *parent) {
+  Env *env = create_env(parent->arena, parent->modules, parent->symbol_map);
+  env->parent_env = parent;
   return env;
 }
 
@@ -64,6 +71,9 @@ int env_get(Symbol name, Value *value, Env *env) {
   if (generic_hash_map_get(&env->global, &(Entry) { .key = create_symbol(name) }, &entry)) {
     *value = entry.value;
     return 1;
+  }
+  if (env->parent_env) {
+    return env_get(name, value, env->parent_env);
   }
   return 0;
 }
