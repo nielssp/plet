@@ -11,5 +11,7 @@
 
 void import_sitemap(Env *env);
 
+int compile_pages(Env *env);
+
 #endif
 

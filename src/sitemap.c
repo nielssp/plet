@@ -16,7 +16,86 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int copy_static_files(const Path *src_path, const Path *dest_path) {
+typedef enum {
+  P_COPY,
+  P_TEMPLATE
+} PageType;
+
+typedef struct {
+  PageType type;
+  Path *src;
+  Path *dest;
+  Value web_path;
+  Value data;
+} PageInfo;
+
+typedef struct {
+  PageType type;
+  const Path *src;
+  const Path *dest;
+  Value web_path;
+  Value data;
+} ConstPageInfo;
+
+static int compile_page(PageInfo page, Env *env);
+
+static Value encode_page_info(ConstPageInfo page, Env *env) {
+  Value object = create_object(0, env->arena);
+  switch (page.type) {
+    case P_COPY:
+      object_def(object.object_value, "type", create_symbol(get_symbol("copy", env->symbol_map)), env);
+      object_def(object.object_value, "src", path_to_string(page.src, env->arena), env);
+      object_def(object.object_value, "dest", path_to_string(page.dest, env->arena), env);
+      break;
+    case P_TEMPLATE:
+      object_def(object.object_value, "type", create_symbol(get_symbol("template", env->symbol_map)), env);
+      object_def(object.object_value, "src", path_to_string(page.src, env->arena), env);
+      object_def(object.object_value, "dest", path_to_string(page.dest, env->arena), env);
+      object_def(object.object_value, "web_path", page.web_path, env);
+      object_def(object.object_value, "data", page.data, env);
+      break;
+  }
+  return object;
+}
+
+static int decode_page_info(Value value, PageInfo *page) {
+  if (value.type != V_OBJECT) {
+    return 0;
+  }
+  Value type, src, dest;
+  if (!object_get_symbol(value.object_value, "type", &type) || type.type != V_SYMBOL) {
+    return 0;
+  }
+  if (!object_get_symbol(value.object_value, "src", &src) || src.type != V_STRING) {
+    return 0;
+  }
+  if (!object_get_symbol(value.object_value, "dest", &dest) || dest.type != V_STRING) {
+    return 0;
+  }
+  if (strcmp(type.symbol_value, "copy") == 0) {
+    page->type = P_COPY;
+    page->src = string_to_path(src.string_value);
+    page->dest = string_to_path(dest.string_value);
+    return 1;
+  } else if (strcmp(type.symbol_value, "template") == 0) {
+    Value web_path, data;
+    if (!object_get_symbol(value.object_value, "web_path", &web_path) || web_path.type != V_STRING) {
+      return 0;
+    }
+    if (!object_get_symbol(value.object_value, "data", &data)) {
+      data = nil_value;
+    }
+    page->type = P_TEMPLATE;
+    page->src = string_to_path(src.string_value);
+    page->dest = string_to_path(dest.string_value);
+    page->web_path = web_path;
+    page->data = data;
+    return 1;
+  }
+  return 0;
+}
+
+static int copy_static_files(const Path *src_path, const Path *dest_path, Array *site_map, Env *env) {
   if (is_dir(src_path->path)) {
     if (!mkdir_rec(dest_path->path)) {
       return 0;
@@ -29,7 +108,7 @@ static int copy_static_files(const Path *src_path, const Path *dest_path) {
         if (file->d_name[0] != '.') {
           Path *child_src_path = path_append(src_path, file->d_name);
           Path *child_dest_path = path_append(dest_path, file->d_name);
-          status = status && copy_static_files(child_src_path, child_dest_path);
+          status = status && copy_static_files(child_src_path, child_dest_path, site_map, env);
           delete_path(child_dest_path);
           delete_path(child_src_path);
         }
@@ -38,7 +117,8 @@ static int copy_static_files(const Path *src_path, const Path *dest_path) {
     }
     return status;
   }
-  return copy_file(src_path->path, dest_path->path);
+  array_push(site_map, encode_page_info((ConstPageInfo) { P_COPY, src_path, dest_path }, env), env->arena);
+  return 1;
 }
 
 static Value add_static(const Tuple *args, Env *env) {
@@ -57,7 +137,12 @@ static Value add_static(const Tuple *args, Env *env) {
     delete_path(src_path);
     return nil_value;
   }
-  if (!copy_static_files(src_path, dest_path)) {
+  Value site_map;
+  if (!env_get_symbol("SITE_MAP", &site_map, env) || site_map.type != V_ARRAY) {
+    env_error(env, -1, "SITE_MAP is missign or not an object");
+    return nil_value;
+  }
+  if (!copy_static_files(src_path, dest_path, site_map.array_value, env)) {
     env_error(env, -1, "failed copying one or more files to dist");
   }
   delete_path(dest_path);
@@ -87,6 +172,12 @@ static Value add_reverse(const Tuple *args, Env *env) {
 }
 
 static void create_site_node(String *site_path, String *template_path, Value data, Env *env) {
+  Value site_map;
+  if (!env_get_symbol("SITE_MAP", &site_map, env) || site_map.type != V_ARRAY) {
+    env_error(env, -1, "SITE_MAP is missign or not an object");
+    return;
+  }
+  site_path = string_trim(site_path, (uint8_t *) "/", 1, env->arena).string_value;
   Path *src_path = string_to_src_path(template_path, env);
   if (!src_path) {
     return;
@@ -98,38 +189,10 @@ static void create_site_node(String *site_path, String *template_path, Value dat
   }
   Module *module = get_template(src_path, env);
   if (!module) {
-    env_error(env, -1, "unable to load module");
+    env_error(env, -1, "unable to load template");
   } else {
-    fprintf(stderr, "Processing %-50.*s\r", site_path->size > 50 ? 50 : (int) site_path->size, (char *) site_path->bytes);
-    fflush(stderr);
-    Env *template_env = create_template_env(data, env);
-    env_def("PATH", copy_value((Value) { .type = V_STRING, .string_value = site_path },
-          template_env), template_env);
-    Value output = eval_template(module, template_env);
-    if (output.type == V_STRING) {
-      Path *dir = path_get_parent(dest_path);
-      if (mkdir_rec(dir->path)) {
-        FILE *dest = fopen(dest_path->path, "w");
-        int error = 0;
-        if (!dest) {
-          fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", dest_path->path, strerror(errno));
-          error = 1;
-        } else {
-          if (fwrite(output.string_value->bytes, 1, output.string_value->size, dest) != output.string_value->size) {
-            fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "write error: %s" SGR_RESET "\n", dest_path->path, strerror(errno));
-            error = 1;
-          }
-          fclose(dest);
-        }
-        if (error) {
-          env_error(env, -1, "unable to write template output");
-        }
-      } else {
-        env_error(env, -1, "unable to create output directory");
-      }
-      delete_path(dir);
-    }
-    delete_template_env(template_env);
+    array_push(site_map.array_value, encode_page_info((ConstPageInfo) { P_TEMPLATE, src_path, dest_path,
+          (Value) { .type = V_STRING, .string_value = site_path }, data }, env), env->arena);
   }
   delete_path(dest_path);
   delete_path(src_path);
@@ -269,6 +332,7 @@ static Value default_handler(const Tuple *args, Env *env) {
 }
 
 void import_sitemap(Env *env) {
+  env_def("SITE_MAP", create_array(0, env->arena), env);
   env_def("REVERSE_PATHS", create_object(0, env->arena), env);
   env_export("REVERSE_PATHS", env);
   env_def_fn("add_static", add_static, env);
@@ -289,4 +353,74 @@ void import_sitemap(Env *env) {
     object_put(content_handlers.object_value, copy_c_string("html", env->arena),
         (Value) { .type = V_FUNCTION, .function_value = default_handler }, env->arena);
   }
+}
+
+static int compile_page(PageInfo page, Env *env) {
+  switch (page.type) {
+    case P_COPY:
+      return copy_file(page.src->path, page.dest->path);
+    case P_TEMPLATE: {
+      int status = 0;
+      Module *module = get_template(page.src, env);
+      if (module) {
+        Env *template_env = create_template_env(page.data, env);
+        env_def("PATH", copy_value(page.web_path, template_env), template_env);
+        Value output = eval_template(module, template_env);
+        if (output.type == V_STRING) {
+          Path *dir = path_get_parent(page.dest);
+          if (mkdir_rec(dir->path)) {
+            FILE *dest = fopen(page.dest->path, "w");
+            if (!dest) {
+              fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", page.dest->path, strerror(errno));
+            } else {
+              if (fwrite(output.string_value->bytes, 1, output.string_value->size, dest) != output.string_value->size) {
+                fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "write error: %s" SGR_RESET "\n", page.dest->path,
+                    strerror(errno));
+              } else {
+                status = 1;
+              }
+              fclose(dest);
+            }
+          } else {
+            fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "unable to create output directory", page.dest->path);
+          }
+          delete_path(dir);
+        }
+        delete_template_env(template_env);
+      }
+      return status;
+    }
+  }
+  return 0;
+}
+
+int compile_pages(Env *env) {
+  Value site_map;
+  if (!env_get_symbol("SITE_MAP", &site_map, env) || site_map.type != V_ARRAY) {
+    fprintf(stderr, ERROR_LABEL "SITE_MAP undefined or not an array" SGR_RESET "\n");
+    return 0;
+  }
+  Path *dist_root = get_dist_root(env);
+  if (!dist_root) {
+    fprintf(stderr, ERROR_LABEL "DIST_ROOT undefined or not a string" SGR_RESET "\n");
+    return 0;
+  }
+  for (size_t i = 0; i < site_map.array_value->size; i++) {
+    Value page_value = site_map.array_value->cells[i];
+    PageInfo page;
+    if (!decode_page_info(page_value, &page)) {
+      fprintf(stderr, ERROR_LABEL "invalid page object at index %zd of SITE_MAP" SGR_RESET "\n", i);
+      continue;
+    }
+    Path *site_path = path_get_relative(dist_root, page.dest);
+    fprintf(stderr, "[%zd/%zd] Processing %-50.*s\r", i, site_map.array_value->size,
+        site_path->size > 50 ? 50 : (int) site_path->size, site_path->path);
+    fflush(stderr);
+    delete_path(site_path);
+    compile_page(page, env);
+    delete_path(page.src);
+    delete_path(page.dest);
+  }
+  delete_path(dist_root);
+  return 0;
 }

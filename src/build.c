@@ -156,6 +156,7 @@ static int eval_script(FILE *file, const Path *file_name, BuildInfo *build_info)
   import_markdown(env);
   import_build_info(build_info, env);
   interpret(*module->user_value.root, env);
+  compile_pages(env);
   delete_arena(env->arena);
   return 1;
 }
