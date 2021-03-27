@@ -816,11 +816,13 @@ InterpreterResult interpret(Node node, Env *env) {
     case N_SWITCH:
       return eval_switch(node, env);
     case N_EXPORT: {
-      InterpreterResult result = interpret(*node.export_value.right, env);
-      if (result.type != IR_VALUE) {
-        return result;
+      if (node.export_value.right) {
+        InterpreterResult result = interpret(*node.export_value.right, env);
+        if (result.type != IR_VALUE) {
+          return result;
+        }
+        env_put(node.export_value.left, result.value, env);
       }
-      env_put(node.export_value.left, result.value, env);
       array_push(env->exports, create_symbol(node.export_value.left), env->arena);
       return RESULT_VALUE(nil_value);
     }

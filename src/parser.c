@@ -661,6 +661,7 @@ static Node parse_pipe_line(Parser *parser) {
     name.name_value = parse_name(parser);
     name.end = parser->end;
     ASSIGN_NODE(apply.apply_value.callee, name);
+    parser->free_variables = name_list_put(name.name_value, parser->free_variables);
     NodeList *last_arg = NULL;
     LL_APPEND(NodeList, apply.apply_value.args, last_arg, expr);
     if (peek_punct('(', parser)) {

@@ -251,8 +251,8 @@ sort_with(array: array, comparator: func): array
 sort_by(array: array, f: func): array
 sort_by_desc(array: array, f: func): array
 group_by(array: array, f: func): array
-take(array: array, n: int): array
-drop(array: array, n: int): array
+take(array: array|string, n: int): array|string
+drop(array: array|string, n: int): array|string
 pop(array: array): any
 push(array: array, element: any): array
 push_all(array: array, elements: array): array

@@ -556,48 +556,68 @@ static Value group_by(const Tuple *args, Env *env) {
 
 static Value take(const Tuple *args, Env *env) {
   check_args(2, args, env);
-  Value src = args->values[0];
-  if (src.type != V_ARRAY) {
-    arg_type_error(0, V_ARRAY, args, env);
-    return nil_value;
-  }
   Value n = args->values[1];
   if (n.type != V_INT) {
     arg_type_error(1, V_INT, args, env);
     return nil_value;
   }
-  if (n.int_value > src.array_value->size) {
-    n.int_value = src.array_value->size;
+  Value src = args->values[0];
+  if (src.type == V_ARRAY) {
+    if (n.int_value > src.array_value->size) {
+      n.int_value = src.array_value->size;
+    }
+    Value dest = create_array(n.int_value, env->arena);
+    if (n.int_value > 0) {
+      dest.array_value->size = n.int_value;
+      memcpy(dest.array_value->cells, src.array_value->cells, dest.array_value->size * sizeof(Value));
+    }
+    return dest;
+  } else if (src.type == V_STRING ){
+    if (n.int_value > src.string_value->size) {
+      n.int_value = src.string_value->size;
+    }
+    Value dest = allocate_string(n.int_value, env->arena);
+    if (n.int_value > 0) {
+      memcpy(dest.string_value->bytes, src.string_value->bytes, dest.string_value->size);
+    }
+    return dest;
+  } else {
+    arg_error(0, "array|string", args, env);
+    return nil_value;
   }
-  Value dest = create_array(n.int_value, env->arena);
-  if (n.int_value > 0) {
-    dest.array_value->size = n.int_value;
-    memcpy(dest.array_value->cells, src.array_value->cells, dest.array_value->size * sizeof(Value));
-  }
-  return dest;
 }
 
 static Value drop(const Tuple *args, Env *env) {
   check_args(2, args, env);
-  Value src = args->values[0];
-  if (src.type != V_ARRAY) {
-    arg_type_error(0, V_ARRAY, args, env);
-    return nil_value;
-  }
   Value n = args->values[1];
   if (n.type != V_INT) {
     arg_type_error(1, V_INT, args, env);
     return nil_value;
   }
-  if (n.int_value > src.array_value->size) {
-    n.int_value = src.array_value->size;
+  Value src = args->values[0];
+  if (src.type == V_ARRAY) {
+    if (n.int_value > src.array_value->size) {
+      n.int_value = src.array_value->size;
+    }
+    Value dest = create_array(src.array_value->size - n.int_value, env->arena);
+    if (n.int_value < src.array_value->size) {
+      dest.array_value->size = src.array_value->size - n.int_value;
+      memcpy(dest.array_value->cells, src.array_value->cells + n.int_value, dest.array_value->size * sizeof(Value));
+    }
+    return dest;
+  } else if (src.type == V_STRING ){
+    if (n.int_value > src.string_value->size) {
+      n.int_value = src.string_value->size;
+    }
+    Value dest = allocate_string(src.string_value->size - n.int_value, env->arena);
+    if (n.int_value < src.string_value->size) {
+      memcpy(dest.string_value->bytes, src.string_value->bytes + n.int_value, dest.string_value->size);
+    }
+    return dest;
+  } else {
+    arg_error(0, "array|string", args, env);
+    return nil_value;
   }
-  Value dest = create_array(src.array_value->size - n.int_value, env->arena);
-  if (n.int_value < src.array_value->size) {
-    dest.array_value->size = src.array_value->size - n.int_value;
-    memcpy(dest.array_value->cells, src.array_value->cells + n.int_value, dest.array_value->size * sizeof(Value));
-  }
-  return dest;
 }
 
 static Value pop(const Tuple *args, Env *env) {
