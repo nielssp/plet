@@ -105,6 +105,45 @@ static int has_read_more(Value node) {
   return 0;
 }
 
+static Array *toc_get_section(Array *toc, int level, Env *env) {
+  if (!toc->size || level <= 0) {
+    return toc;
+  }
+  Object *last_entry = toc->cells[toc->size - 1].object_value;
+  Value children;
+  if (!object_get_symbol(last_entry, "children", &children)) {
+    children = create_array(0, env->arena);
+    object_def(last_entry, "children", children, env);
+  }
+  return toc_get_section(children.array_value, level - 1, env);
+}
+
+static void build_toc(Value node, Array *toc, int min_level, int max_level, Env *env) {
+  if (node.type == V_OBJECT) {
+    Value node_tag;
+    if (object_get_symbol(node.object_value, "tag", &node_tag) && node_tag.type == V_SYMBOL) {
+      if (node_tag.symbol_value[0] == 'h' && node_tag.symbol_value[1] >= '1'
+          && node_tag.symbol_value[1] <= '6' && node_tag.symbol_value[2] == '\0') {
+        int level = node_tag.symbol_value[1] - '0';
+        if (level >= min_level && level <= max_level) {
+          Array *section = toc_get_section(toc, level - min_level, env);
+          Value entry = create_object(0, env->arena);
+          StringBuffer buffer = create_string_buffer(0, env->arena);
+          html_text_content(node, &buffer);
+          object_def(entry.object_value, "title", finalize_string_buffer(buffer), env);
+          array_push(section, entry, env->arena);
+        }
+      }
+    }
+    Value children;
+    if (object_get_symbol(node.object_value, "children", &children) && children.type == V_ARRAY) {
+      for (size_t i = 0; i < children.array_value->size; i++) {
+        build_toc(children.array_value->cells[i], toc, min_level, max_level, env);
+      }
+    }
+  }
+}
+
 static Value create_content_object(const Path *path, const char *name, PathStack *path_stack, Env *env) {
   Value obj = create_object(0, env->arena);
   object_def(obj.object_value, "path", path_to_string(path, env->arena), env);
@@ -233,6 +272,9 @@ static Value create_content_object(const Path *path, const char *name, PathStack
         delete_path(asset_base);
         delete_path(src_root_path);
       }
+      Value toc = create_array(0, env->arena);
+      build_toc(html, toc.array_value, 2, 6, env); 
+      object_def(obj.object_value, "toc", toc, env);
     }
   }
   return obj;
