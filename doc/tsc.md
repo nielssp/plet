@@ -310,3 +310,9 @@ paginate(items: array, per_page: int, path: string, template: string, data: obje
 ```
 list_content(path: string, options: {recursive: boolean, suffix: string}?): array
 ```
+
+## exec
+```
+shell_escape(value: any): string
+exec(command: string, ... args: any): string
+```

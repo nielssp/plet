@@ -14,6 +14,7 @@
 #include "strings.h"
 
 #include <alloca.h>
+#include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -118,6 +119,23 @@ static Array *toc_get_section(Array *toc, int level, Env *env) {
   return toc_get_section(children.array_value, level - 1, env);
 }
 
+static Value slugify(String *string, Arena *arena) {
+  StringBuffer buffer = create_string_buffer(string->size, arena);
+  for (size_t i = 0; i < string->size; i++) {
+    uint8_t byte = string->bytes[i];
+    if ((byte >= '0' && byte <= '9') || (byte >= 'a' && byte <= 'z')) {
+      string_buffer_put(&buffer, byte);
+    } else if (byte >= 'A' && byte <= 'Z') {
+      string_buffer_put(&buffer, tolower(byte));
+    } else if (byte == '-' || byte == ' ' || byte == '\t' || byte == '\n' || byte == '\r') {
+      if (buffer.string->size && buffer.string->bytes[buffer.string->size - 1] != '-') {
+        string_buffer_put(&buffer, '-');
+      }
+    }
+  }
+  return finalize_string_buffer(buffer);
+}
+
 static void build_toc(Value node, Array *toc, int min_level, int max_level, Env *env) {
   if (node.type == V_OBJECT) {
     Value node_tag;
@@ -125,12 +143,19 @@ static void build_toc(Value node, Array *toc, int min_level, int max_level, Env 
       if (node_tag.symbol_value[0] == 'h' && node_tag.symbol_value[1] >= '1'
           && node_tag.symbol_value[1] <= '6' && node_tag.symbol_value[2] == '\0') {
         int level = node_tag.symbol_value[1] - '0';
-        if (level >= min_level && level <= max_level) {
+        if (level >= min_level && level <= max_level && html_get_attribute(node, "data-toc-ignore").type == V_NIL) {
           Array *section = toc_get_section(toc, level - min_level, env);
           Value entry = create_object(0, env->arena);
           StringBuffer buffer = create_string_buffer(0, env->arena);
           html_text_content(node, &buffer);
-          object_def(entry.object_value, "title", finalize_string_buffer(buffer), env);
+          Value title = string_trim(finalize_string_buffer(buffer).string_value, (uint8_t *) " \r\n\t", 4, env->arena);
+          object_def(entry.object_value, "title", title, env);
+          Value id = html_get_attribute(node, "id");
+          if (id.type != V_STRING) {
+            id = slugify(title.string_value, env->arena);
+            html_set_attribute(node, "id", id.string_value, env);
+          }
+          object_def(entry.object_value, "id", id, env);
           array_push(section, entry, env->arena);
         }
       }
@@ -142,6 +167,55 @@ static void build_toc(Value node, Array *toc, int min_level, int max_level, Env 
       }
     }
   }
+}
+
+typedef struct {
+  Env *env;
+  Array *toc;
+} InsertTocArgs;
+
+static Value print_toc(Array *toc, Env *env) {
+  Value list = html_create_element("ol", 0, env);
+  for (size_t i = 0; i < toc->size; i++) {
+    Value entry = toc->cells[i];
+    if (entry.type != V_OBJECT) {
+      continue;
+    }
+    Value title, id;
+    if (!object_get_symbol(entry.object_value, "title", &title) || title.type != V_STRING) {
+      continue;
+    }
+    if (!object_get_symbol(entry.object_value, "id", &id) || id.type != V_STRING) {
+      continue;
+    }
+    Value list_element = html_create_element("li", 0, env);
+    Value link = html_create_element("a", 0, env);
+    StringBuffer href = create_string_buffer(id.string_value->size + 1, env->arena);
+    string_buffer_put(&href, '#');
+    string_buffer_append(&href, id.string_value);
+    html_set_attribute(link, "href", finalize_string_buffer(href).string_value, env);
+    html_append_child(link, title, env->arena);
+    html_append_child(list_element, link, env->arena);
+    Value children;
+    if (object_get_symbol(entry.object_value, "children", &children) && children.type == V_ARRAY) {
+      html_append_child(list_element, print_toc(children.array_value, env), env->arena);
+    }
+    html_append_child(list, list_element, env->arena);
+  }
+  return list;
+}
+
+static HtmlTransformation insert_toc(Value node, void *context) {
+  InsertTocArgs *args = context;
+  if (node.type == V_OBJECT) {
+    Value comment;
+    if (object_get_symbol(node.object_value, "comment", &comment) && comment.type == V_STRING) {
+      if (string_equals("toc", comment.string_value)) {
+        return HTML_REPLACE(print_toc(args->toc, args->env));
+      }
+    }
+  }
+  return HTML_NO_ACTION;
 }
 
 static Value create_content_object(const Path *path, const char *name, PathStack *path_stack, Env *env) {
@@ -272,8 +346,17 @@ static Value create_content_object(const Path *path, const char *name, PathStack
         delete_path(asset_base);
         delete_path(src_root_path);
       }
+      int max_toc_level = 6;
+      Value toc_depth;
+      if (object_get_symbol(obj.object_value, "toc_depth", &toc_depth) && toc_depth.type == V_INT) {
+        max_toc_level = toc_depth.int_value;
+      }
       Value toc = create_array(0, env->arena);
-      build_toc(html, toc.array_value, 2, 6, env); 
+      if (max_toc_level > 1) {
+        build_toc(html, toc.array_value, 2, max_toc_level, env); 
+        InsertTocArgs insert_toc_args = {env, toc.array_value};
+        html_transform(html, insert_toc, &insert_toc_args);
+      }
       object_def(obj.object_value, "toc", toc, env);
     }
   }

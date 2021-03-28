@@ -185,6 +185,14 @@ void env_put(Symbol name, Value value, Env *env);
     }\
   } while (0)
 
+#define check_args_min(length, args, env) \
+  do {\
+    if ((args)->size < (length)) {\
+      env_error((env), ENV_ARG_ALL, "%s: too few arguments for function, %d expected", __func__, (length));\
+      return nil_value;\
+    }\
+  } while (0)
+
 #define check_args_between(min, max, args, env) \
   do {\
     if ((args)->size < (min)) {\
