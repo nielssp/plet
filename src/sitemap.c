@@ -6,7 +6,9 @@
 
 #include "sitemap.h"
 
+#include "alloca.h"
 #include "build.h"
+#include "interpreter.h"
 #include "strings.h"
 
 #include <dirent.h>
@@ -36,8 +38,6 @@ typedef struct {
   Value web_path;
   Value data;
 } ConstPageInfo;
-
-static int compile_page(PageInfo page, Env *env);
 
 static Value encode_page_info(ConstPageInfo page, Env *env) {
   Value object = create_object(0, env->arena);
@@ -117,7 +117,8 @@ static int copy_static_files(const Path *src_path, const Path *dest_path, Array 
     }
     return status;
   }
-  array_push(site_map, encode_page_info((ConstPageInfo) { P_COPY, src_path, dest_path }, env), env->arena);
+  ConstPageInfo page_info = { P_COPY, src_path, dest_path };
+  array_push(site_map, encode_page_info(page_info, env), env->arena);
   return 1;
 }
 
@@ -335,6 +336,8 @@ void import_sitemap(Env *env) {
   env_def("SITE_MAP", create_array(0, env->arena), env);
   env_def("REVERSE_PATHS", create_object(0, env->arena), env);
   env_export("REVERSE_PATHS", env);
+  env_def("OUTPUT_OBSERVERS", create_array(0, env->arena), env);
+  env_export("OUTPUT_OBSERVERS", env);
   env_def_fn("add_static", add_static, env);
   env_def_fn("add_reverse", add_reverse, env);
   env_def_fn("add_page", add_page, env);
@@ -394,6 +397,23 @@ static int compile_page(PageInfo page, Env *env) {
   return 0;
 }
 
+void notify_output_observers(const Path *path, Env *env) {
+  Value observers;
+  if (!env_get_symbol("OUTPUT_OBSERVERS", &observers, env) || observers.type != V_ARRAY) {
+    return;
+  }
+  Tuple *args = alloca(sizeof(Tuple) + sizeof(Value));
+  args->size = 1;
+  args->values[0] = path_to_string(path, env->arena);
+  for (size_t i = 0; i < observers.array_value->size; i++) {
+    Value func = observers.array_value->cells[i];
+    if (func.type == V_FUNCTION || func.type == V_CLOSURE) {
+      Value ignore;
+      apply(func, args, &ignore, env);
+    }
+  }
+}
+
 int compile_pages(Env *env) {
   Value site_map;
   if (!env_get_symbol("SITE_MAP", &site_map, env) || site_map.type != V_ARRAY) {
@@ -417,7 +437,9 @@ int compile_pages(Env *env) {
         site_path->size > 50 ? 50 : (int) site_path->size, site_path->path);
     fflush(stderr);
     delete_path(site_path);
-    compile_page(page, env);
+    if (compile_page(page, env)) {
+      notify_output_observers(page.dest, env);
+    }
     delete_path(page.src);
     delete_path(page.dest);
   }

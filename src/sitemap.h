@@ -11,6 +11,7 @@
 
 void import_sitemap(Env *env);
 
+void notify_output_observers(const Path *path, Env *env);
 int compile_pages(Env *env);
 
 #endif
