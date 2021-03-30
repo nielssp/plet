@@ -8,6 +8,7 @@
 
 #include "build.h"
 #include "html.h"
+#include "sitemap.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -26,6 +27,7 @@ typedef struct {
   int64_t max_height;
   int64_t quality;
   int link_full;
+  int preserve_lossless;
   Path *src_root;
   Path *dist_root;
   Path *asset_root;
@@ -69,7 +71,9 @@ static void resize_image(const Path *src_path, const Path *dist_path, int width,
   DestroyMagickWand(wand);
   MagickWandTerminus();
 #else
-  copy_file(src_path->path, dist_path->path);
+  if (copy_file(src_path->path, dist_path->path)) {
+    notify_output_observers(dist_path, args->env);
+  }
 #endif
 }
 
@@ -119,8 +123,13 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
           const char *ext = path_get_extension(dist_path);
           Buffer new_name = create_buffer(0);
           if (extension[0]) {
-            buffer_printf(&new_name, "%.*s.%dx%dq%d.%s", ext - name - 1, name, target_width, target_height,
-                args->quality, ext);
+            if (args->preserve_lossless) {
+              buffer_printf(&new_name, "%.*s.%dx%dq%d.%s", ext - name - 1, name, target_width, target_height,
+                  args->quality, ext);
+            } else {
+              buffer_printf(&new_name, "%.*s.%dx%dq%d.jpg", ext - name - 1, name, target_width, target_height,
+                  args->quality);
+            }
           } else {
             buffer_printf(&new_name, "%s.%dx%dq%d.jpg", name, target_width, target_height, args->quality);
           }
@@ -129,7 +138,9 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
           Path *asset_web_path_parent = path_get_parent(asset_web_path);
           if (original_asset_web_path) {
             if (asset_has_changed(src_path, dist_path)) {
-              copy_file(src_path->path, dist_path->path);
+              if (copy_file(src_path->path, dist_path->path)) {
+                notify_output_observers(dist_path, args->env);
+              }
             }
             *original_asset_web_path = asset_web_path;
           } else {
@@ -148,12 +159,16 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
           *attr_width = width;
           *attr_height = height;
           if (asset_has_changed(src_path, dist_path)) {
-            copy_file(src_path->path, dist_path->path);
+            if (copy_file(src_path->path, dist_path->path)) {
+              notify_output_observers(dist_path, args->env);
+            }
           }
         }
       }
     } else if (asset_has_changed(src_path, dist_path)) {
-      copy_file(src_path->path, dist_path->path);
+      if (copy_file(src_path->path, dist_path->path)) {
+        notify_output_observers(dist_path, args->env);
+      }
     }
     free(extension);
   }
@@ -261,13 +276,18 @@ static Value images(const Tuple *args, Env *env) {
   if (args->size > 4) {
     link_full = is_truthy(args->values[4]);
   }
+  int preserve_lossless = 1;
+  Value preserve_lossless_value;
+  if (env_get_symbol("IMAGE_PRESERVE_LOSSLESS", &preserve_lossless_value, env)) {
+    preserve_lossless = is_truthy(preserve_lossless_value);
+  }
   Path *src_root = get_src_root(env);
   if (src_root) {
     Path *dist_root = get_dist_root(env);
     if (dist_root) {
       Path *asset_root = create_path("assets", -1);
-      ImageArgs context = {max_width.int_value, max_height.int_value, quality.int_value, link_full, src_root,
-        dist_root, asset_root, env};
+      ImageArgs context = {max_width.int_value, max_height.int_value, quality.int_value, link_full,
+        preserve_lossless, src_root, dist_root, asset_root, env};
       src = html_transform(src, transform_images, &context);
       delete_path(asset_root);
       delete_path(dist_root);

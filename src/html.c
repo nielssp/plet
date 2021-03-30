@@ -7,6 +7,7 @@
 #include "html.h"
 
 #include "build.h"
+#include "sitemap.h"
 #include "strings.h"
 #include "template.h"
 
@@ -216,7 +217,9 @@ static int transform_link(Value node, const char *attribute_name, LinkArgs *args
     } else {
       Path *asset_web_path = path_join(args->asset_root, asset_path, 1);
       Path *dist_path = path_join(args->dist_root, asset_web_path, 1);
-      copy_asset(src_path, dist_path);
+      if (copy_asset(src_path, dist_path)) {
+        notify_output_observers(dist_path, args->env);
+      }
       html_set_attribute(node, attribute_name, get_web_path(asset_web_path, args->absolute, args->env).string_value,
           args->env);
       delete_path(dist_path);
