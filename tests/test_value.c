@@ -41,6 +41,29 @@ static void test_array_push(void) {
   delete_arena(arena);
 }
 
+static void test_array_remove(void) {
+  Arena *arena = create_arena();
+  Value array = create_array(0, arena);
+  assert(array_remove(array.array_value, 0) == 0);
+  for (size_t i = 0; i < 1000; i++) {
+    array_push(array.array_value, create_int(i), arena);
+  }
+  assert(array_remove(array.array_value, 0) == 1);
+  assert(array_remove(array.array_value, 998) == 1);
+  assert(array_remove(array.array_value, 998) == 0);
+  assert(array.array_value->size == 998);
+  for (size_t i = 0; i < 998; i++) {
+    Value elem = array.array_value->cells[i];
+    assert(elem.type == V_INT);
+    assert(elem.int_value == i + 1);
+  }
+  for (size_t i = 0; i < 998; i++) {
+    assert(array_remove(array.array_value, array.array_value->size - 1) == 1);
+  }
+  assert(array.array_value->size == 0);
+  delete_arena(arena);
+}
+
 static void test_allocate_string(void) {
   Arena *arena = create_arena();
   Value string = allocate_string(1000, arena);
@@ -74,6 +97,7 @@ static void test_reallocate_string(void) {
 void test_value(void) {
   run_test(test_env);
   run_test(test_array_push);
+  run_test(test_array_remove);
   run_test(test_allocate_string);
   run_test(test_reallocate_string);
 }

@@ -453,6 +453,23 @@ static Value list_content(const Tuple *args, Env *env) {
   return content;
 }
 
+static Value read_content(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  Value path_value = args->values[0];
+  if (path_value.type != V_STRING) {
+    arg_type_error(1, V_STRING, args, env);
+    return nil_value;
+  }
+  Path *path = string_to_path(path_value.string_value);
+  Value obj = create_content_object(path, path_get_name(path), NULL, env);
+  if (obj.type != V_OBJECT) {
+    env_error(env, -1, "content read error");
+  }
+  delete_path(path);
+  return obj;
+}
+
 void import_contentmap(Env *env) {
   env_def_fn("list_content", list_content, env);
+  env_def_fn("read_content", read_content, env);
 }

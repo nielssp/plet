@@ -595,8 +595,7 @@ int array_remove(Array *array, int index) {
       array->capacity--;
       array->cells++;
     } else if (index < array->size) {
-      memcpy(array->cells + index, array->cells + index + 1,
-          (array->size - index + 1) * sizeof(Value));
+      memcpy(array->cells + index, array->cells + index + 1, (array->size - index) * sizeof(Value));
     }
     return 1;
   }
