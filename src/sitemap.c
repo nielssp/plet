@@ -267,6 +267,8 @@ static void add_page_to_site(Value page, String *src, String *path_template, Val
       path_template, env->arena);
   if (data.type != V_OBJECT) {
     data = create_object(0, env->arena);
+  } else {
+    data = copy_value(data, env);
   }
   object_def(data.object_value, "PAGE", page, env);
   create_site_node(path.string_value, src, data, env);

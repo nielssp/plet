@@ -49,7 +49,7 @@ static void print_help(const char *program_name) {
   puts("  eval <file>       Evaluate a single source file");
   puts("  init              Create a new site in the current directory");
   puts("  clean             Remove generated files");
-  puts("  lipsum            Generate random markdown content");
+  puts("  lipsum [<dir>]    Generate random markdown content");
 }
 
 static int eval(GlobalArgs args) {
@@ -172,8 +172,7 @@ int main(int argc, char *argv[]) {
   } else if (strcmp(command, "clean") == 0) {
     return clean(args);
   } else if (strcmp(command, "lipsum") == 0) {
-    lipsum();
-    return 0;
+    return lipsum(args);
   } else {
     fprintf(stderr, ERROR_LABEL "unrecognized command: %s" SGR_RESET "\n", command);
     return 1;

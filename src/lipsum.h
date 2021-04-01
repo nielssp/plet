@@ -7,6 +7,8 @@
 #ifndef LIPSUM_H
 #define LIPSUM_H
 
-void lipsum(void);
+#include "build.h"
+
+int lipsum(GlobalArgs args);
 
 #endif

@@ -9,9 +9,12 @@
 #include "util.h"
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 const char *words[] = {
   "a", "ac", "accumsan", "ad", "adipiscing", "aenean", "aenean", "aliquam", "aliquam", "aliquet", "amet", "ante",
@@ -64,38 +67,74 @@ static char *lipsum_paragraph(int sentences) {
   return (char *) buffer.data;
 }
 
-void lipsum(void) {
-  srand(time(NULL));
-  printf("{\n");
+static char *create_file_name(const char *title) {
+  Buffer buffer = create_buffer(strlen(title) + 4);
+  while (*title) {
+    char byte = *title;
+    if (byte >= 'a' && byte <= 'z') {
+      buffer_put(&buffer, byte);
+    } else if (byte == ' ') {
+      buffer_put(&buffer, '-');
+    }
+    title++;
+  }
+  buffer_printf(&buffer, ".md");
+  buffer_put(&buffer, '\0');
+  return (char *) buffer.data;
+}
+
+int lipsum(GlobalArgs args) {
+  srand(time(NULL) ^ getpid());
+  char *title = lipsum_words(rand() % 6 + 1);
+  FILE *out = stdout;
+  if (args.argc >= 1) {
+    Path *dir = create_path(args.argv[0], -1);
+    char *name = create_file_name(title);
+    Path *file = path_append(dir, name);
+    free(name);
+    delete_path(dir);
+    out = fopen(file->path, "w");
+    if (!out) {
+      fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", file->path, strerror(errno));
+      delete_path(file);
+      free(title);
+      return 1;
+    }
+    delete_path(file);
+  }
+  fprintf(out, "{\n");
   time_t published = time(NULL) - rand() % (5 * 365 * 24 * 60 * 60);
   struct tm *t = localtime(&published);
   if (t) {
     char date[26];
     if (strftime(date, sizeof(date), "%Y-%m-%d %H:%M", t)) {
-      printf("  published: '%s',\n", date);
+      fprintf(out, "  published: '%s',\n", date);
     }
   }
-  printf("  tags: [");
+  fprintf(out, "  tags: [");
   int tags = rand() % 5;
   for (int i = 0; i < tags; i++) {
     if (i) {
-      printf(", ");
+      fprintf(out, ", ");
     }
     char *tag = lipsum_words(1);
-    printf("'%s'", tag);
+    fprintf(out, "'%s'", tag);
     free(tag);
   }
-  printf("],\n");
-  printf("}\n");
-  printf("\n");
-  char *title = lipsum_words(rand() % 6 + 1);
+  fprintf(out, "],\n");
+  fprintf(out, "}\n");
+  fprintf(out, "\n");
   title[0] = toupper(title[0]);
-  printf("# %s\n", title);
+  fprintf(out, "# %s\n", title);
   free(title);
   int paragraphs = rand() % 3 + 1;
   for (int i = 0; i < paragraphs; i++) {
     char *paragraph = lipsum_paragraph(rand() % 6 + 1);
-    printf("\n%s\n", paragraph);
+    fprintf(out, "\n%s\n", paragraph);
     free(paragraph);
   }
+  if (out != stdout) {
+    fclose(out);
+  }
+  return 0;
 }
