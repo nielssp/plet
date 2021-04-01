@@ -119,41 +119,47 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
           }
           *attr_width = target_width;
           *attr_height = target_height;
-          const char *name = path_get_name(dist_path);
-          const char *ext = path_get_extension(dist_path);
-          Buffer new_name = create_buffer(0);
-          if (extension[0]) {
-            if (args->preserve_lossless) {
-              buffer_printf(&new_name, "%.*s.%dx%dq%d.%s", ext - name - 1, name, target_width, target_height,
-                  args->quality, ext);
-            } else {
-              buffer_printf(&new_name, "%.*s.%dx%dq%d.jpg", ext - name - 1, name, target_width, target_height,
-                  args->quality);
-            }
-          } else {
-            buffer_printf(&new_name, "%s.%dx%dq%d.jpg", name, target_width, target_height, args->quality);
-          }
-          Path *new_name_path = create_path((char *) new_name.data, new_name.size);
-          delete_buffer(new_name);
-          Path *asset_web_path_parent = path_get_parent(asset_web_path);
-          if (original_asset_web_path) {
-            if (asset_has_changed(src_path, dist_path)) {
-              if (copy_file(src_path->path, dist_path->path)) {
-                notify_output_observers(dist_path, args->env);
+          if (target_width * target_height * 2 < width * height) {
+            const char *name = path_get_name(dist_path);
+            const char *ext = path_get_extension(dist_path);
+            Buffer new_name = create_buffer(0);
+            if (extension[0]) {
+              if (args->preserve_lossless) {
+                buffer_printf(&new_name, "%.*s.%dx%dq%d.%s", ext - name - 1, name, target_width, target_height,
+                    args->quality, ext);
+              } else {
+                buffer_printf(&new_name, "%.*s.%dx%dq%d.jpg", ext - name - 1, name, target_width, target_height,
+                    args->quality);
               }
+            } else {
+              buffer_printf(&new_name, "%s.%dx%dq%d.jpg", name, target_width, target_height, args->quality);
             }
-            *original_asset_web_path = asset_web_path;
-          } else {
-            delete_path(asset_web_path);
-          }
-          asset_web_path = path_join(asset_web_path_parent, new_name_path, 1);
-          delete_path(asset_web_path_parent);
-          delete_path(new_name_path);
-          delete_path(dist_path);
-          dist_path = path_join(args->dist_root, asset_web_path, 1);
+            Path *new_name_path = create_path((char *) new_name.data, new_name.size);
+            delete_buffer(new_name);
+            Path *asset_web_path_parent = path_get_parent(asset_web_path);
+            if (original_asset_web_path) {
+              if (asset_has_changed(src_path, dist_path)) {
+                if (copy_file(src_path->path, dist_path->path)) {
+                  notify_output_observers(dist_path, args->env);
+                }
+              }
+              *original_asset_web_path = asset_web_path;
+            } else {
+              delete_path(asset_web_path);
+            }
+            asset_web_path = path_join(asset_web_path_parent, new_name_path, 1);
+            delete_path(asset_web_path_parent);
+            delete_path(new_name_path);
+            delete_path(dist_path);
+            dist_path = path_join(args->dist_root, asset_web_path, 1);
 
-          if (asset_has_changed(src_path, dist_path)) {
-            resize_image(src_path, dist_path, target_width, target_height, args);
+            if (asset_has_changed(src_path, dist_path)) {
+              resize_image(src_path, dist_path, target_width, target_height, args);
+            }
+          } else if (asset_has_changed(src_path, dist_path)) {
+            if (copy_file(src_path->path, dist_path->path)) {
+              notify_output_observers(dist_path, args->env);
+            }
           }
         } else {
           *attr_width = width;
