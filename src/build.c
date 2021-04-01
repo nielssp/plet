@@ -278,6 +278,36 @@ int copy_asset(const Path *src, const Path *dest) {
   return result;
 }
 
+Path *find_project_root(void) {
+  Path *cwd = get_cwd_path();
+  Path *index_path = path_append(cwd, "index.tss");
+  FILE *index = fopen(index_path->path, "r");
+  if (!index) {
+    while (1) {
+      Path *parent = path_get_parent(cwd);
+      if (parent->size >= cwd->size) {
+        delete_path(parent);
+        break;
+      }
+      delete_path(cwd);
+      cwd = parent;
+      delete_path(index_path);
+      index_path = path_append(cwd, "index.tss");
+      index = fopen(index_path->path, "r");
+      if (index) {
+        break;
+      }
+    }
+  }
+  delete_path(index_path);
+  if (index) {
+    fclose(index);
+    return cwd;
+  }
+  delete_path(cwd);
+  return NULL;
+}
+
 int build(GlobalArgs args) {
   Path *cwd = get_cwd_path();
   Path *index_path = path_append(cwd, "index.tss");

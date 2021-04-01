@@ -57,6 +57,11 @@ typedef struct {
   size_t size;
 } Buffer;
 
+typedef struct {
+  int32_t size;
+  char path[];
+} Path;
+
 void *allocate(size_t size);
 
 void *reallocate(void *old, size_t size);
@@ -84,13 +89,7 @@ time_t get_mtime(const char *path);
 int is_dir(const char *path);
 int copy_file(const char *src_path, const char *dest_path);
 int mkdir_rec(const char *path);
-
-typedef struct PathComponent PathComponent;
-
-typedef struct {
-  int32_t size;
-  char path[];
-} Path;
+int delete_dir(const Path *path);
 
 Path *create_path(const char *path_bytes, int32_t length);
 Path *copy_path(const Path *path);

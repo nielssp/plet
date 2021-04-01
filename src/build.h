@@ -22,6 +22,7 @@ Env *create_template_env(Value data, Env *parent);
 void delete_template_env(Env *env);
 Value eval_template(Module *module, Env *env);
 
+Path *find_project_root(void);
 int build(GlobalArgs args);
 
 Path *get_dist_path(const Path *path, Env *env);

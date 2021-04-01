@@ -48,6 +48,7 @@ static void print_help(const char *program_name) {
   puts("  build             Build site from index.tss");
   puts("  eval <file>       Evaluate a single source file");
   puts("  init              Create a new site in the current directory");
+  puts("  clean             Remove generated files");
   puts("  lipsum            Generate random markdown content");
 }
 
@@ -117,6 +118,24 @@ static int init(GlobalArgs args) {
   return 0;
 }
 
+static int clean(GlobalArgs args) {
+  Path *root = find_project_root();
+  if (!root) {
+    fprintf(stderr, ERROR_LABEL "project root not found" SGR_RESET "\n");
+    return 1;
+  }
+  int status = 0;
+  Path *dist = path_append(root, "dist");
+  if (is_dir(dist->path)) {
+    if (!delete_dir(dist)) {
+      status = 1;
+    }
+  }
+  delete_path(dist);
+  delete_path(root);
+  return status;
+}
+
 int main(int argc, char *argv[]) {
   GlobalArgs args;
   args.parse_as_template = 0;
@@ -150,6 +169,8 @@ int main(int argc, char *argv[]) {
     return eval(args);
   } else if (strcmp(command, "init") == 0) {
     return init(args);
+  } else if (strcmp(command, "clean") == 0) {
+    return clean(args);
   } else if (strcmp(command, "lipsum") == 0) {
     lipsum();
     return 0;

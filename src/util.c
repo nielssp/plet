@@ -7,6 +7,7 @@
 #include "util.h"
 
 #include <ctype.h>
+#include <dirent.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -344,6 +345,36 @@ int mkdir_rec(const char *path) {
   }
   free(buffer);
   return 1;
+}
+
+int delete_dir(const Path *path) {
+  DIR *dir = opendir(path->path);
+  int status = 1;
+  if (dir) {
+    struct dirent *file;
+    while ((file = readdir(dir))) {
+      if (file->d_name[0] != '.') {
+        Path *subpath = path_append(path, file->d_name);
+        if (!is_dir(subpath->path)) {
+          if (unlink(subpath->path)) {
+            status = 0;
+            fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "delete error: %s" SGR_RESET "\n", subpath->path, strerror(errno));
+          }
+        } else {
+          status = status && delete_dir(subpath);
+        }
+        delete_path(subpath);
+      }
+    }
+    closedir(dir);
+    if (status && rmdir(path->path)) {
+      status = 0;
+      fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "delete error: %s" SGR_RESET "\n", path->path, strerror(errno));
+    }
+  } else {
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "unable to read dir: %s" SGR_RESET "\n", path->path, strerror(errno));
+  }
+  return status;
 }
 
 Path *create_path(const char *path_bytes, int32_t length) {
