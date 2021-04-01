@@ -29,6 +29,10 @@ struct PathStack {
    char *name;
 };
 
+static void read_front_matter(Object *obj, FILE *file, const Path *path, Env *env);
+static Value read_file_content(Object *obj, FILE *file, const Path *path, Env *env);
+static Value parse_content(Value content, const Path *path, Env *env);
+
 static Value path_stack_to_string(PathStack *path_stack, Arena *arena) {
   if (!path_stack) {
     return copy_c_string(".", arena);
@@ -85,6 +89,43 @@ static HtmlTransformation transform_content_links(Value node, void *context) {
   ContentLinkArgs *args = context;
   if (!transform_content_link(node, "src", args)) {
     transform_content_link(node, "href", args);
+  }
+  return HTML_NO_ACTION;
+}
+
+typedef struct {
+  Env *env;
+  const Path *src_file;
+  const Path *dir;
+} ContentIncludeArgs;
+
+static HtmlTransformation transform_content_includes(Value node, void *context) {
+  ContentIncludeArgs *args = context;
+  if (node.type == V_OBJECT) {
+    Value comment;
+    if (object_get_symbol(node.object_value, "comment", &comment) && comment.type == V_STRING) {
+      if (string_starts_with("include:", comment.string_value)) {
+        Path *path = create_path((char *) comment.string_value->bytes + sizeof("include:") - 1,
+            comment.string_value->size - sizeof("include:") + 1);
+        Path *abs_path = path_join(args->dir, path, 1);
+        Value replacement = create_string(NULL, 0, args->env->arena);
+        FILE *file = fopen(abs_path->path, "r");
+        if (file) {
+          Value front_matter = create_object(0, args->env->arena);
+          Value type = copy_c_string(path_get_extension(abs_path), args->env->arena);
+          object_def(front_matter.object_value, "type", type, args->env);
+          read_front_matter(front_matter.object_value, file, abs_path, args->env);
+          Value content = read_file_content(front_matter.object_value, file, abs_path, args->env);
+          fclose(file);
+          replacement = parse_content(content, abs_path, args->env);
+        } else {
+          html_error(node, args->src_file, "include failed: %s: %s", path->path, strerror(errno));
+        }
+        delete_path(abs_path);
+        delete_path(path);
+        return HTML_REPLACE(replacement);
+      }
+    }
   }
   return HTML_NO_ACTION;
 }
@@ -220,32 +261,11 @@ static HtmlTransformation insert_toc(Value node, void *context) {
   return HTML_NO_ACTION;
 }
 
-static Value create_content_object(const Path *path, const char *name, PathStack *path_stack, Env *env) {
-  Value obj = create_object(0, env->arena);
-  object_def(obj.object_value, "path", path_to_string(path, env->arena), env);
-  object_def(obj.object_value, "relative_path", path_stack_to_string(path_stack, env->arena), env);
-  Value name_value = copy_c_string(name, env->arena);
-  for (size_t i = name_value.string_value->size - 1; i > 0; i--) {
-    if (name_value.string_value->bytes[i] == '.') {
-      Value type_value = create_string(name_value.string_value->bytes + i + 1,
-          name_value.string_value->size - i - 1, env->arena);
-      object_def(obj.object_value, "type", type_value, env);
-      name_value.string_value->size = i;
-      break;
-    }
-  }
-  object_def(obj.object_value, "name", name_value, env);
-  object_def(obj.object_value, "modified", create_time(get_mtime(path->path)), env);
-  FILE *file = fopen(path->path, "r");
-  if (!file) {
-    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", path->path, strerror(errno));
-    return nil_value;
-  }
+static void read_front_matter(Object *obj, FILE *file, const Path *path, Env *env) {
   Reader *reader = open_reader(file, path, env->symbol_map);
   if (reader_errors(reader)) {
     close_reader(reader);
-    fclose(file);
-    return nil_value;
+    return;
   }
   set_reader_silent(1, reader);
   TokenStream tokens = read_all(reader, 0);
@@ -262,7 +282,7 @@ static Value create_content_object(const Path *path, const char *name, PathStack
         ObjectIterator it = iterate_object(front_matter_obj.object_value);
         Value entry_key, entry_value;
         while (object_iterator_next(&it, &entry_key, &entry_value)) {
-          object_put(obj.object_value, entry_key, entry_value, env->arena);
+          object_put(obj, entry_key, entry_value, env->arena);
         }
       } else {
         fprintf(stderr, SGR_BOLD "%s: " INFO_LABEL "unexpected front matter of type %s" SGR_RESET "\n", path->path,
@@ -276,6 +296,9 @@ static Value create_content_object(const Path *path, const char *name, PathStack
     close_reader(reader);
     rewind(file);
   }
+}
+
+static Value read_file_content(Object *obj, FILE *file, const Path *path, Env *env) {
   Buffer buffer = create_buffer(8192);
   size_t n;
   do {
@@ -291,12 +314,11 @@ static Value create_content_object(const Path *path, const char *name, PathStack
   }
   Value content = create_string(buffer.data, buffer.size, env->arena);
   delete_buffer(buffer);
-  fclose(file);
   Value content_handlers;
   if (env_get(get_symbol("CONTENT_HANDLERS", env->symbol_map), &content_handlers, env)
       && content_handlers.type == V_OBJECT) {
     Value type;
-    if (object_get(obj.object_value, create_symbol(get_symbol("type", env->symbol_map)), &type)
+    if (object_get(obj, create_symbol(get_symbol("type", env->symbol_map)), &type)
         && type.type == V_STRING) {
       Value handler;
       if (object_get(content_handlers.object_value, type, &handler)) {
@@ -325,18 +347,14 @@ static Value create_content_object(const Path *path, const char *name, PathStack
   } else {
     fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "CONTENT_HANDLERS not found or invalid" SGR_RESET "\n", path->path);
   }
-  object_def(obj.object_value, "content", content, env);
+  return content;
+}
+
+static Value parse_content(Value content, const Path *path, Env *env) {
+  Value html;
   if (content.type == V_STRING) {
-    Value html = html_parse(content.string_value, env);
+    html = html_parse(content.string_value, env);
     if (html.type != V_NIL) {
-      object_def(obj.object_value, "html", html, env);
-      Value title_tag = html_find_tag(get_symbol("h1", env->symbol_map), html);
-      if (title_tag.type != V_NIL) {
-        StringBuffer title_buffer = create_string_buffer(0, env->arena);
-        html_text_content(title_tag, &title_buffer);
-        object_def(obj.object_value, "title", finalize_string_buffer(title_buffer), env);
-      }
-      object_def(obj.object_value, "read_more", has_read_more(html) ? true_value : false_value, env);
       Value src_root;
       if (env_get_symbol("SRC_ROOT", &src_root, env) && src_root.type == V_STRING) {
         Path *src_root_path = string_to_path(src_root.string_value);
@@ -345,23 +363,66 @@ static Value create_content_object(const Path *path, const char *name, PathStack
         delete_path(abs_asset_base);
         ContentLinkArgs content_link_args = {env, asset_base};
         html_transform(html, transform_content_links, &content_link_args);
+        ContentIncludeArgs content_include_args = {env, path, asset_base};
+        html_transform(html, transform_content_includes, &content_include_args);
         delete_path(asset_base);
         delete_path(src_root_path);
       }
-      int max_toc_level = 6;
-      Value toc_depth;
-      if (object_get_symbol(obj.object_value, "toc_depth", &toc_depth) && toc_depth.type == V_INT) {
-        max_toc_level = toc_depth.int_value;
-      }
-      Value toc = create_array(0, env->arena);
-      if (max_toc_level > 1) {
-        build_toc(html, toc.array_value, 2, max_toc_level, env); 
-        InsertTocArgs insert_toc_args = {env, toc.array_value};
-        html_transform(html, insert_toc, &insert_toc_args);
-      }
-      object_def(obj.object_value, "toc", toc, env);
+    } else {
+      html = create_string(NULL, 0, env->arena);
+    } 
+  } else {
+    html = create_string(NULL, 0, env->arena);
+  }
+  return html;
+}
+
+static Value create_content_object(const Path *path, const char *name, PathStack *path_stack, Env *env) {
+  Value obj = create_object(0, env->arena);
+  object_def(obj.object_value, "path", path_to_string(path, env->arena), env);
+  object_def(obj.object_value, "relative_path", path_stack_to_string(path_stack, env->arena), env);
+  Value name_value = copy_c_string(name, env->arena);
+  for (size_t i = name_value.string_value->size - 1; i > 0; i--) {
+    if (name_value.string_value->bytes[i] == '.') {
+      Value type_value = create_string(name_value.string_value->bytes + i + 1,
+          name_value.string_value->size - i - 1, env->arena);
+      object_def(obj.object_value, "type", type_value, env);
+      name_value.string_value->size = i;
+      break;
     }
   }
+  object_def(obj.object_value, "name", name_value, env);
+  object_def(obj.object_value, "modified", create_time(get_mtime(path->path)), env);
+  FILE *file = fopen(path->path, "r");
+  if (!file) {
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", path->path, strerror(errno));
+    return nil_value;
+  }
+  read_front_matter(obj.object_value, file, path, env);
+  Value content = read_file_content(obj.object_value, file, path, env);
+  fclose(file);
+  object_def(obj.object_value, "content", content, env);
+  Value html = parse_content(content, path, env);
+  object_def(obj.object_value, "html", html, env);
+  Value title_tag = html_find_tag(get_symbol("h1", env->symbol_map), html);
+  if (title_tag.type != V_NIL) {
+    StringBuffer title_buffer = create_string_buffer(0, env->arena);
+    html_text_content(title_tag, &title_buffer);
+    object_def(obj.object_value, "title", finalize_string_buffer(title_buffer), env);
+  }
+  object_def(obj.object_value, "read_more", has_read_more(html) ? true_value : false_value, env);
+  int max_toc_level = 6;
+  Value toc_depth;
+  if (object_get_symbol(obj.object_value, "toc_depth", &toc_depth) && toc_depth.type == V_INT) {
+    max_toc_level = toc_depth.int_value;
+  }
+  Value toc = create_array(0, env->arena);
+  if (max_toc_level > 1) {
+    build_toc(html, toc.array_value, 2, max_toc_level, env); 
+    InsertTocArgs insert_toc_args = {env, toc.array_value};
+    html_transform(html, insert_toc, &insert_toc_args);
+  }
+  object_def(obj.object_value, "toc", toc, env);
   return obj;
 }
 
@@ -461,11 +522,16 @@ static Value read_content(const Tuple *args, Env *env) {
     return nil_value;
   }
   Path *path = string_to_path(path_value.string_value);
-  Value obj = create_content_object(path, path_get_name(path), NULL, env);
+  Path *src_path = get_src_path(path, env);
+  delete_path(path);
+  if (!src_path) {
+    return nil_value;
+  }
+  Value obj = create_content_object(src_path, path_get_name(src_path), NULL, env);
   if (obj.type != V_OBJECT) {
     env_error(env, -1, "content read error");
   }
-  delete_path(path);
+  delete_path(src_path);
   return obj;
 }
 

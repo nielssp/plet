@@ -309,6 +309,7 @@ paginate(items: array, per_page: int, path: string, template: string, data: obje
 
 ```
 list_content(path: string, options: {recursive: boolean, suffix: string}?): array
+read_content(path: string): object
 ```
 
 ## exec

@@ -7,6 +7,7 @@
 #include "html.h"
 
 #include "build.h"
+#include "inttypes.h"
 #include "sitemap.h"
 #include "strings.h"
 #include "template.h"
@@ -368,6 +369,7 @@ static Value convert_gumbo_node(GumboNode *node, Env *env) {
         }
       }
       object_def(obj.object_value, "children", children, env);
+      object_def(obj.object_value, "line", create_int(node->v.element.start_pos.line), env);
       return obj;
     }
     case GUMBO_NODE_ELEMENT: {
@@ -393,6 +395,7 @@ static Value convert_gumbo_node(GumboNode *node, Env *env) {
       object_def(obj.object_value, "children", children, env);
       object_def(obj.object_value, "self_closing",
           node->v.element.original_end_tag.length == 0 ? true_value : false_value, env);
+      object_def(obj.object_value, "line", create_int(node->v.element.start_pos.line), env);
       return obj;
     }
     case GUMBO_NODE_TEXT:
@@ -402,6 +405,7 @@ static Value convert_gumbo_node(GumboNode *node, Env *env) {
       Value obj = create_object(2, env->arena);
       object_def(obj.object_value, "type", create_symbol(get_symbol("comment", env->symbol_map)), env);
       object_def(obj.object_value, "comment", copy_c_string(node->v.text.text, env->arena), env);
+      object_def(obj.object_value, "line", create_int(node->v.text.start_pos.line), env);
       return obj;
     }
     case GUMBO_NODE_WHITESPACE:
@@ -581,4 +585,18 @@ void html_set_attribute(Value node, const char *attribute_name, String *string_v
       object_def(attributes.object_value, attribute_name, value, env);
     }
   }
+}
+
+void html_error(Value node, const Path *path, const char *format, ...) {
+  va_list va;
+  Value line;
+  if (node.type == V_OBJECT && object_get_symbol(node.object_value, "line", &line) && line.type == V_INT) {
+    fprintf(stderr, SGR_BOLD "%s:%" PRId64 ": " ERROR_LABEL, path->path, line.int_value);
+  } else {
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL, path->path);
+  }
+  va_start(va, format);
+  vfprintf(stderr, format, va);
+  va_end(va);
+  fprintf(stderr, SGR_RESET "\n");
 }

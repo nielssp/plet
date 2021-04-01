@@ -39,5 +39,6 @@ Value html_create_element(const char *tag_name, int self_closing, Env *env);
 void html_append_child(Value node, Value child, Arena *arena);
 Value html_get_attribute(Value node, const char *attribute_name);
 void html_set_attribute(Value node, const char *attribute_name, String *value, Env *env);
+void html_error(Value node, const Path *path, const char *format, ...);
 
 #endif
