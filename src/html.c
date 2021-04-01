@@ -17,16 +17,24 @@
 #include <gumbo.h>
 #endif
 
-static void html_encode_byte(StringBuffer *buffer, uint8_t byte) {
+static void html_encode_byte(StringBuffer *buffer, uint8_t byte, int quotes) {
   switch (byte) {
     case '&':
       string_buffer_printf(buffer, "&amp;");
       break;
     case '"':
-      string_buffer_printf(buffer, "&quot;");
+      if (quotes) {
+        string_buffer_printf(buffer, "&quot;");
+      } else {
+        string_buffer_put(buffer, byte);
+      }
       break;
     case '\'':
-      string_buffer_printf(buffer, "&#39;");
+      if (quotes) {
+        string_buffer_printf(buffer, "&#39;");
+      } else {
+        string_buffer_put(buffer, byte);
+      }
       break;
     case '<':
       string_buffer_printf(buffer, "&lt;");
@@ -47,13 +55,13 @@ static Value h(const Tuple *args, Env *env) {
   switch (value.type) {
     case V_SYMBOL:
       while (*value.symbol_value) {
-        html_encode_byte(&buffer, *value.symbol_value);
+        html_encode_byte(&buffer, *value.symbol_value, 1);
         value.symbol_value++;
       }
       break;
     case V_STRING:
       for (size_t i = 0; i < value.string_value->size; i++) {
-        html_encode_byte(&buffer, value.string_value->bytes[i]);
+        html_encode_byte(&buffer, value.string_value->bytes[i], 1);
       }
       break;
     default:
@@ -106,13 +114,13 @@ static Value href(const Tuple *args, Env *env) {
   StringBuffer buffer = create_string_buffer(0, env->arena);
   string_buffer_printf(&buffer, " href=\"");
   for (size_t i = 0; i < path.string_value->size; i++) {
-    html_encode_byte(&buffer, path.string_value->bytes[i]);
+    html_encode_byte(&buffer, path.string_value->bytes[i], 1);
   }
   string_buffer_printf(&buffer, "\"");
   if (class.string_value->size) {
     string_buffer_printf(&buffer, " class=\"");
     for (size_t i = 0; i < class.string_value->size; i++) {
-      html_encode_byte(&buffer, class.string_value->bytes[i]);
+      html_encode_byte(&buffer, class.string_value->bytes[i], 1);
     }
     string_buffer_printf(&buffer, "\"");
   }
@@ -139,7 +147,7 @@ static void html_to_string(Value node, StringBuffer *buffer, Env *env) {
               string_buffer_put(buffer, '=');
               string_buffer_put(buffer, '"');
               for (size_t i = 0; i < value.string_value->size; i++) {
-                html_encode_byte(buffer, value.string_value->bytes[i]);
+                html_encode_byte(buffer, value.string_value->bytes[i], 1);
               }
               string_buffer_put(buffer, '"');
             }
@@ -166,7 +174,7 @@ static void html_to_string(Value node, StringBuffer *buffer, Env *env) {
     }
   } else if (node.type == V_STRING) {
     for (size_t i = 0; i < node.string_value->size; i++) {
-      html_encode_byte(buffer, node.string_value->bytes[i]);
+      html_encode_byte(buffer, node.string_value->bytes[i], 0);
     }
   }
 }
