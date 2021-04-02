@@ -569,10 +569,15 @@ int array_pop(Array *array, Value *elem) {
 }
 
 void array_unshift(Array *array, Value elem, Arena *arena) {
-  size_t new_capacity = array->capacity + 1;
-  Value *new_cells = arena_allocate(new_capacity * sizeof(Value), arena);
-  memcpy(new_cells + 1, array->cells, array->capacity * sizeof(Value));
-  array->capacity = new_capacity;
+  if (array->size >= array->capacity) {
+    size_t new_capacity = array->capacity << 1;
+    Value *new_cells = arena_allocate(new_capacity * sizeof(Value), arena);
+    memcpy(new_cells + 1, array->cells, array->capacity * sizeof(Value));
+    array->cells = new_cells;
+    array->capacity = new_capacity;
+  } else {
+    memmove(array->cells + 1, array->cells, array->size * sizeof(Value));
+  }
   array->cells[0] = elem;
   array->size++;
 }

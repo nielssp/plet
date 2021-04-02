@@ -41,6 +41,21 @@ static void test_array_push(void) {
   delete_arena(arena);
 }
 
+static void test_array_unshift(void) {
+  Arena *arena = create_arena();
+  Value array = create_array(0, arena);
+  for (size_t i = 0; i < 1000; i++) {
+    array_unshift(array.array_value, create_int(i), arena);
+  }
+  assert(array.array_value->size == 1000);
+  for (size_t i = 0; i < 1000; i++) {
+    Value elem = array.array_value->cells[i];
+    assert(elem.type == V_INT);
+    assert(elem.int_value == 999 - i);
+  }
+  delete_arena(arena);
+}
+
 static void test_array_remove(void) {
   Arena *arena = create_arena();
   Value array = create_array(0, arena);
@@ -97,6 +112,7 @@ static void test_reallocate_string(void) {
 void test_value(void) {
   run_test(test_env);
   run_test(test_array_push);
+  run_test(test_array_unshift);
   run_test(test_array_remove);
   run_test(test_allocate_string);
   run_test(test_reallocate_string);

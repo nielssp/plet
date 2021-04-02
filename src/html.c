@@ -555,6 +555,15 @@ Value html_create_element(const char *tag_name, int self_closing, Env *env) {
   return node;
 }
 
+void html_prepend_child(Value node, Value child, Arena *arena) {
+  if (node.type == V_OBJECT) {
+    Value children;
+    if (object_get_symbol(node.object_value, "children", &children) && children.type == V_ARRAY) {
+      array_unshift(children.array_value, child, arena);
+    }
+  }
+}
+
 void html_append_child(Value node, Value child, Arena *arena) {
   if (node.type == V_OBJECT) {
     Value children;
