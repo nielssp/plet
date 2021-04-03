@@ -19,7 +19,7 @@ static void shell_encode_byte(StringBuffer *buffer, uint8_t byte) {
     case '\0':
       break;
     case '\'':
-      string_buffer_printf(buffer, "\\'");
+      string_buffer_printf(buffer, "'\\''");
       break;
     default:
       string_buffer_put(buffer, byte);

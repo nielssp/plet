@@ -105,6 +105,7 @@ static InterpreterResult eval_apply(Node node, Env *env) {
     }
     return RESULT_VALUE(return_value);
   } else if (callee.type == V_CLOSURE) {
+    Env *closure_env = create_child_env(callee.closure_value->env);
     int i = 0;
     NameList *params = callee.closure_value->params;
     while (params) {
@@ -114,11 +115,11 @@ static InterpreterResult eval_apply(Node node, Env *env) {
       } else {
         arg = nil_value;
       }
-      env_put(params->head, arg, callee.closure_value->env);
+      env_put(params->head, arg, closure_env);
       params = params->tail;
       i++;
     }
-    result = interpret(callee.closure_value->body, callee.closure_value->env);
+    result = interpret(callee.closure_value->body, closure_env);
     return RESULT_VALUE(result.value);
   } else {
     if (!suppress || callee.type != V_NIL) {
