@@ -19,8 +19,10 @@ export pygmentize = node => do
       code = text_content(node)
       if language == 'tsc'
         lexer_arg = "-x -l {shell_escape("{SRC_ROOT}/pygments/lexers.py:TscLexer")}"
-      else if language == 'tsc-template'
-        lexer_arg = "-x -l {shell_escape("{SRC_ROOT}/pygments/lexers.py:TscTemplateLexer")}"
+      else if language == 'txt+tsc'
+        lexer_arg = "-x -l {shell_escape("{SRC_ROOT}/pygments/lexers.py:TxtTscLexer")}"
+      else if language == 'html+tsc'
+        lexer_arg = "-x -l {shell_escape("{SRC_ROOT}/pygments/lexers.py:HtmlTscLexer")}"
       else
         lexer_arg = "-l {shell_escape(language)}"
       end if

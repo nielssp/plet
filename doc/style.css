@@ -166,7 +166,7 @@ code .k, code .kt {
   font-weight: bold;
 }
 
-code .s, code .s1, code .cpf, code .cp {
+code .s, code .s1, code .cpf {
   color: #24b;
 }
 
@@ -180,6 +180,13 @@ code .m, code .mi, code .mf, code .kc {
 
 code .cp, code .cm, code .c1 {
   color: #888;
+}
+
+code .cp {
+  font-weight: bold;
+}
+
+code .cm, code .c1 {
   font-style: italic;
 }
 
