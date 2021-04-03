@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>{content.title | h}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="stylesheet" type="text/css" href="{'style.css' | link}"/>
+  </head>
+  <body>
+    <header>
+      <h1>{content.title | h}</h1>
+    </header>
+    <div id="toc">
+      <h2>Contents</h2>
+      <ul>
+        <li><a href="#">{content.title | h}</a></li>
+        {for section in content.toc}
+        <li>
+          <a href="#{section.id | h}">{section.number}. {section.title | h}</a>
+          {if section.children?}
+          <ul>
+            {for subsection in section.children}
+            <li>
+              <a href="#{subsection.id | h}">{subsection.number}. {subsection.title | h}</a>
+              {if subsection.children?}
+              <ul>
+                {for subsubsection in subsection.children}
+                <li>
+                  <a href="#{subsubsection.id | h}">{subsubsection.number}. {subsubsection.title | h}</a>
+                </li>
+                {end for}
+              </ul>
+              {end if}
+            </li>
+            {end for}
+          </ul>
+          {end if}
+        </li>
+        {end for}
+      </ul>
+    </div>
+    <article>
+      {content.html | no_title | pygmentize | links | html}
+    </article>
+  </body>
+</html>

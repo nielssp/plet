@@ -2,22 +2,22 @@ TARGET = tsc
 CFLAGS = -Wall -pedantic -std=c11 -Wstrict-prototypes -Wmissing-prototypes -Wshadow
 LDFLAGS = 
 
-ifneq ($(WITH_UNICODE), 0)
+ifneq ($(UNICODE), 0)
 	LDFLAGS += $(shell pkg-config --libs icu-uc icu-i18n)
 	CFLAGS += -DWITH_UNICODE $(shell pkg-config --cflags icu-uc icu-i18n)
 endif
 
-ifneq ($(WITH_MARKDOWN), 0)
+ifneq ($(MARKDOWN), 0)
 	LDFLAGS += $(shell pkg-config --libs md4c-html)
 	CFLAGS += -DWITH_MARKDOWN $(shell pkg-config --cflags md4c-html)
 endif
 
-ifneq ($(WITH_GUMBO), 0)
+ifneq ($(GUMBO), 0)
 	LDFLAGS += $(shell pkg-config --libs gumbo)
 	CFLAGS += -DWITH_GUMBO $(shell pkg-config --cflags gumbo)
 endif
 
-ifneq ($(WITH_IMAGEMAGICK), 0)
+ifneq ($(IMAGEMAGICK), 0)
 	LDFLAGS += $(shell pkg-config --libs MagickWand)
 	CFLAGS += -DWITH_IMAGEMAGICK $(shell pkg-config --cflags MagickWand)
 endif

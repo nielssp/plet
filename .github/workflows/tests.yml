@@ -16,4 +16,4 @@ jobs:
     - name: Install dependencies
       run: sudo apt install valgrind libicu-dev
     - name: Build and run tests
-      run: make WITH_GUMBO=0 WITH_MARKDOWN=0 WITH_IMAGEMAGICK=0 test
+      run: make GUMBO=0 MARKDOWN=0 IMAGEMAGICK=0 test

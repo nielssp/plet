@@ -1,6 +1,16 @@
-# TEXSTEP Template Compiler
+{
+  numbered_headings: 6,
+}
+# TSC: The Complete Reference
 
-## Token grammar
+<!--include:./introduction/index.md-->
+<!--include:./installation/index.md-->
+<!--include:./cli/index.md-->
+
+
+## Language reference
+
+### Lexical structure
 
 ```
 tokenStream ::= {text | comment | command}
@@ -85,7 +95,7 @@ string ::= "'" {(any / ("\\" | "'")) | '\\' escape} "'"
 verbatim ::= '"""'  {any / '"""'} '"""'
 ```
 
-## Syntax
+### Syntax
 
 ```
 Template ::= {Statements | text}
@@ -174,7 +184,7 @@ Atom ::= "[" [Expression {"," Expression} [","]] "]"   -- ignore lf
        | name ["?"]
 ```
 
-### Syntax transformations
+#### Syntax transformations
 
 ```
 "." name_1 {"." name_n}
@@ -188,7 +198,7 @@ PipeLine "|" name ["(" [Expression_1 {"," Expression_n} [","]] ")"]
 name "(" PipeLine ["," Expression_1 {"," Expression_n}] ")"
 ```
 
-## Types
+### Types
 nil
 true
 false
@@ -203,13 +213,13 @@ symbol
 
 any
 
-### Boolean
+#### Boolean
 
 Falsy valus: nil, false, 0, 0.0, [], {}, ''
 
-## Modules
+### Modules
 
-### core
+#### core
 ```
 nil: nil
 false: false
@@ -224,7 +234,7 @@ warning(message: string): nil
 info(message: string): nil
 ```
 
-### strings
+#### strings
 ```
 lower(str: string): string
 upper(str: string): string
@@ -235,7 +245,7 @@ symbol(str: string): symbol
 json(var: any): string
 ```
 
-### collections
+#### collections
 
 ```
 length(collection: array|object|string): int
@@ -262,7 +272,7 @@ contains(obj: array|object, key: any): true|false
 delete(obj: object, key: any): true|false
 ```
 
-### datetime
+#### datetime
 
 ```
 now(): time
@@ -272,7 +282,7 @@ iso8601(time: time|string|int): string
 rfc2822(time: time|string|int): string
 ```
 
-### template
+#### template
 ```
 embed(name: string, data: object?): string
 link(link: string?): string
@@ -284,7 +294,7 @@ page_link(page: int, path: string? = PAGE.path): string
 filter_content(content: object, filters: array?): string
 ```
 
-### html
+#### html
 ```
 h(str: string): string
 href(link: string?, class: string?): string
@@ -297,7 +307,7 @@ text_content(node: html_node): string
 parse_html(src: string): html_node
 ```
 
-### sitemap
+#### sitemap
 ```
 add_static(path: string): nil
 add_reverse(content_path: string, path: string): nil
@@ -305,14 +315,14 @@ add_page(path: string, template: string, data: object?): nil
 paginate(items: array, per_page: int, path: string, template: string, data: object?): nil
 ```
 
-### contentmap
+#### contentmap
 
 ```
 list_content(path: string, options: {recursive: boolean, suffix: string}?): array
 read_content(path: string): object
 ```
 
-## exec
+#### exec
 ```
 shell_escape(value: any): string
 exec(command: string, ... args: any): string

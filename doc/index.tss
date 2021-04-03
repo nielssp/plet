@@ -1,0 +1,37 @@
+content = read_content('index.md')
+add_static('style.css')
+add_page('index.html', 'index.tss.html', {content: content})
+
+import('html')
+
+export pygmentize = node => do
+  if type(node) != 'object'
+    return node
+  end if
+  if node.tag? == symbol('code') and node.attributes?.class?
+    language = node.attributes.class | lower
+    if language | starts_with('lang-')
+      language = language | drop(5)
+    else if language | starts_with('language-')
+      language = language | drop(9)
+    end if
+    if language and language != 'nohighlight'
+      code = text_content(node)
+      if language == 'tsc'
+        lexer_arg = "-x -l {shell_escape("{SRC_ROOT}/pygments/lexers.py:TscLexer")}"
+      else if language == 'tsc-template'
+        lexer_arg = "-x -l {shell_escape("{SRC_ROOT}/pygments/lexers.py:TscTemplateLexer")}"
+      else
+        lexer_arg = "-l {shell_escape(language)}"
+      end if
+      node.children = [
+        "echo {shell_escape(code)} | pygmentize {lexer_arg} -f html -O nowrap=True" | exec | parse_html
+      ]
+    end if
+  else
+    for child in node.children? or []
+      pygmentize(child)
+    end for
+  end if
+  return node
+end do
