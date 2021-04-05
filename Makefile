@@ -22,6 +22,10 @@ ifneq ($(IMAGEMAGICK), 0)
 	CFLAGS += -DWITH_IMAGEMAGICK $(shell pkg-config --cflags MagickWand)
 endif
 
+ifeq ($(MUSL), 1)
+	CFLAGS += -DMUSL
+endif
+
 SOURCES := $(wildcard src/*.c)
 OBJECTS := $(SOURCES:.c=.o)
 
