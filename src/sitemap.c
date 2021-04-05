@@ -9,6 +9,7 @@
 #include "alloca.h"
 #include "build.h"
 #include "interpreter.h"
+#include "module.h"
 #include "strings.h"
 
 #include <dirent.h>
@@ -363,6 +364,7 @@ void import_sitemap(Env *env) {
 static int compile_page(PageInfo page, Env *env) {
   switch (page.type) {
     case P_COPY:
+      load_asset_module(page.src, env);
       return copy_file(page.src->path, page.dest->path);
     case P_TEMPLATE: {
       int status = 0;
