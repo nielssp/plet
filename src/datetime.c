@@ -189,22 +189,15 @@ static Value rfc2822(const Tuple *args, Env *env) {
     arg_error(0, "time|int|string", args, env);
     return nil_value;
   }
-  struct tm *t = localtime(&arg);
-  if (t) {
-    char timezone[10];
-    if (!strftime(timezone, sizeof(timezone), " %z", t)) {
-      timezone[0] = '\0';
-    }
-    Buffer buffer = create_buffer(32);
-    buffer_printf(&buffer, "%s, %d %s %d %d:%d:%d%s", rfc2822_day_names[t->tm_wday], t->tm_mday,
-        rfc2822_month_names[t->tm_mon], t->tm_year + 1900, t->tm_hour, t->tm_min, t->tm_sec, timezone);
+  Buffer buffer = create_buffer(32);
+  if (rfc2822_date(arg, &buffer)) {
     Value output = create_string(buffer.data, buffer.size, env->arena);
     delete_buffer(buffer);
     return output;
-  } else {
-    env_error(env, -1, "date formatting error: %s", strerror(errno));
-    return nil_value;
   }
+  delete_buffer(buffer);
+  env_error(env, -1, "date formatting error: %s", strerror(errno));
+  return nil_value;
 }
 
 void import_datetime(Env *env) {
@@ -213,4 +206,19 @@ void import_datetime(Env *env) {
   env_def_fn("date", date, env);
   env_def_fn("iso8601", iso8601, env);
   env_def_fn("rfc2822", rfc2822, env);
+}
+
+int rfc2822_date(time_t timestamp, Buffer *buffer) {
+  struct tm *t = localtime(&timestamp);
+  if (t) {
+    char timezone[10];
+    if (!strftime(timezone, sizeof(timezone), " %z", t)) {
+      timezone[0] = '\0';
+    }
+    buffer_printf(buffer, "%s, %d %s %d %d:%d:%d%s", rfc2822_day_names[t->tm_wday], t->tm_mday,
+        rfc2822_month_names[t->tm_mon], t->tm_year + 1900, t->tm_hour, t->tm_min, t->tm_sec, timezone);
+    return 1;
+  } else {
+    return 0;
+  }
 }

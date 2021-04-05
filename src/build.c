@@ -43,7 +43,7 @@ static void import_build_info(BuildInfo *build_info, Env *env) {
 
 Module *get_template(const Path *name, Env *env) {
   Module *m = get_module(name, env->modules);
-  if (m) {
+  if (m && !m->dirty) {
     if (m->type != M_USER) {
       return NULL;
     }
@@ -135,18 +135,18 @@ Value eval_template(Module *module, Env *env) {
   return content;
 }
 
-static int eval_script(FILE *file, const Path *file_name, BuildInfo *build_info) {
+static Env *eval_script(FILE *file, const Path *file_name, BuildInfo *build_info) {
   Reader *reader = open_reader(file, file_name, build_info->symbol_map);
   TokenStream tokens = read_all(reader, 0);
   if (reader_errors(reader)) {
     close_reader(reader);
-    return 0;
+    return NULL;
   }
   Module *module = parse(tokens, file_name);
   close_reader(reader);
   if (module->user_value.parse_error) {
     delete_module(module);
-    return 0;
+    return NULL;
   }
   add_module(module, build_info->modules);
 
@@ -156,9 +156,7 @@ static int eval_script(FILE *file, const Path *file_name, BuildInfo *build_info)
   import_markdown(env);
   import_build_info(build_info, env);
   interpret(*module->user_value.root, env);
-  compile_pages(env);
-  delete_arena(env->arena);
-  return 1;
+  return env;
 }
 
 Path *get_dist_path(const Path *path, Env *env) {
@@ -308,39 +306,19 @@ Path *find_project_root(void) {
   return NULL;
 }
 
-int build(GlobalArgs args) {
-  Path *cwd = get_cwd_path();
-  Path *index_path = path_append(cwd, "index.plet");
+Env *eval_index(Path *src_root, ModuleMap *modules, SymbolMap *symbol_map) {
+  Env *env = NULL;
+  Path *index_path = path_append(src_root, "index.plet");
   FILE *index = fopen(index_path->path, "r");
-  if (!index) {
-    while (1) {
-      Path *parent = path_get_parent(cwd);
-      if (parent->size >= cwd->size) {
-        delete_path(parent);
-        break;
-      }
-      delete_path(cwd);
-      cwd = parent;
-      delete_path(index_path);
-      index_path = path_append(cwd, "index.plet");
-      index = fopen(index_path->path, "r");
-      if (index) {
-        break;
-      }
-    }
-  }
   if (index) {
     fprintf(stderr, INFO_LABEL "building %s" SGR_RESET "\n", index_path->path);
     BuildInfo build_info;
-    build_info.src_root = cwd;
-    build_info.dist_root = path_append(cwd, "dist");
+    build_info.src_root = src_root;
+    build_info.dist_root = path_append(src_root, "dist");
     if (mkdir_rec(build_info.dist_root->path)) {
-      build_info.symbol_map = create_symbol_map();
-      build_info.modules = create_module_map();
-      add_system_modules(build_info.modules);
-      eval_script(index, index_path, &build_info);
-      delete_symbol_map(build_info.symbol_map);
-      delete_module_map(build_info.modules);
+      build_info.symbol_map = symbol_map;
+      build_info.modules = modules;
+      env = eval_script(index, index_path, &build_info);
     }
     delete_path(build_info.dist_root);
     fclose(index);
@@ -348,6 +326,59 @@ int build(GlobalArgs args) {
     fprintf(stderr, ERROR_LABEL "index.plet not found" SGR_RESET "\n");
   }
   delete_path(index_path);
-  delete_path(cwd);
+  return env;
+}
+
+int build(GlobalArgs args) {
+  Path *src_root = find_project_root();
+  if (src_root) {
+    ModuleMap *modules = create_module_map();
+    SymbolMap *symbol_map = create_symbol_map();
+    add_system_modules(modules);
+    Env *env = eval_index(src_root, modules, symbol_map);
+    if (env) {
+      compile_pages(env);
+      delete_arena(env->arena);
+    }
+    delete_module_map(modules);
+    delete_symbol_map(symbol_map);
+    delete_path(src_root);
+  } else {
+    fprintf(stderr, ERROR_LABEL "index.plet not found" SGR_RESET "\n");
+  }
+  return 0;
+}
+
+int watch(GlobalArgs args) {
+  Path *src_root = find_project_root();
+  if (src_root) {
+    ModuleMap *modules = create_module_map();
+    SymbolMap *symbol_map = create_symbol_map();
+    add_system_modules(modules);
+    Env *env = eval_index(src_root, modules, symbol_map);
+    if (env) {
+      compile_pages(env);
+      delete_arena(env->arena);
+    }
+    while (1) {
+      struct timespec delay;
+      delay.tv_sec = 0;
+      delay.tv_nsec = 100000000L;
+      nanosleep(&delay, NULL);
+      if (detect_changes(modules)) {
+        fprintf(stderr, INFO_LABEL "changes detected" SGR_RESET "\n");
+        env = eval_index(src_root, modules, symbol_map);
+        if (env) {
+          compile_pages(env);
+          delete_arena(env->arena);
+        }
+      }
+    }
+    delete_module_map(modules);
+    delete_symbol_map(symbol_map);
+    delete_path(src_root);
+  } else {
+    fprintf(stderr, ERROR_LABEL "index.plet not found" SGR_RESET "\n");
+  }
   return 0;
 }

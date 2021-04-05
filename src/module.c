@@ -75,7 +75,12 @@ Module *get_module(const Path *file_name, ModuleMap *module_map) {
 }
 
 void add_module(Module *module, ModuleMap *module_map) {
-  generic_hash_map_add(&module_map->map, &(ModuleEntry) { .key = module->file_name, .value = module });
+  ModuleEntry existing;
+  int exists;
+  generic_hash_map_set(&module_map->map, &(ModuleEntry) { .key = module->file_name, .value = module }, &exists, &existing);
+  if (exists) {
+    delete_module(existing.value);
+  }
 }
 
 void add_system_module(const char *name, void (*import_func)(Env *), ModuleMap *module_map) {
@@ -83,6 +88,7 @@ void add_system_module(const char *name, void (*import_func)(Env *), ModuleMap *
   module->type = M_SYSTEM;
   module->file_name = create_path(name, -1);
   module->mtime = 0;
+  module->dirty = 0;
   module->system_value.import_func = import_func;
   add_module(module, module_map);
 }
@@ -104,6 +110,7 @@ Module *create_module(const Path *file_name, ModuleType type) {
   module->type = type;
   module->file_name = copy_path(file_name);
   module->mtime = get_mtime(file_name->path);
+  module->dirty = 0;
   switch (type) {
     case M_SYSTEM:
       module->system_value.import_func = NULL;
@@ -154,7 +161,7 @@ Path *get_src_path(const Path *path, Env *env) {
 
 Module *load_user_module(const Path *name, Env *env) {
   Module *m = get_module(name, env->modules);
-  if (m) {
+  if (m && !m->dirty) {
     if (m->type != M_USER) {
       return NULL;
     }
@@ -185,7 +192,7 @@ Module *load_user_module(const Path *name, Env *env) {
 
 Module *load_data_module(const Path *name, Env *env) {
   Module *m = get_module(name, env->modules);
-  if (m) {
+  if (m && !m->dirty) {
     if (m->type != M_DATA) {
       return NULL;
     }
@@ -216,18 +223,53 @@ Module *load_data_module(const Path *name, Env *env) {
 
 Module *load_asset_module(const Path *name, Env *env) {
   Module *m = get_module(name, env->modules);
-  if (m) {
-    if (m->type != M_ASSET) {
-      return NULL;
-    }
+  if (m && !m->dirty) {
     return m;
   }
-  return create_module(name, M_ASSET);
+  m = create_module(name, M_ASSET);
+  add_module(m, env->modules);
+  return m;
+}
+
+Value read_asset_module(const Path *name, Env *env) {
+  Module *m = get_module(name, env->modules);
+  if (m && !m->dirty) {
+    if (m->type != M_ASSET) {
+      return nil_value;
+    }
+  } else {
+    m = create_module(name, M_ASSET);
+    add_module(m, env->modules);
+  }
+  FILE *file = fopen(name->path, "r");
+  if (!file) {
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", name->path, strerror(errno));
+    return nil_value;
+  }
+  Buffer buffer = create_buffer(8192);
+  size_t n;
+  do {
+    if (buffer.size) {
+      buffer.capacity += 8192;
+      buffer.data = reallocate(buffer.data, buffer.capacity);
+    }
+    n = fread(buffer.data, 1, 8192, file);
+    buffer.size += n;
+  } while (n == 8192);
+  Value content = nil_value;
+  if (!feof(file)) {
+    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "read error: %s" SGR_RESET "\n", name->path, strerror(errno));
+  } else {
+    content = create_string(buffer.data, buffer.size, env->arena);
+  }
+  delete_buffer(buffer);
+  fclose(file);
+  return content;
 }
 
 Module *load_module(const Path *name, Env *env) {
   Module *m = get_module(name, env->modules);
-  if (m) {
+  if (m && !m->dirty) {
     return m;
   }
   Path *path = get_src_path(name, env);
@@ -293,4 +335,20 @@ Value import_module(Module *module, Env *env) {
       return path_to_string(module->file_name, env->arena);
   }
   return nil_value;
+}
+
+int detect_changes(ModuleMap *modules) {
+  int changed = 0;
+  ModuleEntry entry;
+  HashMapIterator it = generic_hash_map_iterate(&modules->map);
+  while (generic_hash_map_next(&it, &entry)) {
+    if (entry.value->type == M_SYSTEM) {
+      continue;
+    }
+    if (entry.value->dirty || entry.value->mtime != get_mtime(entry.value->file_name->path)) {
+      entry.value->dirty = 1;
+      changed = 1;
+    }
+  }
+  return changed;
 }

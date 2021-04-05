@@ -23,9 +23,12 @@ Path *get_src_path(const Path *path, Env *env);
 Module *load_asset_module(const Path *name, Env *env);
 Module *load_data_module(const Path *name, Env *env);
 Module *load_user_module(const Path *name, Env *env);
+Value read_asset_module(const Path *name, Env *env);
 Module *load_module(const Path *name, Env *env);
 
 Env *create_user_env(Module *module, ModuleMap *modules, SymbolMap *symbol_map);
 Value import_module(Module *module, Env *env);
+
+int detect_changes(ModuleMap *modules);
 
 #endif

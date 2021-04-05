@@ -160,6 +160,7 @@ header h1 {
     display: flex;
     background-color: #f7f7f7;
     padding: 0 1rem;
+    z-index: 1;
   }
 
   #toc-toggle-button {
@@ -177,6 +178,7 @@ header h1 {
   #toc {
     top: 32px;
     left: -20rem;
+    z-index: 1;
   }
 
   #toc-toggle-button:hover {

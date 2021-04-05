@@ -64,6 +64,7 @@ struct Module {
   ModuleType type;
   Path *file_name;
   time_t mtime;
+  int dirty;
   union {
     struct {
       void (*import_func)(Env *);

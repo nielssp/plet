@@ -109,6 +109,7 @@ static HtmlTransformation transform_content_includes(Value node, void *context) 
             comment.string_value->size - sizeof("include:") + 1);
         Path *abs_path = path_join(args->dir, path, 1);
         Value replacement = create_string(NULL, 0, args->env->arena);
+        load_asset_module(abs_path, args->env);
         FILE *file = fopen(abs_path->path, "r");
         if (file) {
           Value front_matter = create_object(0, args->env->arena);
@@ -411,7 +412,8 @@ static Value create_content_object(const Path *path, const char *name, PathStack
     }
   }
   object_def(obj.object_value, "name", name_value, env);
-  object_def(obj.object_value, "modified", create_time(get_mtime(path->path)), env);
+  Module *m = load_asset_module(path, env);
+  object_def(obj.object_value, "modified", create_time(m->mtime), env);
   FILE *file = fopen(path->path, "r");
   if (!file) {
     fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", path->path, strerror(errno));

@@ -435,7 +435,7 @@ int compile_pages(Env *env) {
       continue;
     }
     Path *site_path = path_get_relative(dist_root, page.dest);
-    fprintf(stderr, "[%zd/%zd] Processing %-50.*s\r", i, site_map.array_value->size,
+    fprintf(stderr, "[%zd/%zd] Processing %-50.*s\r", i + 1, site_map.array_value->size,
         site_path->size > 50 ? 50 : (int) site_path->size, site_path->path);
     fflush(stderr);
     delete_path(site_path);

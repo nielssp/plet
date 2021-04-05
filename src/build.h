@@ -15,6 +15,7 @@ typedef struct {
   int argc;
   char **argv;
   int parse_as_template;
+  char *port;
 } GlobalArgs;
 
 Module *get_template(const Path *name, Env *env);
@@ -23,7 +24,9 @@ void delete_template_env(Env *env);
 Value eval_template(Module *module, Env *env);
 
 Path *find_project_root(void);
+Env *eval_index(Path *src_root, ModuleMap *modules, SymbolMap *symbol_map);
 int build(GlobalArgs args);
+int watch(GlobalArgs args);
 
 Path *get_dist_path(const Path *path, Env *env);
 Path *string_to_src_path(const String *string, Env *env);

@@ -15,6 +15,7 @@
 #include "markdown.h"
 #include "parser.h"
 #include "reader.h"
+#include "server.h"
 #include "sitemap.h"
 #include "strings.h"
 
@@ -25,12 +26,13 @@
 #include <string.h>
 #include <unistd.h>
 
-const char *short_options = "hvt";
+const char *short_options = "hvtp:";
 
 const struct option long_options[] = {
   {"help", no_argument, NULL, 'h'},
   {"version", no_argument, NULL, 'v'},
   {"template", no_argument, NULL, 't'},
+  {"port", required_argument, NULL, 'p'},
   {0, 0, 0, 0}
 };
 
@@ -44,8 +46,11 @@ static void print_help(const char *program_name) {
   describe_option("h", "help", "Show help.");
   describe_option("v", "version", "Show version information.");
   describe_option("t", "template", "Parse file as a template.");
+  describe_option("p", "port", "Port for built-in web server.");
   puts("commands:");
   puts("  build             Build site from index.plet");
+  puts("  watch             Build site from index.plet and watch for changes");
+  puts("  serve             Serve site (for development/testing purposes)");
   puts("  eval <file>       Evaluate a single source file");
   puts("  init              Create a new site in the current directory");
   puts("  clean             Remove generated files");
@@ -139,6 +144,7 @@ static int clean(GlobalArgs args) {
 int main(int argc, char *argv[]) {
   GlobalArgs args;
   args.parse_as_template = 0;
+  args.port = "6500";
   int opt;
   int option_index;
   while ((opt = getopt_long(argc, argv, short_options, long_options, &option_index)) != -1) {
@@ -151,6 +157,9 @@ int main(int argc, char *argv[]) {
         return 0;
       case 't':
         args.parse_as_template = 1;
+        break;
+      case 'p':
+        args.port = optarg;
         break;
     }
   }
@@ -165,6 +174,10 @@ int main(int argc, char *argv[]) {
   args.argv = argv + optind + 1;
   if (strcmp(command, "build") == 0) {
     return build(args);
+  } else if (strcmp(command, "watch") == 0) {
+    return watch(args);
+  } else if (strcmp(command, "serve") == 0) {
+    return serve(args);
   } else if (strcmp(command, "eval") == 0) {
     return eval(args);
   } else if (strcmp(command, "init") == 0) {

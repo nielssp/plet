@@ -7,6 +7,7 @@
 #include "template.h"
 
 #include "build.h"
+#include "module.h"
 #include "strings.h"
 
 #include <errno.h>
@@ -120,30 +121,10 @@ static Value read(const Tuple *args, Env *env) {
   if (!src_path) {
     return nil_value;
   }
-  FILE *file = fopen(src_path->path, "r");
-  if (!file) {
-    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", src_path->path, strerror(errno));
-    env_error(env, -1, "error reading file");
-    free(src_path);
-    return nil_value;
-  }
-  Buffer buffer = create_buffer(8192);
-  size_t n;
-  do {
-    if (buffer.size) {
-      buffer.capacity += 8192;
-      buffer.data = reallocate(buffer.data, buffer.capacity);
-    }
-    n = fread(buffer.data, 1, 8192, file);
-    buffer.size += n;
-  } while (n == 8192);
-  if (!feof(file)) {
-    fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "read error: %s" SGR_RESET "\n", src_path->path, strerror(errno));
+  Value content = read_asset_module(src_path, env);
+  if (content.type != V_STRING) {
     env_error(env, -1, "error reading file");
   }
-  Value content = create_string(buffer.data, buffer.size, env->arena);
-  delete_buffer(buffer);
-  fclose(file);
   delete_path(src_path);
   return content;
 }
