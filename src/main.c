@@ -1,4 +1,4 @@
-/* tsc
+/* Plet
  * Copyright (c) 2021 Niels Sonnich Poulsen (http://nielssp.dk)
  * Licensed under the MIT license.
  * See the LICENSE file or http://opensource.org/licenses/MIT for more information.
@@ -45,7 +45,7 @@ static void print_help(const char *program_name) {
   describe_option("v", "version", "Show version information.");
   describe_option("t", "template", "Parse file as a template.");
   puts("commands:");
-  puts("  build             Build site from index.tss");
+  puts("  build             Build site from index.plet");
   puts("  eval <file>       Evaluate a single source file");
   puts("  init              Create a new site in the current directory");
   puts("  clean             Remove generated files");
@@ -102,15 +102,15 @@ static int eval(GlobalArgs args) {
 }
 
 static int init(GlobalArgs args) {
-  FILE *index = fopen("index.tss", "r");
+  FILE *index = fopen("index.plet", "r");
   if (index) {
-    fprintf(stderr, SGR_BOLD "index.tss: " ERROR_LABEL "file exists" SGR_RESET "\n");
+    fprintf(stderr, SGR_BOLD "index.plet: " ERROR_LABEL "file exists" SGR_RESET "\n");
     fclose(index);
     return 1;
   }
-  index = fopen("index.tss", "w");
+  index = fopen("index.plet", "w");
   if (!index) {
-    fprintf(stderr, SGR_BOLD "index.tss: " ERROR_LABEL "%s" SGR_RESET "\n", strerror(errno));
+    fprintf(stderr, SGR_BOLD "index.plet: " ERROR_LABEL "%s" SGR_RESET "\n", strerror(errno));
     return 1;
   }
   // TODO: do more stuff
@@ -147,7 +147,7 @@ int main(int argc, char *argv[]) {
         print_help(argv[0]);
         return 0;
       case 'v':
-        puts("tsc 0.1.0");
+        puts("Plet 0.1.0");
         return 0;
       case 't':
         args.parse_as_template = 1;

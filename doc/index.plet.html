@@ -7,10 +7,13 @@
     <link rel="stylesheet" type="text/css" href="{'style.css' | link}"/>
   </head>
   <body>
-    <header>
-      <h1>{content.title | h}</h1>
-    </header>
-    <div id="toc">
+    <ul id="toolbar" role="toolbar">
+      <label id="toc-toggle-button" for="toc-toggle" tabindex=0 role="button" aria-label="Show table of contents" onkeydown="event.key === 'Enter' && event.target.click()">
+        {read('menu.svg')}
+      </label>
+    </ul>
+    <input type="checkbox" id="toc-toggle"/>
+    <nav id="toc">
       <h2>Contents</h2>
       <ul>
         <li><a href="#">{content.title | h}</a></li>
@@ -38,9 +41,21 @@
         </li>
         {end for}
       </ul>
+    </nav>
+    <div id="page-wrapper">
+      <header>
+        <h1>{content.title | h}</h1>
+      </header>
+      <article>
+        {content.html | no_title | pygmentize | links | html}
+      </article>
     </div>
-    <article>
-      {content.html | no_title | pygmentize | links | html}
-    </article>
+    <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Droid+Sans+Mono:400,700">
+    <script type="text/javascript">{"""
+      document.getElementById('toc').addEventListener('click', function (e) {
+        if (e.target.tagName === 'A') {
+          document.getElementById('toc-toggle').checked = false;
+        }
+      }); """}</script>
   </body>
 </html>

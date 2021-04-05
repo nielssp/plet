@@ -1,4 +1,4 @@
-/* tsc
+/* Plet
  * Copyright (c) 2021 Niels Sonnich Poulsen (http://nielssp.dk)
  * Licensed under the MIT license.
  * See the LICENSE file or http://opensource.org/licenses/MIT for more information.
@@ -236,7 +236,7 @@ Module *load_module(const Path *name, Env *env) {
   }
   const char *extension = path_get_extension(path);
   // TODO: case insensitive
-  if (strcmp(extension, "tss") == 0) {
+  if (strcmp(extension, "plet") == 0) {
     m = load_user_module(path, env);
   } else if (strcmp(extension, "json") == 0 || strcmp(extension, "tson") == 0) {
     m = load_data_module(path, env);

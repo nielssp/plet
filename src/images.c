@@ -1,4 +1,4 @@
-/* tsc
+/* Plet
  * Copyright (c) 2021 Niels Sonnich Poulsen (http://nielssp.dk)
  * Licensed under the MIT license.
  * See the LICENSE file or http://opensource.org/licenses/MIT for more information.
@@ -85,7 +85,7 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
   if (mkdir_rec(dest_dir->path)) {
     char *extension = path_get_lowercase_extension(src_path);
     if (is_supported(extension)) {
-      TscImageInfo info = get_image_info(src_path);
+      PletImageInfo info = get_image_info(src_path);
       if (info.type == IMG_UNKNOWN) {
         env_error(args->env, ENV_ARG_ALL, "unknown image type: %s", src_path->path);
       } else if (info.type == IMG_NOT_FOUND) {
@@ -206,9 +206,9 @@ static HtmlTransformation transform_images(Value node, void *context) {
   ImageArgs *args = context;
   if (html_is_tag(node, "img")) {
     Value src = html_get_attribute(node, "src");
-    if (src.type == V_STRING && string_starts_with("tscasset:", src.string_value)) {
-      Path *asset_path = create_path((char *) src.string_value->bytes + sizeof("tscasset:") - 1,
-          src.string_value->size - (sizeof("tscasset:") - 1));
+    if (src.type == V_STRING && string_starts_with("pletasset:", src.string_value)) {
+      Path *asset_path = create_path((char *) src.string_value->bytes + sizeof("pletasset:") - 1,
+          src.string_value->size - (sizeof("pletasset:") - 1));
       Path *src_path = path_join(args->src_root, asset_path, 1);
       int attr_width, attr_height;
       get_size_attributes(node, &attr_width, &attr_height);
@@ -218,8 +218,8 @@ static HtmlTransformation transform_images(Value node, void *context) {
       Path *asset_web_path = handle_image(asset_path, src_path, &attr_width, &attr_height,
           args->link_full ? &original_asset_web_path : NULL, args);
 
-      StringBuffer new_link = create_string_buffer(sizeof("tsclink:") + asset_web_path->size, args->env->arena);
-      string_buffer_printf(&new_link, "tsclink:%s", asset_web_path->path);
+      StringBuffer new_link = create_string_buffer(sizeof("pletlink:") + asset_web_path->size, args->env->arena);
+      string_buffer_printf(&new_link, "pletlink:%s", asset_web_path->path);
       html_set_attribute(node, "src", finalize_string_buffer(new_link).string_value, args->env);
       delete_path(asset_web_path);
       delete_path(src_path);
@@ -238,9 +238,9 @@ static HtmlTransformation transform_images(Value node, void *context) {
 
       if (original_asset_web_path) {
         Value link_node = html_create_element("a", 0, args->env);
-        StringBuffer original_link = create_string_buffer(sizeof("tsclink:") + original_asset_web_path->size,
+        StringBuffer original_link = create_string_buffer(sizeof("pletlink:") + original_asset_web_path->size,
             args->env->arena);
-        string_buffer_printf(&original_link, "tsclink:%s", original_asset_web_path->path);
+        string_buffer_printf(&original_link, "pletlink:%s", original_asset_web_path->path);
         html_set_attribute(link_node, "href", finalize_string_buffer(original_link).string_value, args->env);
         html_append_child(link_node, node, args->env->arena);
         delete_path(original_asset_web_path);
@@ -315,7 +315,7 @@ static Value image_info(const Tuple *args, Env *env) {
     return nil_value;
   }
   Path *path = string_to_src_path(src.string_value, env);
-  TscImageInfo info = get_image_info(path);
+  PletImageInfo info = get_image_info(path);
   delete_path(path);
   if (info.type == IMG_UNKNOWN || IMG_NOT_FOUND) {
     return nil_value;
@@ -345,8 +345,8 @@ void import_images(Env *env) {
   env_def_fn("image_info", image_info, env);
 }
 
-static TscImageInfo get_jpeg_size(FILE *f) {
-  TscImageInfo info = { IMG_UNKNOWN };
+static PletImageInfo get_jpeg_size(FILE *f) {
+  PletImageInfo info = { IMG_UNKNOWN };
   while (1) {
     int c = fgetc(f);
     if (c == EOF) {
@@ -384,8 +384,8 @@ static TscImageInfo get_jpeg_size(FILE *f) {
   return info;
 }
 
-static TscImageInfo get_png_size(FILE *f) {
-  TscImageInfo info = { IMG_UNKNOWN };
+static PletImageInfo get_png_size(FILE *f) {
+  PletImageInfo info = { IMG_UNKNOWN };
   if (fseek(f, 8, SEEK_CUR)) {
     return info;
   }
@@ -399,8 +399,8 @@ static TscImageInfo get_png_size(FILE *f) {
   return info;
 }
 
-static TscImageInfo get_webp_size(FILE *f) {
-  TscImageInfo info = { IMG_UNKNOWN };
+static PletImageInfo get_webp_size(FILE *f) {
+  PletImageInfo info = { IMG_UNKNOWN };
   uint8_t chunk_header[4];
   if (fread(chunk_header, 1, 4, f) != 4 || memcmp(chunk_header, "VP8", 3) != 0) {
     return info;
@@ -454,8 +454,8 @@ static TscImageInfo get_webp_size(FILE *f) {
 #define RIFF_SIGNATURE "RIFF"
 #define WEBP_SIGNATURE "WEBP"
 
-TscImageInfo get_image_info(const Path *path) {
-  TscImageInfo info = { IMG_UNKNOWN };
+PletImageInfo get_image_info(const Path *path) {
+  PletImageInfo info = { IMG_UNKNOWN };
   FILE *f = fopen(path->path, "r");
   if (!f) {
     fprintf(stderr, SGR_BOLD "%s: " ERROR_LABEL "%s" SGR_RESET "\n", path->path, strerror(errno));

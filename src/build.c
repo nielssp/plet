@@ -1,4 +1,4 @@
-/* tsc
+/* Plet
  * Copyright (c) 2021 Niels Sonnich Poulsen (http://nielssp.dk)
  * Licensed under the MIT license.
  * See the LICENSE file or http://opensource.org/licenses/MIT for more information.
@@ -280,7 +280,7 @@ int copy_asset(const Path *src, const Path *dest) {
 
 Path *find_project_root(void) {
   Path *cwd = get_cwd_path();
-  Path *index_path = path_append(cwd, "index.tss");
+  Path *index_path = path_append(cwd, "index.plet");
   FILE *index = fopen(index_path->path, "r");
   if (!index) {
     while (1) {
@@ -292,7 +292,7 @@ Path *find_project_root(void) {
       delete_path(cwd);
       cwd = parent;
       delete_path(index_path);
-      index_path = path_append(cwd, "index.tss");
+      index_path = path_append(cwd, "index.plet");
       index = fopen(index_path->path, "r");
       if (index) {
         break;
@@ -310,7 +310,7 @@ Path *find_project_root(void) {
 
 int build(GlobalArgs args) {
   Path *cwd = get_cwd_path();
-  Path *index_path = path_append(cwd, "index.tss");
+  Path *index_path = path_append(cwd, "index.plet");
   FILE *index = fopen(index_path->path, "r");
   if (!index) {
     while (1) {
@@ -322,7 +322,7 @@ int build(GlobalArgs args) {
       delete_path(cwd);
       cwd = parent;
       delete_path(index_path);
-      index_path = path_append(cwd, "index.tss");
+      index_path = path_append(cwd, "index.plet");
       index = fopen(index_path->path, "r");
       if (index) {
         break;
@@ -345,7 +345,7 @@ int build(GlobalArgs args) {
     delete_path(build_info.dist_root);
     fclose(index);
   } else {
-    fprintf(stderr, ERROR_LABEL "index.tss not found" SGR_RESET "\n");
+    fprintf(stderr, ERROR_LABEL "index.plet not found" SGR_RESET "\n");
   }
   delete_path(index_path);
   delete_path(cwd);

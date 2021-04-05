@@ -1,4 +1,4 @@
-/tsc
+/plet
 /test_all
 *.o
 vgcore.*

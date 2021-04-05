@@ -2,9 +2,9 @@ from pygments.lexer import *
 from pygments.token import *
 from pygments.lexers.html import HtmlLexer
 
-class TscLexer(RegexLexer):
-    name = 'TSC'
-    aliases = ['tsc']
+class PletLexer(RegexLexer):
+    name = 'Plet'
+    aliases = ['plet']
     filenames = ['*.tss']
 
     tokens = {
@@ -23,7 +23,7 @@ class TscLexer(RegexLexer):
             (r'[\.,:|]', Punctuation),
             (r'\[', Punctuation, 'array'),
             (r'\(', Punctuation, 'expression'),
-            (r'\{', Punctuation, 'statements'),
+            (r'\{', Punctuation, 'object'),
             (r'\}', Comment.Preproc, 'template'),
             (r'"', String, 'string'),
             ('\s+', Whitespace),
@@ -43,6 +43,10 @@ class TscLexer(RegexLexer):
             (r'\}', Comment.Preproc, '#pop'),
             include('command'),
         ],
+        'object': [
+            (r'\}', Punctuation, '#pop'),
+            include('command'),
+        ],
         'array': [
             (r'\]', Punctuation, '#pop'),
             include('command'),
@@ -53,10 +57,10 @@ class TscLexer(RegexLexer):
         ],
     }
 
-class TxtTscLexer(TscLexer):
-    name = 'TXT+TSC'
-    aliases = ['txt+tsc']
-    filenames = ['*.txt.tss']
+class TxtPletLexer(PletLexer):
+    name = 'TXT+Plet'
+    aliases = ['txt+plet']
+    filenames = ['*.plet.txt']
 
     tokens = {
         'root': [
@@ -66,10 +70,10 @@ class TxtTscLexer(TscLexer):
         ],
     }
 
-class HtmlTscLexer(DelegatingLexer):
-    name = 'HTML+TSC'
-    aliases = ['html+tsc']
-    filenames = ['*.html.tss']
+class HtmlPletLexer(DelegatingLexer):
+    name = 'HTML+Plet'
+    aliases = ['html+plet']
+    filenames = ['*.plet.html']
 
     def __init__(self, **options):
-        super().__init__(HtmlLexer, TxtTscLexer, **options)
+        super().__init__(HtmlLexer, TxtPletLexer, **options)

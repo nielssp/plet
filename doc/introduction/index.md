@@ -1,11 +1,11 @@
 ## Introduction
 
-TSC is a static site generator and programming language for creating static websites. 
+Plet is a static site generator and programming language for creating static websites. 
 
 TODO
 
-```tsc-template
-{# This is a TSC template #}
+```html+plet
+{# This is a Plet template #}
 {for post in posts}
 <h2>{post.title | h}</h2>
 <div>{post.content}</div>
@@ -16,8 +16,8 @@ TODO
 {if x == nil then 5 else "test {x + 5}"}
 ```
 
-```tsc
-# This is a TSC entry script
+```plet
+# This is a Plet entry script
 export CONFIG = {
   title: 'My website',
 }

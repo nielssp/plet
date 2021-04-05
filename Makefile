@@ -1,4 +1,4 @@
-TARGET = tsc
+TARGET = plet
 CFLAGS = -Wall -pedantic -std=c11 -Wstrict-prototypes -Wmissing-prototypes -Wshadow
 LDFLAGS = 
 

@@ -1,4 +1,4 @@
-/* tsc
+/* Plet
  * Copyright (c) 2021 Niels Sonnich Poulsen (http://nielssp.dk)
  * Licensed under the MIT license.
  * See the LICENSE file or http://opensource.org/licenses/MIT for more information.
@@ -56,7 +56,7 @@ static Value shell_escape(const Tuple *args, Env *env) {
   return finalize_string_buffer(buffer);
 }
 
-static Value tsc_exec(const Tuple *args, Env *env) {
+static Value plet_exec(const Tuple *args, Env *env) {
   check_args_min(1, args, env);
   Value command_value = args->values[0];
   if (command_value.type != V_STRING) {
@@ -96,5 +96,5 @@ static Value tsc_exec(const Tuple *args, Env *env) {
 
 void import_exec(Env *env) {
   env_def_fn("shell_escape", shell_escape, env);
-  env_def_fn("exec", tsc_exec, env);
+  env_def_fn("exec", plet_exec, env);
 }

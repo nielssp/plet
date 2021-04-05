@@ -1,4 +1,4 @@
-/* tsc
+/* Plet
  * Copyright (c) 2021 Niels Sonnich Poulsen (http://nielssp.dk)
  * Licensed under the MIT license.
  * See the LICENSE file or http://opensource.org/licenses/MIT for more information.
@@ -66,14 +66,14 @@ static int transform_content_link(Value node, const char *attribute_name, Conten
     if (!is_url(src.string_value)) {
       Path *path = string_to_path(src.string_value);
       if (path_is_absolute(path)) {
-        StringBuffer buffer = create_string_buffer(path->size + sizeof("tsclink:") - 1, args->env->arena);
-        string_buffer_printf(&buffer, "tsclink:%s", path->path);
+        StringBuffer buffer = create_string_buffer(path->size + sizeof("pletlink:") - 1, args->env->arena);
+        string_buffer_printf(&buffer, "pletlink:%s", path->path);
         html_set_attribute(node, attribute_name, finalize_string_buffer(buffer).string_value, args->env);
       } else  {
         Path *asset_path = path_join(args->asset_base, path, 1);
         if (path_is_descending(asset_path)) {
-          StringBuffer buffer = create_string_buffer(asset_path->size + sizeof("tscasset:") - 1, args->env->arena);
-          string_buffer_printf(&buffer, "tscasset:%s", asset_path->path);
+          StringBuffer buffer = create_string_buffer(asset_path->size + sizeof("pletasset:") - 1, args->env->arena);
+          string_buffer_printf(&buffer, "pletasset:%s", asset_path->path);
           html_set_attribute(node, attribute_name, finalize_string_buffer(buffer).string_value, args->env);
         }
         delete_path(asset_path);

@@ -1,4 +1,4 @@
-/* tsc
+/* Plet
  * Copyright (c) 2021 Niels Sonnich Poulsen (http://nielssp.dk)
  * Licensed under the MIT license.
  * See the LICENSE file or http://opensource.org/licenses/MIT for more information.
@@ -17,14 +17,14 @@ typedef enum {
   IMG_PNG,
   IMG_JPEG,
   IMG_WEBP
-} TscImageType;
+} PletImageType;
 
 typedef struct {
-  TscImageType type;
+  PletImageType type;
   int width;
   int height;
-} TscImageInfo;
+} PletImageInfo;
 
-TscImageInfo get_image_info(const Path *path);
+PletImageInfo get_image_info(const Path *path);
 
 #endif

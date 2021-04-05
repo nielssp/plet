@@ -1,7 +1,7 @@
 {
   numbered_headings: 6,
 }
-# TSC: The Complete Reference
+# Plet: The Complete Reference
 
 <!--include:./introduction/index.md-->
 <!--include:./installation/index.md-->

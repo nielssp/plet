@@ -1,4 +1,4 @@
-/* tsc
+/* Plet
  * Copyright (c) 2021 Niels Sonnich Poulsen (http://nielssp.dk)
  * Licensed under the MIT license.
  * See the LICENSE file or http://opensource.org/licenses/MIT for more information.
@@ -35,7 +35,7 @@ static Value markdown(const Tuple *args, Env *env) {
 #ifdef WITH_MARKDOWN
   return convert_markdown(input.string_value, env);
 #else
-  env_error(env, -1, "tsc was not compiled with markdown support");
+  env_error(env, -1, "Plet was not compiled with markdown support");
   return input;
 #endif
 }

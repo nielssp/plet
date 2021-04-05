@@ -1,4 +1,4 @@
-/* tsc
+/* Plet
  * Copyright (c) 2021 Niels Sonnich Poulsen (http://nielssp.dk)
  * Licensed under the MIT license.
  * See the LICENSE file or http://opensource.org/licenses/MIT for more information.
@@ -211,9 +211,9 @@ static int transform_link(Value node, const char *attribute_name, LinkArgs *args
   if (src.type != V_STRING) {
     return 0;
   }
-  if (string_starts_with("tscasset:", src.string_value)) {
-    Path *asset_path = create_path((char *) src.string_value->bytes + sizeof("tscasset:") - 1,
-        src.string_value->size - (sizeof("tscasset:") - 1));
+  if (string_starts_with("pletasset:", src.string_value)) {
+    Path *asset_path = create_path((char *) src.string_value->bytes + sizeof("pletasset:") - 1,
+        src.string_value->size - (sizeof("pletasset:") - 1));
     Path *src_path = path_join(args->src_root, asset_path, 1);
     Value src_path_string = create_string((uint8_t *) src_path->path, src_path->size, args->env->arena);
     Value reverse_path_value;
@@ -236,9 +236,9 @@ static int transform_link(Value node, const char *attribute_name, LinkArgs *args
     }
     delete_path(src_path);
     delete_path(asset_path);
-  } else if (string_starts_with("tsclink:", src.string_value)) {
-    Path *web_path = create_path((char *) src.string_value->bytes + sizeof("tsclink:") - 1,
-        src.string_value->size - (sizeof("tsclink:") - 1));
+  } else if (string_starts_with("pletlink:", src.string_value)) {
+    Path *web_path = create_path((char *) src.string_value->bytes + sizeof("pletlink:") - 1,
+        src.string_value->size - (sizeof("pletlink:") - 1));
     html_set_attribute(node, attribute_name, get_web_path(web_path, args->absolute, args->env).string_value,
         args->env);
     delete_path(web_path);

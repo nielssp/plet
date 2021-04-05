@@ -1,6 +1,6 @@
 content = read_content('index.md')
 add_static('style.css')
-add_page('index.html', 'index.tss.html', {content: content})
+add_page('index.html', 'index.plet.html', {content: content})
 
 import('html')
 
@@ -17,12 +17,12 @@ export pygmentize = node => do
     end if
     if language and language != 'nohighlight'
       code = text_content(node)
-      if language == 'tsc'
-        lexer_arg = "-x -l {shell_escape("{SRC_ROOT}/pygments/lexers.py:TscLexer")}"
-      else if language == 'txt+tsc'
-        lexer_arg = "-x -l {shell_escape("{SRC_ROOT}/pygments/lexers.py:TxtTscLexer")}"
-      else if language == 'html+tsc'
-        lexer_arg = "-x -l {shell_escape("{SRC_ROOT}/pygments/lexers.py:HtmlTscLexer")}"
+      if language == 'plet'
+        lexer_arg = "-x -l {shell_escape("{SRC_ROOT}/pygments/lexers.py:PletLexer")}"
+      else if language == 'txt+plet'
+        lexer_arg = "-x -l {shell_escape("{SRC_ROOT}/pygments/lexers.py:TxtPletLexer")}"
+      else if language == 'html+plet'
+        lexer_arg = "-x -l {shell_escape("{SRC_ROOT}/pygments/lexers.py:HtmlPletLexer")}"
       else
         lexer_arg = "-l {shell_escape(language)}"
       end if
