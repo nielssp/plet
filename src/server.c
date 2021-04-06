@@ -15,6 +15,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <netdb.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -248,6 +249,7 @@ int serve(GlobalArgs args) {
           fprintf(stderr, ERROR_LABEL "could not listen to port %s: %s" SGR_RESET "\n", args.port, strerror(errno));
           status = 1;
         } else {
+          signal(SIGPIPE, SIG_IGN);
           fprintf(stderr, INFO_LABEL "server listening on http://localhost:%s/" SGR_RESET "\n", args.port);
           while (1) {
             struct sockaddr_in client_addr;
