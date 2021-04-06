@@ -401,6 +401,30 @@ static int compile_page(PageInfo page, Env *env) {
   return 0;
 }
 
+Value compile_page_object(Object *object, Env *env, Env **template_env) {
+  PageInfo page;
+  if (!decode_page_info((Value) { .type = V_OBJECT, .object_value = object }, &page)) {
+    fprintf(stderr, ERROR_LABEL "invalid page object" SGR_RESET "\n");
+    return nil_value;
+  }
+  Value output = nil_value;
+  switch (page.type) {
+    case P_COPY:
+      output = read_asset_module(page.src, env);
+    case P_TEMPLATE: {
+      Module *module = get_template(page.src, env);
+      if (module) {
+        *template_env = create_template_env(page.data, env);
+        env_def("PATH", copy_value(page.web_path, *template_env), *template_env);
+        output = eval_template(module, *template_env);
+      }
+    }
+  }
+  delete_path(page.src);
+  delete_path(page.dest);
+  return output;
+}
+
 void notify_output_observers(const Path *path, Env *env) {
   Value observers;
   if (!env_get_symbol("OUTPUT_OBSERVERS", &observers, env) || observers.type != V_ARRAY) {
