@@ -1,8 +1,7 @@
 ## Introduction
 
-Plet is a static site generator and programming language for creating static websites. 
-
-TODO
+Plet is a flexible static site generator, web framework, and programming language.
+Static websites (or [static web pages](https://en.wikipedia.org/wiki/Static_web_page)) are collections of HTML files and assets that are served exactly as they are stored on the web server. This provides better security, performance, and stability.
 
 ```html+plet
 {# This is a Plet template #}

@@ -75,12 +75,30 @@ static const char *get_mime_type(const char *file_extension) {
     return "text/css";
   } else if (strcmp(file_extension, "js") == 0) {
     return "text/javascript";
+  } else if (strcmp(file_extension, "png") == 0) {
+    return "image/png";
+  } else if (strcmp(file_extension, "jpeg") == 0) {
+    return "image/jpeg";
+  } else if (strcmp(file_extension, "jpg") == 0) {
+    return "image/jpeg";
+  } else if (strcmp(file_extension, "gif") == 0) {
+    return "image/gif";
+  } else if (strcmp(file_extension, "webp") == 0) {
+    return "image/webp";
+  } else if (strcmp(file_extension, "ico") == 0) {
+    return "image/x-icon";
+  } else if (strcmp(file_extension, "rss") == 0) {
+    return "application/rss+xml";
+  } else if (strcmp(file_extension, "atom") == 0) {
+    return "application/atom+xml";
+  } else if (strcmp(file_extension, "xml") == 0) {
+    return "application/xml";
   }
   return "text/plain";
 }
 
 static void inject_sse_client(int cfd) {
-  Buffer js = create_buffer(32);
+  Buffer js = create_buffer(256);
   buffer_printf(&js, "<script>");
   buffer_printf(&js, "(function() {");
   buffer_printf(&js, "var eventSource = new EventSource('/.plet-hot-reload-event-source');");

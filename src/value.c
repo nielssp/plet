@@ -379,8 +379,11 @@ static Value copy_value_detect_cycles(Value value, Env *env, RefStack *ref_stack
       ObjectIterator it = iterate_object(value.object_value);
       Value entry_key, entry_value;
       while (object_iterator_next(&it, &entry_key, &entry_value)) {
-        object_put(copy.object_value, copy_value_detect_cycles(entry_key, env, &nested),
-            copy_value_detect_cycles(entry_value, env, &nested), env->arena);
+        copy.object_value->entries[copy.object_value->size] = (Entry) {
+          .key = copy_value_detect_cycles(entry_key, env, &nested),
+          .value = copy_value_detect_cycles(entry_value, env, &nested)
+        };
+        copy.object_value->size++;
       }
       return copy;
     }
