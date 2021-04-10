@@ -30,13 +30,14 @@ typedef struct {
   Env *env;
 } ServerInfo;
 
-static void write_buffer(int fd, Buffer buffer) {
-  write(fd, buffer.data, buffer.size);
+static ssize_t write_buffer(int fd, Buffer buffer) {
+  return write(fd, buffer.data, buffer.size);
 }
 
 static void write_server_headers(int cfd, int status_code, const char *status) {
   Buffer buffer = create_buffer(32);
-  buffer_printf(&buffer, "HTTP/1.1 %d %s\r\nConnection: close\r\nAllow: GET\r\n", status_code, status);
+  buffer_printf(&buffer, "HTTP/1.1 %d %s\r\nConnection: close\r\nAllow: GET\r\nCache-Control: no-cache\r\n",
+      status_code, status);
   write_buffer(cfd, buffer);
   buffer.size = 0;
   buffer_printf(&buffer, "Date: ");
@@ -78,14 +79,63 @@ static const char *get_mime_type(const char *file_extension) {
   return "text/plain";
 }
 
+static void inject_sse_client(int cfd) {
+  Buffer js = create_buffer(32);
+  buffer_printf(&js, "<script>");
+  buffer_printf(&js, "(function() {");
+  buffer_printf(&js, "var eventSource = new EventSource('/.plet-hot-reload-event-source');");
+  buffer_printf(&js, "eventSource.addEventListener('changes_detected', function (e) {");
+  buffer_printf(&js, "console.log('Changes detected, reloading...');");
+  buffer_printf(&js, "eventSource.close();");
+  buffer_printf(&js, "location.reload();");
+  buffer_printf(&js, "});");
+  buffer_printf(&js, "})();");
+  buffer_printf(&js, "</script>");
+  write_buffer(cfd, js);
+  delete_buffer(js);
+}
+
 static void ok_response(int cfd, const char *file_extension, String *content) {
   write_server_headers(cfd, 200, "OK");
   Buffer response = create_buffer(32);
-  buffer_printf(&response, "Content-Length: %zd\r\n", content->size);
   buffer_printf(&response, "Content-Type: %s\r\n\r\n", get_mime_type(file_extension));
   write_buffer(cfd, response);
   delete_buffer(response);
+  if (strcmp(file_extension, "html") == 0) {
+    for (size_t i = 0; i < content->size - (sizeof("</body>") - 1); i++) {
+      if (memcmp(content->bytes + i, "</body>", sizeof("</body>") - 1) == 0) {
+        write(cfd, content->bytes, i);
+        inject_sse_client(cfd);
+        write(cfd, content->bytes + i, content->size - i);
+        return;
+      }
+    }
+  }
   write(cfd, content->bytes, content->size);
+}
+
+static void event_source_response(int cfd, ModuleMap *modules) {
+  write_server_headers(cfd, 200, "OK");
+  Buffer response = create_buffer(32);
+  buffer_printf(&response, "Content-Type: text/event-stream\r\n\r\n");
+  write_buffer(cfd, response);
+  int counter = 0;
+  while (1) {
+    struct timespec delay;
+    delay.tv_sec = 0;
+    delay.tv_nsec = 100000000L;
+    nanosleep(&delay, NULL);
+    response.size = 0;
+    if (detect_changes(modules)) {
+      buffer_printf(&response, "event: changes_detected\ndata:\n\n", counter++);
+    } else {
+      buffer_printf(&response, "event: no_changes\ndata:\n\n", counter++);
+    }
+    if (write_buffer(cfd, response) < 0) {
+      break;
+    }
+  }
+  delete_buffer(response);
 }
 
 static void file_response(int cfd, const Path *path) {
@@ -166,6 +216,15 @@ static void handle_request(int cfd, ServerInfo *info) {
       char *uri = get_next_token(buffer, n, &i);
       if (!uri) {
         fprintf(stderr, ERROR_LABEL "invalid request" SGR_RESET "\n");
+      } else if (strcmp(uri, "/.plet-hot-reload-event-source") == 0) {
+        free(buffer);
+        if (fork() == 0) {
+          event_source_response(cfd, info->modules);
+          shutdown(cfd, SHUT_RDWR);
+          close(cfd);
+          exit(0);
+        }
+        return;
       } else {
         Path *path = create_path(uri, -1);
         Path *dist_path = get_dist_path(path, info->env);
@@ -173,16 +232,25 @@ static void handle_request(int cfd, ServerInfo *info) {
         if (dist_path) {
           Object *page = find_in_site_map(dist_path, info->env);
           if (page) {
-            fprintf(stderr, "Compiling %s\n", dist_path->path);
+            Path *dest_path = NULL;
+            Value dest_path_value;
+            if (object_get_symbol(page, "dest", &dest_path_value) && dest_path_value.type == V_STRING) {
+              dest_path = string_to_path(dest_path_value.string_value);
+            }
+            fprintf(stderr, "Compiling %s\n", dest_path ? dest_path->path : dist_path->path);
             Env *template_env = NULL;
             Value output = compile_page_object(page, info->env, &template_env);
             if (output.type == V_STRING) {
-              ok_response(cfd, path_get_extension(dist_path), output.string_value);
+              ok_response(cfd, dest_path ? path_get_extension(dest_path) : path_get_extension(dist_path),
+                  output.string_value);
             } else {
               internal_server_error_response(cfd, "Invalid template output");
             }
             if (template_env) {
               delete_template_env(template_env);
+            }
+            if (dest_path) {
+              delete_path(dest_path);
             }
           } else {
             file_response(cfd, dist_path);
@@ -255,12 +323,22 @@ int serve(GlobalArgs args) {
             struct sockaddr_in client_addr;
             socklen_t client_addr_len = sizeof(client_addr);
             int cfd = accept(sfd, (struct sockaddr *) &client_addr, &client_addr_len);
+            if (detect_changes(info.modules)) {
+              fprintf(stderr, INFO_LABEL "changes detected" SGR_RESET "\n");
+              delete_arena(info.env->arena);
+              info.env = eval_index(info.src_root, info.modules, info.symbol_map);
+              if (!info.env) {
+                break;
+              }
+            }
             handle_request(cfd, &info);
           }
         }
       }
     }
-    delete_arena(info.env->arena);
+    if (info.env) {
+      delete_arena(info.env->arena);
+    }
   }
   delete_symbol_map(info.symbol_map);
   delete_module_map(info.modules);
