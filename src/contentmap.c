@@ -63,7 +63,7 @@ static int is_url(String *string) {
 static int transform_content_link(Value node, const char *attribute_name, ContentLinkArgs *args) {
   Value src = html_get_attribute(node, attribute_name);
   if (src.type == V_STRING) {
-    if (!is_url(src.string_value)) {
+    if (!is_url(src.string_value) && !string_starts_with("#", src.string_value)) {
       Path *path = string_to_path(src.string_value);
       if (path_is_absolute(path)) {
         StringBuffer buffer = create_string_buffer(path->size + sizeof("pletlink:") - 1, args->env->arena);
