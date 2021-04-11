@@ -118,6 +118,21 @@ void buffer_put(Buffer *buffer, uint8_t byte) {
   buffer->data[buffer->size++] = byte;
 }
 
+void buffer_append_bytes(Buffer *buffer, const uint8_t *bytes, size_t size) {
+  if (!size) {
+    return;
+  }
+  size_t new_size = buffer->size + size;
+  if (new_size > buffer->capacity) {
+    while (new_size > buffer->capacity) {
+      buffer->capacity <<= 1;
+    }
+    buffer->data = reallocate(buffer->data, buffer->capacity);
+  }
+  memcpy(buffer->data + buffer->size, bytes, size);
+  buffer->size = new_size;
+}
+
 void buffer_vprintf(Buffer *buffer, const char *format, va_list va) {
   int n;
   va_list va2;

@@ -380,12 +380,14 @@ static Value parse_content(Value content, const Path *path, Env *env) {
         Path *src_root_path = string_to_path(src_root.string_value);
         Path *abs_asset_base = path_get_parent(path);
         Path *asset_base = path_get_relative(src_root_path, abs_asset_base);
+        if (asset_base) {
+          ContentLinkArgs content_link_args = {env, asset_base};
+          html_transform(html, transform_content_links, &content_link_args);
+          ContentIncludeArgs content_include_args = {env, path, abs_asset_base};
+          html_transform(html, transform_content_includes, &content_include_args);
+          delete_path(asset_base);
+        }
         delete_path(abs_asset_base);
-        ContentLinkArgs content_link_args = {env, asset_base};
-        html_transform(html, transform_content_links, &content_link_args);
-        ContentIncludeArgs content_include_args = {env, path, asset_base};
-        html_transform(html, transform_content_includes, &content_include_args);
-        delete_path(asset_base);
         delete_path(src_root_path);
       }
     } else {

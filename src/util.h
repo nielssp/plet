@@ -78,6 +78,7 @@ char *copy_string(const char *src);
 Buffer create_buffer(size_t capacity);
 void delete_buffer(Buffer buffer);
 void buffer_put(Buffer *buffer, uint8_t byte);
+void buffer_append_bytes(Buffer *buffer, const uint8_t *bytes, size_t size);
 void buffer_vprintf(Buffer *buffer, const char *format, va_list va);
 void buffer_printf(Buffer *buffer, const char *format, ...);
 

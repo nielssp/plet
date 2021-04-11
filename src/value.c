@@ -438,9 +438,7 @@ void value_to_string(Value value, Buffer *buffer) {
       buffer_printf(buffer, "%s", value.symbol_value);
       break;
     case V_STRING:
-      for (size_t i = 0; i < value.string_value->size; i++) {
-        buffer_put(buffer, value.string_value->bytes[i]);
-      }
+      buffer_append_bytes(buffer, value.string_value->bytes, value.string_value->size);
       break;
     case V_ARRAY:
     case V_OBJECT:
