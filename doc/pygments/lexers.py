@@ -12,7 +12,7 @@ class PletLexer(RegexLexer):
             include('command'),
         ],
         'command': [
-            (r'\{\#.*?\#\}', Comment.Multiline),
+            (r'(?s)\{\#.*?\#\}', Comment.Multiline),
             (r'#.*?\n', Comment.Single),
             (r'(if|then|else|for|in|switch|case|default|end|and|or|not|do|export|return|break|continue)\b', Keyword),
             (r'(true|false|nil)\b', Keyword.Constant),
@@ -31,12 +31,12 @@ class PletLexer(RegexLexer):
         ],
         'template': [
             (r'[^{]+', String),
-            (r'\{\#.*?\#\}', Comment.Multiline),
+            (r'(?s)\{\#.*?\#\}', Comment.Multiline),
             (r'\{', Comment.Preproc, '#pop'),
         ],
         'string': [
             (r'[^"{]+', String),
-            (r'\{\#.*?\#\}', Comment.Multiline),
+            (r'(?s)\{\#.*?\#\}', Comment.Multiline),
             (r'\{', Comment.Preproc, 'statements'),
             ('"', String, '#pop'),
         ],
@@ -70,7 +70,7 @@ class TxtPletLexer(PletLexer):
     tokens = {
         'root': [
             (r'[^{]+', Other),
-            (r'\{\#.*?\#\}', Comment.Multiline),
+            (r'(?s)\{\#.*?\#\}', Comment.Multiline),
             (r'\{', Comment.Preproc, 'statements'),
         ],
     }

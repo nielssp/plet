@@ -194,9 +194,9 @@ int equals(Value a, Value b) {
   }
   switch (a.type) {
     case V_NIL:
-    case V_TRUE:
-    case V_FALSE:
       return 1;
+    case V_BOOL:
+      return !a.int_value == !b.int_value;
     case V_INT:
       return a.int_value == b.int_value;
     case V_FLOAT:
@@ -256,10 +256,8 @@ int equals(Value a, Value b) {
 int is_truthy(Value value) {
   switch (value.type) {
     case V_NIL:
-    case V_FALSE:
       return 0;
-    case V_TRUE:
-      return 1;
+    case V_BOOL:
     case V_INT:
       return value.int_value != 0;
     case V_FLOAT:
@@ -284,8 +282,9 @@ Hash value_hash(Hash h, Value value) {
   h = HASH_ADD_BYTE(value.type, h);
   switch (value.type) {
     case V_NIL:
-    case V_TRUE:
-    case V_FALSE:
+      break;
+    case V_BOOL:
+      h = HASH_ADD_BYTE(value.int_value, h);
       break;
     case V_INT:
       for (int i = 0; i < sizeof(int64_t); i++) {
@@ -349,8 +348,7 @@ static Value copy_value_detect_cycles(Value value, Env *env, RefStack *ref_stack
 static Value copy_value_detect_cycles(Value value, Env *env, RefStack *ref_stack) {
   switch (value.type) {
     case V_NIL:
-    case V_TRUE:
-    case V_FALSE:
+    case V_BOOL:
     case V_INT:
     case V_FLOAT:
     case V_SYMBOL:
@@ -423,10 +421,10 @@ void value_to_string(Value value, Buffer *buffer) {
   switch (value.type) {
     case V_NIL:
       break;
-    case V_TRUE:
-      buffer_printf(buffer, "true");
-      break;
-    case V_FALSE:
+    case V_BOOL:
+      if (value.int_value) {
+        buffer_printf(buffer, "true");
+      }
       break;
     case V_INT:
       buffer_printf(buffer, "%" PRId64, value.int_value);
@@ -468,10 +466,8 @@ const char *value_name(ValueType type) {
   switch (type) {
     case V_NIL:
       return "nil";
-    case V_TRUE:
-      return "true";
-    case V_FALSE:
-      return "false";
+    case V_BOOL:
+      return "bool";
     case V_INT:
       return "int";
     case V_FLOAT:

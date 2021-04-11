@@ -1,16 +1,58 @@
-## Templates
+## Templates and scripts
 
-Templates are written using the Plet programming language.
+Templates are written using the Plet programming language. Plet is a high-level dynamically-typed imperative programming language. There are two types of Plet programs: *Plet scripts* and *Plet templates*. Plet scripts start out in *command mode* while Plet templates start out in *text mode*.
+
+In text mode the only byte that has any special meaning is `{` (left curly bracket, U+007B) which enters command mode, or &ndash; if it's immediately followed by a `#` (U+0023) &ndash; enters *comment mode*. Comment mode can also be entered from within command mode with the same `{#` sequence. In comment mode the `#}` sequence exits to the most recent mode.
+
+In command mode an unmatched `}` (right curly bracket, U+007D) will enter template mode. This means that any Plet template can be made into a Plet script by prepending a `}` and any Plet script can be made into a Plet template by prepending a `{`:
+
+```txt+plet
+this is a valid Plet template
+```
+
+```plet
+}this is a valid Plet script
+```
+
+In command mode a `#` that is not preceded by a `{` opens a single line comment:
+
+```plet
+# this is a single line comment
+command()
+{# this is a 
+   multiline comment #}
+command()
+```
+
+A Plet program is a sequence of text nodes and statements. A text node is a string of bytes consumed while in text mode, it may be empty. Two statements must be separated by at least one text node or newline (U+000A).
+```plet
+command()
+command()
+```
+
+```txt+plet
+{command()}{command()}
+```
+
+Some statement can contain multiple nested statements and text nodes. The *top-level* text nodes and statements are not contained within another statement.
+
+The *return value* of a Plet program &ndash; unless otherwise specified using the `return` keyword &ndash; is the byte string resulting from concatenating all top-level text nodes with the *values* resulting from evaluating all top-level statements.
 
 ### Values
+
+All expressions and statements in Plet evaluate to a value.
 
 #### Primitives
 
 ```plet
-12345    # int
-123.45   # float
-123e4    # float
-123.5e-4 # float
+nil           # nil
+true          # bool
+false         # bool
+12345         # int
+123.45        # float
+123e4         # float
+123.5e-4      # float
+symbol('foo') # symbol
 ```
 
 #### Strings
@@ -24,7 +66,7 @@ Templates are written using the Plet programming language.
 ```
 
 ```plet
-"""Hello, "World"!"""
+"""Hello, "World"! \ and { and } are ignored."""
 ```
 
 #### Arrays

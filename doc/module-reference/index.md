@@ -5,13 +5,13 @@ The Plet standard library is split into several modules.
 ### core
 ```
 nil: nil
-false: false
-true: true
+false: bool
+true: bool
 import(name: string): nil
 copy(val: any): any
 type(val: any): string
 string(val: any): string
-bool(val: any): true|false
+bool(val: any): bool
 error(message: string): nil
 warning(message: string): nil
 info(message: string): nil
@@ -22,8 +22,8 @@ info(message: string): nil
 lower(str: string): string
 upper(str: string): string
 title(str: string): string
-starts_with(str: string, prefix: string): true|false
-ends_with(str: string, suffix: string): true|false
+starts_with(str: string, prefix: string): bool
+ends_with(str: string, suffix: string): bool
 symbol(str: string): symbol
 json(var: any): string
 ```
@@ -51,8 +51,8 @@ push(array: array, element: any): array
 push_all(array: array, elements: array): array
 shift(array: array): any
 unshift(array: array, element: any): array
-contains(obj: array|object, key: any): true|false
-delete(obj: object, key: any): true|false
+contains(obj: array|object, key: any): bool
+delete(obj: object, key: any): bool
 ```
 
 ### datetime
@@ -70,7 +70,7 @@ rfc2822(time: time|string|int): string
 embed(name: string, data: object?): string
 link(link: string?): string
 url(link: string?): string
-is_current(link: string?): true|false
+is_current(link: string?): bool
 read(file: string): string
 page_list(n: int, page: int? = PAGE.page, pages: int? = PAGE.pages): array
 page_link(page: int, path: string? = PAGE.path): string
@@ -101,7 +101,7 @@ paginate(items: array, per_page: int, path: string, template: string, data: obje
 ### contentmap
 
 ```
-list_content(path: string, options: {recursive: boolean, suffix: string}?): array
+list_content(path: string, options: {recursive: bool, suffix: string}?): array
 read_content(path: string): object
 ```
 

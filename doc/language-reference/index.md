@@ -190,8 +190,7 @@ name "(" PipeLine ["," Expression_1 {"," Expression_n}] ")"
 
 ### Types
 nil
-true
-false
+bool
 int
 float
 string

@@ -283,9 +283,9 @@ static int compare_values(const void *pa, const void *pb, void *pc) {
   }
   switch (a.type) {
     case V_NIL:
-    case V_TRUE:
-    case V_FALSE:
       return 0;
+    case V_BOOL:
+      return !!a.int_value - !!b.int_value;
     case V_INT:
       return a.int_value - b.int_value;
     case V_FLOAT:

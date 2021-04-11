@@ -16,6 +16,7 @@ export pygmentize = node => do
       language = language | drop(9)
     end if
     if language and language != 'nohighlight'
+      node.attributes[symbol('data-lang')] = language
       code = text_content(node)
       if language == 'plet'
         lexer_arg = "-x -l {shell_escape("{SRC_ROOT}/pygments/lexers.py:PletLexer")}"

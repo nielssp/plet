@@ -243,11 +243,12 @@ static void json_encode_value(Value value, Buffer *buffer) {
     case V_NIL:
       buffer_printf(buffer, "null");
       break;
-    case V_TRUE:
-      buffer_printf(buffer, "true");
-      break;
-    case V_FALSE:
-      buffer_printf(buffer, "false");
+    case V_BOOL:
+      if (value.int_value) {
+        buffer_printf(buffer, "true");
+      } else {
+        buffer_printf(buffer, "false");
+      }
       break;
     case V_INT:
       buffer_printf(buffer, "%" PRId64, value.int_value);
@@ -465,10 +466,10 @@ void string_buffer_append_value(StringBuffer *buffer, Value value) {
   switch (value.type) {
     case V_NIL:
       break;
-    case V_TRUE:
-      string_buffer_printf(buffer, "true");
-      break;
-    case V_FALSE:
+    case V_BOOL:
+      if (value.int_value) {
+        string_buffer_printf(buffer, "true");
+      }
       break;
     case V_INT:
       string_buffer_printf(buffer, "%" PRId64, value.int_value);
