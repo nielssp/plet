@@ -17,7 +17,7 @@ class PletLexer(RegexLexer):
             (r'(if|then|else|for|in|switch|case|default|end|and|or|not|do|export|return|break|continue)\b', Keyword),
             (r'(true|false|nil)\b', Keyword.Constant),
             (r"'(\\\\|\\[^\\]|[^'\\])*'", String.Single),
-            (r"\b[0-9]+\b", Number),
+            (r"\b[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?\b", Number),
             (r"\b[a-zA-Z_][a-zA-Z0-9_]*\b", Name),
             (r'\+|-|\*|/|<=|>=|==|!=|<|>|=|\?', Operator),
             (r'[\.,:|]', Punctuation),
@@ -25,6 +25,7 @@ class PletLexer(RegexLexer):
             (r'\(', Punctuation, 'expression'),
             (r'\{', Punctuation, 'object'),
             (r'\}', Comment.Preproc, 'template'),
+            (r'"""', String, 'verbatim'),
             (r'"', String, 'string'),
             ('\s+', Whitespace),
         ],
@@ -38,6 +39,10 @@ class PletLexer(RegexLexer):
             (r'\{\#.*?\#\}', Comment.Multiline),
             (r'\{', Comment.Preproc, 'statements'),
             ('"', String, '#pop'),
+        ],
+        'verbatim': [
+            ('"""', String, '#pop'),
+            (r'.', String),
         ],
         'statements': [
             (r'\}', Comment.Preproc, '#pop'),
