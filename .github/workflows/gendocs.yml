@@ -10,7 +10,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install dependencies
-      run: sudo apt install valgrind libicu-dev libgumbo-dev libmd4c-dev
+      run: sudo apt install libicu-dev libgumbo-dev libmd4c-html0-dev
     - name: Build Plet
       run: make IMAGEMAGICK=0 all
     - name: Build docs
