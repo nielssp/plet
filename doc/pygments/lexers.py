@@ -19,7 +19,7 @@ class PletLexer(RegexLexer):
             (r"'(\\\\|\\[^\\]|[^'\\])*'", String.Single),
             (r"\b[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?\b", Number),
             (r"\b[a-zA-Z_][a-zA-Z0-9_]*\b", Name),
-            (r'\+|-|\*|/|<=|>=|==|!=|<|>|=|\?', Operator),
+            (r'\+|-|\*|/|%|<=|>=|==|!=|<|>|=|\?', Operator),
             (r'[\.,:|]', Punctuation),
             (r'\[', Punctuation, 'array'),
             (r'\(', Punctuation, 'expression'),

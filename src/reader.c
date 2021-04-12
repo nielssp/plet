@@ -170,7 +170,7 @@ uint8_t *copy_string_token(Token *token) {
 }
 
 static int is_valid_name_char(int c) {
-  return c == '_' || isalnum(c);
+  return c == '_' || isalnum(c) || c & 0x80;
 }
 
 static Token *read_name(Reader *r) {

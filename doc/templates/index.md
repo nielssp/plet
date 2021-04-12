@@ -40,19 +40,83 @@ The *return value* of a Plet program &ndash; unless otherwise specified using th
 
 ### Values
 
-All expressions and statements in Plet evaluate to a value.
+All expressions and statements in Plet evaluate to a value. A value has a type. Plet has 10 built-in types:
 
-#### Primitives
+* nil
+* bool
+* int
+* float
+* time
+* symbol
+* string
+* array
+* object
+* function
+
+#### Nil
+
+The nil type has only one value:
 
 ```plet
-nil           # nil
-true          # bool
-false         # bool
-12345         # int
-123.45        # float
-123e4         # float
-123.5e-4      # float
-symbol('foo') # symbol
+nil
+```
+
+It is used to represent the absence of data, e.g. as a return value from a function called for its side effects.
+
+#### Booleans
+
+The bool type has two values:
+
+```plet
+true
+false
+```
+
+#### Integers
+
+The int type in Plet holds signed 64-bit integers.
+
+```plet
+12345
+```
+
+```plet
+-25      # => -25   (unary minus)
+12 + 56  # => 68    (integer addition)
+14 - 5   # => 9     (integer subtraction)
+10 * 3   # => 30    (integer multiplication)
+7 / 3    # => 2     (integer division)
+7 % 3    # => 1     (remainder)
+```
+
+#### Floating point numbers
+
+The float type in Plet holds 64-bit double-precision floating point numbers.
+
+```plet
+123.45
+123e4
+123.5e-4
+```
+
+```plet
+-25.5     # => -25.5 (unary minus)
+1.2 + 5.6 # => 6.8   (floating point addition)
+1.4 - 5.0 # => -3.6  (floating point subtraction)
+2.5 * 2.0 # => 5.0   (floating point multiplication)
+7.0 / 2.0 # => 2.5   (floating point division)
+```
+
+#### Time
+
+```plet
+time('2021-04-11T21:10:17Z')
+```
+
+#### Symbols
+
+```plet
+symbol('foo')
 ```
 
 #### Strings
@@ -128,6 +192,22 @@ x is equal to 5
 is greater than
 {if x <= y then 'x' else 'y'}
 ```
+
+##### Falsiness
+
+In conditionals the following values are considered &ldquo;falsy&rdquo;:
+
+```plet
+nil
+false
+0
+0.0
+[]    # the empty array
+{}    # the empty object
+''    # the empty string
+```
+
+So instead of writing `if length(my_array) > 0` we can write `if my_array`.
 
 #### Switch
 
