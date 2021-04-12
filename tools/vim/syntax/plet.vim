@@ -17,6 +17,7 @@ syn case match
 syn match pletComment '#.*$' contains=@Spell
 syn region pletComment start='{#' end='#}' contains=@Spell
 
+syn region pletVerbatim  start=+"""+ end=+"""+ contains=@Spell
 syn match  pletSpecial contained "\\[\\bfnrt\'\"]\|\\[xX][0-9a-fA-F]\{2}\|\\u[0-9a-fA-F]\{4}\|\\U[0-9a-fA-F]\{8}"
 syn region pletString  start=+'+ end=+'+ skip=+\\\\\|\\'+ contains=pletSpecial,@Spell
 
@@ -35,6 +36,7 @@ syn keyword pletConstant nil true false
 
 hi def link pletComment Comment
 hi def link pletString String
+hi def link pletVerbatim String
 hi def link pletTemplateString String
 hi def link pletNumber Number
 hi def link pletKeyword Keyword
