@@ -10,9 +10,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install dependencies
-      run: sudo apt install valgrind libicu-dev gumbo-parser md4c
+      run: sudo apt install valgrind libicu-dev libgumbo-dev libmd4c-dev
     - name: Build Plet
-      run: make GUMBO=0 MARKDOWN=0 IMAGEMAGICK=0 all
+      run: make IMAGEMAGICK=0 all
     - name: Build docs
       working-directory: ./doc
       run: ../plet build
