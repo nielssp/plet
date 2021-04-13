@@ -1,4 +1,4 @@
-name: C/C++ CI
+name: Run tests
 
 on:
   push:
@@ -15,5 +15,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install dependencies
       run: sudo apt install valgrind libicu-dev
+    - name: Fetch submodules
+      run: git submodule update
     - name: Build and run tests
-      run: make GUMBO=0 MARKDOWN=0 IMAGEMAGICK=0 test
+      run: make GUMBO=0 STATIC_MD4C=1 IMAGEMAGICK=0 test
