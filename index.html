@@ -426,10 +426,22 @@ Static websites (or <a href="https://en.wikipedia.org/wiki/Static_web_page">stat
 <h4 id="creating-content">2.2.2. Creating content</h4>
 <p>To get posts on our blog, we'll create a new directory called <code>posts</code> and add two Markdown files.</p>
 <p>We'll call the first file <code>first.md</code>:</p>
-<pre><code class="language-markdown" data-lang="markdown"></code></pre>
+<pre><code class="language-markdown" data-lang="markdown">{
+  published: '2021-04-10 12:00' | time,
+}
+# My first blog post
+This is a blog post written using Markdown.
+</code></pre>
 <p>The first three lines (delimited by curly brackets) of the above Markdown file is the <em>front matter</em>. The front matter uses Plet object notation and is parsed and evaluated when we later load the file via the <code>find_content</code> function. Any property specified in the front matter will later be accessible in the file's <em>content object</em>. In this case we assign a timestamp (the <code>time</code> function converts an ISO 8601 formatted date string to a timestamp) to the <code>published</code> property so that we can display it in our post list template.</p>
 <p>We'll create another file called <code>second.md</code>:</p>
-<pre><code class="language-markdown" data-lang="markdown"></code></pre>
+<pre><code class="language-markdown" data-lang="markdown">{
+  published: '2021-04-11 12:00' | time,
+}
+# The second post
+This is the second blog post.
+
+We can easily link to the [first blog post](first.md).
+</code></pre>
 <p>In the second Markdown file we link to the first one via a relative path to <code>first.md</code>. This link will later be converted to an absolute path to the HTML document created from <code>first.md</code>.</p>
 <h4 id="adding-pages">2.2.3. Adding pages</h4>
 <p>At this point the directory structure of the source root should look like this:</p>
