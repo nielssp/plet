@@ -10,9 +10,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install dependencies
-      run: sudo apt install libicu-dev libgumbo-dev libmd4c-html-dev
+      run: sudo apt install libicu-dev libgumbo-dev
+    - name: Fetch submodules
+      run: git submodule update
     - name: Build Plet
-      run: make IMAGEMAGICK=0 all
+      run: make IMAGEMAGICK=0 STATIC_MD4C=1 all
     - name: Build docs
       working-directory: ./doc
       run: ../plet build

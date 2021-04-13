@@ -7,7 +7,7 @@ ifneq ($(UNICODE), 0)
 	CFLAGS += -DWITH_UNICODE $(shell pkg-config --cflags icu-uc icu-i18n)
 endif
 
-ifneq ($(MARKDOWN), 0)
+ifneq ($(STATIC_MD4C), 1)
 	LDFLAGS += $(shell pkg-config --libs md4c-html)
 	CFLAGS += -DWITH_MARKDOWN $(shell pkg-config --cflags md4c-html)
 endif
@@ -28,6 +28,13 @@ endif
 
 SOURCES := $(wildcard src/*.c)
 OBJECTS := $(SOURCES:.c=.o)
+
+ifeq ($(STATIC_MD4C), 1)
+	MD4C_SOURCES += $(wildcard libs/md4c/src/*.c)
+	SOURCES += $(MD4C_SOURCES)
+	OBJECTS += $(MD4C_SOURCES:.c=.o)
+	CFLAGS += -DWITH_MARKDOWN -DWITH_STATIC_MD4C
+endif
 
 TESTS := $(filter-out src/main.c, $(SOURCES)) $(wildcard tests/*.c)
 TEST_OBJECTS := $(TESTS:.c=.o)

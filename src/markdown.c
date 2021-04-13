@@ -9,7 +9,11 @@
 #include "strings.h"
 
 #ifdef WITH_MARKDOWN
+#ifdef WITH_STATIC_MD4C
+#include "../libs/md4c/src/md4c-html.h"
+#else
 #include <md4c-html.h>
+#endif
 
 static void process_output(const MD_CHAR *output, MD_SIZE size, void *context) {
   StringBuffer *buffer = (StringBuffer *) context;
