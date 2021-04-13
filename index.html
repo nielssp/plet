@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Plet: The Complete Reference</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="stylesheet" type="text/css" href="style.css"/>
+  </head>
+  <body>
+    <ul id="toolbar" role="toolbar">
+      <label id="toc-toggle-button" for="toc-toggle" tabindex=0 role="button" aria-label="Show table of contents" onkeydown="event.key === 'Enter' && event.target.click()">
+        <svg width="9" height="9" version="1.1" viewBox="0 0 2.4 2.4" xmlns="http://www.w3.org/2000/svg"><path transform="scale(.26)" d="m0 1v2h9v-2h-9zm0 3v2h9v-2h-9zm0 3v2h9v-2h-9z"/></svg>
+      </label>
+    </ul>
+    <input type="checkbox" id="toc-toggle"/>
+    <nav id="toc">
+      <h2>Contents</h2>
+      <ul>
+        <li><a href="#">Plet: The Complete Reference</a></li>
+        
+        <li>
+          <a href="#introduction">1. Introduction</a>
+          
+        </li>
+        
+        <li>
+          <a href="#getting-started">2. Getting started</a>
+          
+          <ul>
+            
+            <li>
+              <a href="#installation">2.1. Installation</a>
+              
+              <ul>
+                
+                <li>
+                  <a href="#building-from-source">2.1.1. Building from source</a>
+                </li>
+                
+              </ul>
+              
+            </li>
+            
+            <li>
+              <a href="#basic-usage">2.2. Basic usage</a>
+              
+              <ul>
+                
+                <li>
+                  <a href="#creating-templates">2.2.1. Creating templates</a>
+                </li>
+                
+                <li>
+                  <a href="#creating-content">2.2.2. Creating content</a>
+                </li>
+                
+                <li>
+                  <a href="#adding-pages">2.2.3. Adding pages</a>
+                </li>
+                
+                <li>
+                  <a href="#testing-and-deploying">2.2.4. Testing and deploying</a>
+                </li>
+                
+              </ul>
+              
+            </li>
+            
+          </ul>
+          
+        </li>
+        
+        <li>
+          <a href="#content-management">3. Content management</a>
+          
+          <ul>
+            
+            <li>
+              <a href="#front-matter">3.1. Front matter</a>
+              
+            </li>
+            
+            <li>
+              <a href="#content-objects">3.2. Content objects</a>
+              
+            </li>
+            
+            <li>
+              <a href="#finding-content">3.3. Finding content</a>
+              
+            </li>
+            
+            <li>
+              <a href="#relative-paths">3.4. Relative paths</a>
+              
+            </li>
+            
+            <li>
+              <a href="#handling-images">3.5. Handling images</a>
+              
+            </li>
+            
+            <li>
+              <a href="#automatic-table-of-contents">3.6. Automatic table of contents</a>
+              
+            </li>
+            
+            <li>
+              <a href="#reverse-links">3.7. Reverse links</a>
+              
+            </li>
+            
+            <li>
+              <a href="#pagination">3.8. Pagination</a>
+              
+            </li>
+            
+            <li>
+              <a href="#custom-transformations">3.9. Custom transformations</a>
+              
+            </li>
+            
+          </ul>
+          
+        </li>
+        
+        <li>
+          <a href="#templates-and-scripts">4. Templates and scripts</a>
+          
+          <ul>
+            
+            <li>
+              <a href="#values">4.1. Values</a>
+              
+              <ul>
+                
+                <li>
+                  <a href="#nil">4.1.1. Nil</a>
+                </li>
+                
+                <li>
+                  <a href="#booleans">4.1.2. Booleans</a>
+                </li>
+                
+                <li>
+                  <a href="#integers">4.1.3. Integers</a>
+                </li>
+                
+                <li>
+                  <a href="#floating-point-numbers">4.1.4. Floating point numbers</a>
+                </li>
+                
+                <li>
+                  <a href="#time">4.1.5. Time</a>
+                </li>
+                
+                <li>
+                  <a href="#symbols">4.1.6. Symbols</a>
+                </li>
+                
+                <li>
+                  <a href="#strings">4.1.7. Strings</a>
+                </li>
+                
+                <li>
+                  <a href="#arrays">4.1.8. Arrays</a>
+                </li>
+                
+                <li>
+                  <a href="#objects">4.1.9. Objects</a>
+                </li>
+                
+                <li>
+                  <a href="#functions">4.1.10. Functions</a>
+                </li>
+                
+              </ul>
+              
+            </li>
+            
+            <li>
+              <a href="#variables">4.2. Variables</a>
+              
+            </li>
+            
+            <li>
+              <a href="#control-flow">4.3. Control flow</a>
+              
+              <ul>
+                
+                <li>
+                  <a href="#blocks">4.3.1. Blocks</a>
+                </li>
+                
+                <li>
+                  <a href="#conditional">4.3.2. Conditional</a>
+                </li>
+                
+                <li>
+                  <a href="#switch">4.3.3. Switch</a>
+                </li>
+                
+                <li>
+                  <a href="#loops">4.3.4. Loops</a>
+                </li>
+                
+              </ul>
+              
+            </li>
+            
+            <li>
+              <a href="#modules">4.4. Modules</a>
+              
+            </li>
+            
+          </ul>
+          
+        </li>
+        
+        <li>
+          <a href="#cli">5. CLI</a>
+          
+          <ul>
+            
+            <li>
+              <a href="#init">5.1. init</a>
+              
+            </li>
+            
+            <li>
+              <a href="#build">5.2. build</a>
+              
+            </li>
+            
+            <li>
+              <a href="#watch">5.3. watch</a>
+              
+            </li>
+            
+            <li>
+              <a href="#serve">5.4. serve</a>
+              
+            </li>
+            
+            <li>
+              <a href="#clean">5.5. clean</a>
+              
+            </li>
+            
+            <li>
+              <a href="#eval">5.6. eval</a>
+              
+            </li>
+            
+          </ul>
+          
+        </li>
+        
+        <li>
+          <a href="#module-reference">6. Module reference</a>
+          
+          <ul>
+            
+            <li>
+              <a href="#core">6.1. core</a>
+              
+            </li>
+            
+            <li>
+              <a href="#strings">6.2. strings</a>
+              
+            </li>
+            
+            <li>
+              <a href="#collections">6.3. collections</a>
+              
+            </li>
+            
+            <li>
+              <a href="#datetime">6.4. datetime</a>
+              
+            </li>
+            
+            <li>
+              <a href="#template">6.5. template</a>
+              
+            </li>
+            
+            <li>
+              <a href="#html">6.6. html</a>
+              
+            </li>
+            
+            <li>
+              <a href="#sitemap">6.7. sitemap</a>
+              
+            </li>
+            
+            <li>
+              <a href="#contentmap">6.8. contentmap</a>
+              
+            </li>
+            
+            <li>
+              <a href="#exec">6.9. exec</a>
+              
+            </li>
+            
+          </ul>
+          
+        </li>
+        
+        <li>
+          <a href="#language-reference">7. Language reference</a>
+          
+          <ul>
+            
+            <li>
+              <a href="#lexical-structure">7.1. Lexical structure</a>
+              
+            </li>
+            
+            <li>
+              <a href="#syntax">7.2. Syntax</a>
+              
+            </li>
+            
+          </ul>
+          
+        </li>
+        
+      </ul>
+    </nav>
+    <div id="page-wrapper">
+      <header>
+        <h1>Plet: The Complete Reference</h1>
+      </header>
+      <article>
+        
+<h2 id="introduction">1. Introduction</h2>
+<p>Plet is a flexible static site generator, web framework, and programming language.
+Static websites (or <a href="https://en.wikipedia.org/wiki/Static_web_page">static web pages</a>) are collections of HTML files and assets that are served exactly as they are stored on the web server. This provides better security, performance, and stability.</p>
+<p><strong>Warning: Plet is work in progress and may change at any time.</strong></p>
+
+<h2 id="getting-started">2. Getting started</h2>
+<h3 id="installation">2.1. Installation</h3>
+<h4 id="building-from-source">2.1.1. Building from source</h4>
+<pre><code class="language-sh" data-lang="sh">make clean all
+</code></pre>
+<h5 id="build-options">2.1.1.1. Build options</h5>
+<p>The available build options are:</p>
+<ul>
+<li><code>UNICODE</code> – Enable Unicode support (requires ICU).</li>
+<li><code>MARKDOWN</code> – Enable markdown support (required md4c).</li>
+<li><code>GUMBO</code> – Enable support for HTML manipulation (requires Gumbo).</li>
+<li><code>IMAGEMAGICK</code> – Enable support for automatic resizing and conversion of images (requires ImageMagick 7).</li>
+<li><code>MUSL</code> – Enable compatibility with musl libc.</li>
+</ul>
+<p>By default, the following options are enabled:</p>
+<pre><code class="language-sh" data-lang="sh">make <span class="nv">UNICODE</span><span class="o">=</span><span class="m">1</span> <span class="nv">MARKDOWN</span><span class="o">=</span><span class="m">1</span> <span class="nv">GUMBO</span><span class="o">=</span><span class="m">1</span> <span class="nv">IMAGEMAGICK</span><span class="o">=</span><span class="m">1</span> all
+</code></pre>
+<h3 id="basic-usage">2.2. Basic usage</h3>
+<p>In this section we will create a basic blog consisting of a sorted list of blog posts, and a page for each blog post.</p>
+<p>First create a new empty directory, then open a terminal in that directory and type the following:</p>
+<pre><code class="language-sh" data-lang="sh">plet init
+</code></pre>
+<p>This will create an empty <code>index.plet</code> file in the directory. The directory containing <code>index.plet</code> will henceforth be referred to as the <em>source root</em> (<code>SRC_ROOT</code> in code).</p>
+<p><code>index.plet</code> is the entry script that Plet evaluates whenever you run <code>plet build</code>. Since the script is currently empty, the only thing that happens if you run <code>plet build</code> is that an empty <code>dist</code> directory is created in the source root.</p>
+<h4 id="creating-templates">2.2.1. Creating templates</h4>
+<p>We'll need to create three templates for our blog in a new directory called <code>templates</code>:</p>
+<ul>
+<li><code>templates/list.plet.html</code> – This will be the index page displaying a sorted list of blog posts.</li>
+<li><code>templates/post.plet.html</code> – This template will be used to display a single blog post.</li>
+<li><code>templates/layout.plet.html</code> – The layout shared by the two other templates.</li>
+</ul>
+<p>The <code>templates/layout.plet.html</code> template is defined as follows:</p>
+<pre><code class="language-html+plet" data-lang="html+plet"><span class="cp">&lt;!DOCTYPE html&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">"utf-8"</span><span class="p">/&gt;</span>
+    <span class="p">&lt;</span><span class="nt">title</span><span class="p">&gt;</span>My Blog<span class="p">&lt;/</span><span class="nt">title</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">header</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">h1</span><span class="p">&gt;&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">"</span><span class="cp">{</span><span class="s1">'/'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">link</span><span class="cp">}</span><span class="s">"</span><span class="p">&gt;</span>My Blog<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">header</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">article</span><span class="p">&gt;</span>
+      <span class="cp">{</span><span class="n">CONTENT</span><span class="cp">}</span>
+    <span class="p">&lt;/</span><span class="nt">article</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">html</span><span class="p">&gt;</span>
+</code></pre>
+<p>The template contains mostly HTML with two bits of Plet code surrounded by curly brackets:</p>
+<ul>
+<li><code>{'/' | link}</code> evaluates to a link to the index page.</li>
+<li><code>{CONTENT}</code> evaluates to the value of the special <code>CONTENT</code> variable, which contains the output of whatever template is using <code>templates/layout.plet.html</code> as a layout.</li>
+</ul>
+<p>The <code>'/' | link</code> expression makes use of the pipe operator (<code>|</code>) which is just another way of writing chained function calls. The expression <code>a | b</code> is equivalent to <code>b(a)</code>, i.e. “apply the function <code>b</code> to argument <code>a</code>”. Thus we could have written <code>link('/')</code> instead, but the use of the pipe operator makes some expressions easier to read, especially in templates.</p>
+<p>We'll use the layout template in <code>templates/list.plet.html</code>:</p>
+<pre><code class="language-html+plet" data-lang="html+plet"><span class="cp">{</span><span class="n">LAYOUT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'layout.plet.html'</span><span class="cp">}</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Welcome to my blog.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">ul</span><span class="p">&gt;</span>
+  <span class="cp">{</span><span class="k">for</span><span class="w"> </span><span class="n">post</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">posts</span><span class="cp">}</span>
+  <span class="p">&lt;</span><span class="nt">li</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">"</span><span class="cp">{</span><span class="n">post</span><span class="p">.</span><span class="n">link</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">link</span><span class="cp">}</span><span class="s">"</span><span class="p">&gt;</span>
+      <span class="cp">{</span><span class="n">post</span><span class="p">.</span><span class="n">title</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">h</span><span class="cp">}</span>
+    <span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+    <span class="ni">&amp;ndash;</span> Published <span class="cp">{</span><span class="n">post</span><span class="p">.</span><span class="n">published</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">date</span><span class="p">(</span><span class="s1">'%Y-%m-%d'</span><span class="p">)</span><span class="cp">}</span>
+  <span class="p">&lt;/</span><span class="nt">li</span><span class="p">&gt;</span>
+  <span class="cp">{</span><span class="k">end</span><span class="w"> </span><span class="k">for</span><span class="cp">}</span>
+<span class="p">&lt;/</span><span class="nt">ul</span><span class="p">&gt;</span>
+</code></pre>
+<p>The first line selects a layout by assigning the relative path to the layout template to the special <code>LAYOUT</code> variable.</p>
+<p>We then loop through an array of posts stored in the <code>posts</code> variable (we'll make sure that this variable has a value later) using the <code>{for ITEM in ARRAY}....{end for}</code> looping construct. We expect each <code>post</code> to be an <em>object</em> containing the properties <code>link</code>, <code>title</code>, and <code>published</code> (these are explained in the next section). The properties are accessed using dot notation, e.g. <code>post.title</code>. Aside from the previously used <code>link</code>-function, we also use two new functions:</p>
+<ul>
+<li><code>post.title | h</code>  encodes special characters for use in HTML documents, e.g. <code>&lt;</code> to <code>&amp;lt;</code> and <code>&amp;</code> to <code>&amp;amp;</code>.</li>
+<li><code>post.published | date('%Y-%m-%d')</code> formats a date/time.</li>
+</ul>
+<p>The expression <code>a | b(c)</code> is equivalent to <code>b(a, c)</code>, in fact the pipe operator can be used with any number of arguments, e.g. <code>a | b(c, d, e)</code> is the same as <code>b(a, c, d, e)</code>.</p>
+<p>The <code>templates/post.plet.html</code> template is a bit more simple:</p>
+<pre><code class="language-html+plet" data-lang="html+plet"><span class="cp">{</span><span class="n">LAYOUT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'layout.plet.html'</span><span class="cp">}</span>
+<span class="p">&lt;</span><span class="nt">h1</span><span class="p">&gt;</span><span class="cp">{</span><span class="n">post</span><span class="p">.</span><span class="n">title</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">h</span><span class="cp">}</span><span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+<span class="cp">{</span><span class="n">post</span><span class="p">.</span><span class="n">html</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">no_title</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">links</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">html</span><span class="cp">}</span>
+</code></pre>
+<p>This time we expect the variable <code>post</code> to contain an object with the properties <code>title</code> and <code>html</code>. The last line is an example of chaining multiple function calls using the pipe operator and is equivalent to <code>{html(links(no_title(post.html)))}</code>. <code>post.html</code> contains a syntax tree representing the content of the post that can be used for various transformations. <code>no_title</code> is one such transformation which simply removes the title (the first heading) from the document. <code>links</code> walks through the document and converts all internal links to absolute paths. Finally the <code>html</code> function converts the syntax tree to a raw HTML string that can be appended to the output.</p>
+<h4 id="creating-content">2.2.2. Creating content</h4>
+<p>To get posts on our blog, we'll create a new directory called <code>posts</code> and add two Markdown files.</p>
+<p>We'll call the first file <code>first.md</code>:</p>
+<pre><code class="language-markdown" data-lang="markdown"></code></pre>
+<p>The first three lines (delimited by curly brackets) of the above Markdown file is the <em>front matter</em>. The front matter uses Plet object notation and is parsed and evaluated when we later load the file via the <code>find_content</code> function. Any property specified in the front matter will later be accessible in the file's <em>content object</em>. In this case we assign a timestamp (the <code>time</code> function converts an ISO 8601 formatted date string to a timestamp) to the <code>published</code> property so that we can display it in our post list template.</p>
+<p>We'll create another file called <code>second.md</code>:</p>
+<pre><code class="language-markdown" data-lang="markdown"></code></pre>
+<p>In the second Markdown file we link to the first one via a relative path to <code>first.md</code>. This link will later be converted to an absolute path to the HTML document created from <code>first.md</code>.</p>
+<h4 id="adding-pages">2.2.3. Adding pages</h4>
+<p>At this point the directory structure of the source root should look like this:</p>
+<ul>
+<li>index.plet</li>
+<li>posts/<ul>
+<li>first.md</li>
+<li>second.md</li>
+</ul>
+</li>
+<li>templates/<ul>
+<li>layout.plet.html</li>
+<li>list.plet.html</li>
+<li>post.plet.html</li>
+</ul>
+</li>
+</ul>
+<p>We can now glue everything together in <code>index.plet</code>:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="c1"># We start by collecting all the Markdown files in the posts-directory</span>
+<span class="n">posts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">list_content</span><span class="p">(</span><span class="s1">'posts'</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">suffix</span><span class="p">:</span><span class="w"> </span><span class="s1">'.md'</span><span class="p">})</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">sort_by_desc</span><span class="p">(.</span><span class="n">published</span><span class="p">)</span><span class="w"></span>
+<span class="k">for</span><span class="w"> </span><span class="n">post</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">posts</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># We give each post a link using its name (filename without extension):</span>
+<span class="w">  </span><span class="n">post</span><span class="p">.</span><span class="n">link</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"posts/</span><span class="cp">{</span><span class="n">post</span><span class="p">.</span><span class="n">name</span><span class="cp">}</span><span class="s">/index.html"</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># Then we add a page to the site map using the post-template:</span>
+<span class="w">  </span><span class="n">add_page</span><span class="p">(</span><span class="n">post</span><span class="p">.</span><span class="n">link</span><span class="p">,</span><span class="w"> </span><span class="s1">'templates/post.plet.html'</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">post</span><span class="p">:</span><span class="w"> </span><span class="n">post</span><span class="p">})</span><span class="w"></span>
+<span class="w">  </span><span class="c1"># And add a reverse path:</span>
+<span class="w">  </span><span class="n">add_reverse</span><span class="p">(</span><span class="n">post</span><span class="p">.</span><span class="n">path</span><span class="p">,</span><span class="w"> </span><span class="n">post</span><span class="p">.</span><span class="n">link</span><span class="p">)</span><span class="w"></span>
+<span class="k">end</span><span class="w"> </span><span class="k">for</span><span class="w"></span>
+<span class="c1"># Finally we add the frontpage containing the list of blog posts:</span>
+<span class="n">add_page</span><span class="p">(</span><span class="s1">'index.html'</span><span class="p">,</span><span class="w"> </span><span class="s1">'templates/list.plet.html'</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">posts</span><span class="p">:</span><span class="w"> </span><span class="n">posts</span><span class="p">})</span><span class="w"></span>
+</code></pre>
+<p>The <code>list_content</code> function will look for files in the specified directory and return an array of content objects created from the matching files. We use the <code>sort_by_desc</code> function to sort the found posts in descending order by the their <code>published</code>-property (<code>.prop</code> is syntactic sugar for <code>x =&gt; x.prop</code> which is an anonymous function that accepts an object and returns the value of the <code>prop</code> property of that object).</p>
+<p>The main purpose of <code>index.plet</code> is to add pages to the site map. One way of doing that is by using the <code>add_page</code> function. The <code>add_page</code> function accepts three arguments: 1) the destination file path (should end in <code>.html</code> for HTML files), 2) the source template, and 3) data for the template.</p>
+<p>We also use <code>add_reverse</code> to connect the input Markdown file (<code>post.path</code>) to the output path (<code>post.link</code>). This is what makes it possible to have a link to <code>first.md</code> inside <code>second.md</code>.</p>
+<h4 id="testing-and-deploying">2.2.4. Testing and deploying</h4>
+<p>To test our blog we can run:</p>
+<pre><code class="language-sh" data-lang="sh">plet serve
+</code></pre>
+<p>This starts a local web server on <a href="http://localhost:6500">http://localhost:6500</a> which can be used to quickly check the output while developing templates or writing content. The page reloads automatically when changes are detected in the source files.</p>
+<p>To build our blog we can run:</p>
+<pre><code class="language-sh" data-lang="sh">plet build
+</code></pre>
+<p>This creates the following structure in the <code>dist</code> directory:</p>
+<ul>
+<li>index.html</li>
+<li>posts/<ul>
+<li>first/<ul>
+<li>index.html</li>
+</ul>
+</li>
+<li>second/<ul>
+<li>index.html</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>We can copy the content of the <code>dist</code> directory to any web server in order to deploy the site.</p>
+
+<h2 id="content-management">3. Content management</h2>
+<h3 id="front-matter">3.1. Front matter</h3>
+<h3 id="content-objects">3.2. Content objects</h3>
+<h3 id="finding-content">3.3. Finding content</h3>
+<h3 id="relative-paths">3.4. Relative paths</h3>
+<h3 id="handling-images">3.5. Handling images</h3>
+<h3 id="automatic-table-of-contents">3.6. Automatic table of contents</h3>
+<h3 id="reverse-links">3.7. Reverse links</h3>
+<h3 id="pagination">3.8. Pagination</h3>
+<h3 id="custom-transformations">3.9. Custom transformations</h3>
+
+<h2 id="templates-and-scripts">4. Templates and scripts</h2>
+<p>Templates are written using the Plet programming language. Plet is a high-level dynamically-typed imperative programming language. There are two types of Plet programs: <em>Plet scripts</em> and <em>Plet templates</em>. Plet scripts start out in <em>command mode</em> while Plet templates start out in <em>text mode</em>.</p>
+<p>In text mode the only byte that has any special meaning is <code>{</code> (left curly bracket, U+007B) which enters command mode, or – if it's immediately followed by a <code>#</code> (U+0023) – enters <em>comment mode</em>. Comment mode can also be entered from within command mode with the same <code>{#</code> sequence. In comment mode the <code>#}</code> sequence exits to the most recent mode.</p>
+<p>In command mode an unmatched <code>}</code> (right curly bracket, U+007D) will enter template mode. This means that any Plet template can be made into a Plet script by prepending a <code>}</code> and any Plet script can be made into a Plet template by prepending a <code>{</code>:</p>
+<pre><code class="language-txt+plet" data-lang="txt+plet"><span class="x">this is a valid Plet template</span>
+</code></pre>
+<pre><code class="language-plet" data-lang="plet"><span class="cp">}</span><span class="s">this is a valid Plet script</span>
+</code></pre>
+<p>In command mode a <code>#</code> that is not preceded by a <code>{</code> opens a single line comment:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="c1"># this is a single line comment</span>
+<span class="n">command</span><span class="p">()</span><span class="w"></span>
+<span class="cm">{# this is a </span>
+<span class="cm">   multiline comment #}</span><span class="w"></span>
+<span class="n">command</span><span class="p">()</span><span class="w"></span>
+</code></pre>
+<p>A Plet program is a sequence of text nodes and statements. A text node is a string of bytes consumed while in text mode, it may be empty. Two statements must be separated by at least one text node or newline (U+000A).</p>
+<pre><code class="language-plet" data-lang="plet"><span class="n">command</span><span class="p">()</span><span class="w"></span>
+<span class="n">command</span><span class="p">()</span><span class="w"></span>
+</code></pre>
+<pre><code class="language-txt+plet" data-lang="txt+plet"><span class="cp">{</span><span class="n">command</span><span class="p">()</span><span class="cp">}{</span><span class="n">command</span><span class="p">()</span><span class="cp">}</span><span class="x"></span>
+</code></pre>
+<p>Some statement can contain multiple nested statements and text nodes. The <em>top-level</em> text nodes and statements are not contained within another statement.</p>
+<p>The <em>return value</em> of a Plet program – unless otherwise specified using the <code>return</code> keyword – is the byte string resulting from concatenating all top-level text nodes with the <em>values</em> resulting from evaluating all top-level statements.</p>
+<h3 id="values">4.1. Values</h3>
+<p>All expressions and statements in Plet evaluate to a value. A value has a type. Plet has 10 built-in types:</p>
+<ul>
+<li>nil</li>
+<li>bool</li>
+<li>int</li>
+<li>float</li>
+<li>time</li>
+<li>symbol</li>
+<li>string</li>
+<li>array</li>
+<li>object</li>
+<li>function</li>
+</ul>
+<h4 id="nil">4.1.1. Nil</h4>
+<p>The nil type has only one value:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="kc">nil</span><span class="w"></span>
+</code></pre>
+<p>It is used to represent the absence of data, e.g. as a return value from a function called for its side effects.</p>
+<h4 id="booleans">4.1.2. Booleans</h4>
+<p>The bool type has two values:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="kc">true</span><span class="w"></span>
+<span class="kc">false</span><span class="w"></span>
+</code></pre>
+<h4 id="integers">4.1.3. Integers</h4>
+<p>The int type in Plet holds signed 64-bit integers.</p>
+<pre><code class="language-plet" data-lang="plet"><span class="m">12345</span><span class="w"></span>
+</code></pre>
+<pre><code class="language-plet" data-lang="plet"><span class="o">-</span><span class="m">25</span><span class="w">      </span><span class="c1"># =&gt; -25   (unary minus)</span>
+<span class="m">12</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="m">56</span><span class="w">  </span><span class="c1"># =&gt; 68    (integer addition)</span>
+<span class="m">14</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="m">5</span><span class="w">   </span><span class="c1"># =&gt; 9     (integer subtraction)</span>
+<span class="m">10</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m">3</span><span class="w">   </span><span class="c1"># =&gt; 30    (integer multiplication)</span>
+<span class="m">7</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="m">3</span><span class="w">    </span><span class="c1"># =&gt; 2     (integer division)</span>
+<span class="m">7</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="m">3</span><span class="w">    </span><span class="c1"># =&gt; 1     (remainder)</span>
+</code></pre>
+<h4 id="floating-point-numbers">4.1.4. Floating point numbers</h4>
+<p>The float type in Plet holds 64-bit double-precision floating point numbers.</p>
+<pre><code class="language-plet" data-lang="plet"><span class="m">123.45</span><span class="w"></span>
+<span class="m">123e4</span><span class="w"></span>
+<span class="m">123.5e-4</span><span class="w"></span>
+</code></pre>
+<pre><code class="language-plet" data-lang="plet"><span class="o">-</span><span class="m">25.5</span><span class="w">     </span><span class="c1"># =&gt; -25.5 (unary minus)</span>
+<span class="m">1.2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="m">5.6</span><span class="w"> </span><span class="c1"># =&gt; 6.8   (floating point addition)</span>
+<span class="m">1.4</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="m">5.0</span><span class="w"> </span><span class="c1"># =&gt; -3.6  (floating point subtraction)</span>
+<span class="m">2.5</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m">2.0</span><span class="w"> </span><span class="c1"># =&gt; 5.0   (floating point multiplication)</span>
+<span class="m">7.0</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="m">2.0</span><span class="w"> </span><span class="c1"># =&gt; 2.5   (floating point division)</span>
+</code></pre>
+<h4 id="time">4.1.5. Time</h4>
+<pre><code class="language-plet" data-lang="plet"><span class="n">time</span><span class="p">(</span><span class="s1">'2021-04-11T21:10:17Z'</span><span class="p">)</span><span class="w"></span>
+</code></pre>
+<h4 id="symbols">4.1.6. Symbols</h4>
+<pre><code class="language-plet" data-lang="plet"><span class="n">symbol</span><span class="p">(</span><span class="s1">'foo'</span><span class="p">)</span><span class="w"></span>
+</code></pre>
+<h4 id="strings">4.1.7. Strings</h4>
+<pre><code class="language-plet" data-lang="plet"><span class="s1">'Hello, World! \U0001F44D'</span><span class="w"></span>
+</code></pre>
+<pre><code class="language-plet" data-lang="plet"><span class="s">"two plus two is </span><span class="cp">{</span><span class="m">2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="m">2</span><span class="cp">}</span><span class="s">"</span><span class="w"></span>
+</code></pre>
+<pre><code class="language-plet" data-lang="plet"><span class="s">"""Hello, "World"! \ and { and } are ignored."""</span><span class="w"></span>
+</code></pre>
+<h4 id="arrays">4.1.8. Arrays</h4>
+<pre><code class="language-plet" data-lang="plet"><span class="p">[</span><span class="m">1</span><span class="p">,</span><span class="w"> </span><span class="m">2</span><span class="p">,</span><span class="w"> </span><span class="m">3</span><span class="p">]</span><span class="w"></span>
+</code></pre>
+<h4 id="objects">4.1.9. Objects</h4>
+<pre><code class="language-plet" data-lang="plet"><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">foo</span><span class="p">:</span><span class="w"> </span><span class="m">25</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">bar</span><span class="p">:</span><span class="w"> </span><span class="s1">'Test'</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</code></pre>
+<h4 id="functions">4.1.10. Functions</h4>
+<pre><code class="language-plet" data-lang="plet"><span class="n">print_something</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">info</span><span class="p">(</span><span class="s1">'something'</span><span class="p">)</span><span class="w"></span>
+<span class="n">print_something</span><span class="p">()</span><span class="w"></span>
+<span class="n">increment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="m">1</span><span class="w"></span>
+<span class="n">info</span><span class="p">(</span><span class="s">"1 + 1 is </span><span class="cp">{</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">increment</span><span class="cp">}</span><span class="s">"</span><span class="p">)</span><span class="w"></span>
+<span class="n">plus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="w"></span>
+<span class="n">info</span><span class="p">(</span><span class="s">"3 + 5 is </span><span class="cp">{</span><span class="m">3</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">plus</span><span class="p">(</span><span class="m">5</span><span class="p">)</span><span class="cp">}</span><span class="s">"</span><span class="p">)</span><span class="w"></span>
+</code></pre>
+<h3 id="variables">4.2. Variables</h3>
+<h3 id="control-flow">4.3. Control flow</h3>
+<h4 id="blocks">4.3.1. Blocks</h4>
+<h4 id="conditional">4.3.2. Conditional</h4>
+<pre><code class="language-plet" data-lang="plet"><span class="k">if</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="m">5</span><span class="w"></span>
+<span class="w">  </span><span class="n">info</span><span class="p">(</span><span class="s1">'x is greater than 5'</span><span class="p">)</span><span class="w"></span>
+<span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="m">5</span><span class="w"></span>
+<span class="w">  </span><span class="n">info</span><span class="p">(</span><span class="s1">'x is less than 5'</span><span class="p">)</span><span class="w"></span>
+<span class="k">else</span><span class="w"></span>
+<span class="w">  </span><span class="n">info</span><span class="p">(</span><span class="s1">'x is equal to 5'</span><span class="p">)</span><span class="w"></span>
+<span class="k">end</span><span class="w"> </span><span class="k">if</span><span class="w"></span>
+</code></pre>
+<pre><code class="language-html+plet" data-lang="html+plet"><span class="cp">{</span><span class="k">if</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="m">5</span><span class="cp">}</span>
+x is greater than 5
+<span class="cp">{</span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="m">5</span><span class="cp">}</span>
+x is less than 5
+<span class="cp">{</span><span class="k">else</span><span class="cp">}</span>
+x is equal to 5
+<span class="cp">{</span><span class="k">end</span><span class="w"> </span><span class="k">if</span><span class="cp">}</span>
+</code></pre>
+<pre><code class="language-html+plet" data-lang="html+plet"><span class="cp">{</span><span class="k">if</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="s1">'x'</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">'y'</span><span class="cp">}</span>
+is greater than
+<span class="cp">{</span><span class="k">if</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="s1">'x'</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">'y'</span><span class="cp">}</span>
+</code></pre>
+<h5 id="falsiness">4.3.2.1. Falsiness</h5>
+<p>In conditionals the following values are considered “falsy”:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="kc">nil</span><span class="w"></span>
+<span class="kc">false</span><span class="w"></span>
+<span class="m">0</span><span class="w"></span>
+<span class="m">0.0</span><span class="w"></span>
+<span class="p">[]</span><span class="w">    </span><span class="c1"># the empty array</span>
+<span class="p">{}</span><span class="w">    </span><span class="c1"># the empty object</span>
+<span class="s1">''</span><span class="w">    </span><span class="c1"># the empty string</span>
+</code></pre>
+<p>So instead of writing <code>if length(my_array) &gt; 0</code> we can write <code>if my_array</code>.</p>
+<h4 id="switch">4.3.3. Switch</h4>
+<pre><code class="language-plet" data-lang="plet"><span class="k">switch</span><span class="w"> </span><span class="n">x</span><span class="w"></span>
+<span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="m">5</span><span class="w"></span>
+<span class="w">    </span><span class="n">info</span><span class="p">(</span><span class="s1">'x is 5'</span><span class="p">)</span><span class="w"> </span>
+<span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="m">10</span><span class="w"></span>
+<span class="w">    </span><span class="n">info</span><span class="p">(</span><span class="s1">'x is 6'</span><span class="p">)</span><span class="w"> </span>
+<span class="w">  </span><span class="k">default</span><span class="w"></span>
+<span class="w">    </span><span class="n">info</span><span class="p">(</span><span class="s1">'x is not 5 or 6'</span><span class="p">)</span><span class="w"> </span>
+<span class="k">end</span><span class="w"> </span><span class="k">switch</span><span class="w"> </span>
+</code></pre>
+<pre><code class="language-html+plet" data-lang="html+plet"><span class="cp">{</span><span class="k">switch</span><span class="w"> </span><span class="n">x</span><span class="cp">}</span>
+  <span class="cp">{</span><span class="k">case</span><span class="w"> </span><span class="m">5</span><span class="cp">}</span> x is 5
+  <span class="cp">{</span><span class="k">case</span><span class="w"> </span><span class="m">6</span><span class="cp">}</span> x is 6
+  <span class="cp">{</span><span class="k">default</span><span class="cp">}</span> x is not 5 or 6
+<span class="cp">{</span><span class="k">end</span><span class="w"> </span><span class="k">switch</span><span class="cp">}</span>
+</code></pre>
+<h4 id="loops">4.3.4. Loops</h4>
+<pre><code class="language-plet" data-lang="plet"><span class="k">for</span><span class="w"> </span><span class="n">item</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">items</span><span class="w"></span>
+<span class="w">  </span><span class="n">info</span><span class="p">(</span><span class="s">"item: </span><span class="cp">{</span><span class="n">item</span><span class="cp">}</span><span class="s">"</span><span class="p">)</span><span class="w"></span>
+<span class="k">else</span><span class="w"></span>
+<span class="w">  </span><span class="n">info</span><span class="p">(</span><span class="s1">'array is empty'</span><span class="p">)</span><span class="w"></span>
+<span class="k">end</span><span class="w"> </span><span class="k">for</span><span class="w"></span>
+</code></pre>
+<pre><code class="language-plet" data-lang="plet"><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="p">:</span><span class="w"> </span><span class="n">item</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">items</span><span class="w"></span>
+<span class="w">  </span><span class="n">info</span><span class="p">(</span><span class="s">"</span><span class="cp">{</span><span class="n">i</span><span class="cp">}</span><span class="s">: </span><span class="cp">{</span><span class="n">item</span><span class="cp">}</span><span class="s">"</span><span class="p">)</span><span class="w"></span>
+<span class="k">end</span><span class="w"> </span><span class="k">for</span><span class="w"></span>
+</code></pre>
+<pre><code class="language-plet" data-lang="plet"><span class="k">for</span><span class="w"> </span><span class="n">key</span><span class="p">:</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">obj</span><span class="w"></span>
+<span class="w">  </span><span class="n">info</span><span class="p">(</span><span class="s">"</span><span class="cp">{</span><span class="n">key</span><span class="cp">}</span><span class="s">: </span><span class="cp">{</span><span class="n">value</span><span class="cp">}</span><span class="s">"</span><span class="p">)</span><span class="w"></span>
+<span class="k">end</span><span class="w"> </span><span class="k">for</span><span class="w"></span>
+</code></pre>
+<h3 id="modules">4.4. Modules</h3>
+
+<h2 id="cli">5. CLI</h2>
+<h3 id="init">5.1. init</h3>
+<p><code>plet init</code> creates a new empty <code>index.plet</code> file in the current working directory. In the future this command may get more options.</p>
+<h3 id="build">5.2. build</h3>
+<p><code>plet build</code> finds the nearest <code>index.plet</code> file and evaluates it.</p>
+<h3 id="watch">5.3. watch</h3>
+<p><code>plet watch</code> first builds the site like <code>plet build</code>, then watches all source files for changes. When changes are detected, the site is built again.</p>
+<h3 id="serve">5.4. serve</h3>
+<p><code>plet serve [-p &lt;port&gt;]</code> runs a built-in web server that builds pages on demand and automatically reloads when changes are detected.</p>
+<h3 id="clean">5.5. clean</h3>
+<p><code>plet clean</code> recursively deletes the <code>dist</code> directory.</p>
+<h3 id="eval">5.6. eval</h3>
+<p><code>plet eval &lt;file&gt;</code> evaluates a Plet script.</p>
+<p><code>plet eval -t &lt;file&gt;</code> evaluates a Plet template.</p>
+
+<h2 id="module-reference">6. Module reference</h2>
+<p>The Plet standard library is split into several modules.</p>
+<h3 id="core">6.1. core</h3>
+<pre><code>nil: nil
+false: bool
+true: bool
+import(name: string): nil
+copy(val: any): any
+type(val: any): string
+string(val: any): string
+bool(val: any): bool
+error(message: string): nil
+warning(message: string): nil
+info(message: string): nil
+</code></pre>
+<h3 id="strings">6.2. strings</h3>
+<pre><code>lower(str: string): string
+upper(str: string): string
+title(str: string): string
+starts_with(str: string, prefix: string): bool
+ends_with(str: string, suffix: string): bool
+symbol(str: string): symbol
+json(var: any): string
+</code></pre>
+<h3 id="collections">6.3. collections</h3>
+<pre><code>length(collection: array|object|string): int
+keys(obj: object): array
+values(obj: object): array
+map(collection: array|object, f: func): array|object
+map_keys(obj: object, f: func): object
+flat_map(collection: array, f: func): array
+filter(collection: array|object, predicate: func): array
+exclude(collection: array|object, predicate: func): array
+sort(array: array): array
+sort_with(array: array, comparator: func): array
+sort_by(array: array, f: func): array
+sort_by_desc(array: array, f: func): array
+group_by(array: array, f: func): array
+take(array: array|string, n: int): array|string
+drop(array: array|string, n: int): array|string
+pop(array: array): any
+push(array: array, element: any): array
+push_all(array: array, elements: array): array
+shift(array: array): any
+unshift(array: array, element: any): array
+contains(obj: array|object, key: any): bool
+delete(obj: object, key: any): bool
+</code></pre>
+<h3 id="datetime">6.4. datetime</h3>
+<pre><code>now(): time
+time(time: time|string|int): time
+date(time: time|string|int, format: string): string
+iso8601(time: time|string|int): string
+rfc2822(time: time|string|int): string
+</code></pre>
+<h3 id="template">6.5. template</h3>
+<pre><code>embed(name: string, data: object?): string
+link(link: string?): string
+url(link: string?): string
+is_current(link: string?): bool
+read(file: string): string
+page_list(n: int, page: int? = PAGE.page, pages: int? = PAGE.pages): array
+page_link(page: int, path: string? = PAGE.path): string
+filter_content(content: object, filters: array?): string
+</code></pre>
+<h3 id="html">6.6. html</h3>
+<pre><code>h(str: string): string
+href(link: string?, class: string?): string
+html(node: html_node): string
+no_title(node: html_node): html_node
+links(node: html_node): html_node
+urls(node: html_node): html_node
+read_more(node: html_node): html_node
+text_content(node: html_node): string
+parse_html(src: string): html_node
+</code></pre>
+<h3 id="sitemap">6.7. sitemap</h3>
+<pre><code>add_static(path: string): nil
+add_reverse(content_path: string, path: string): nil
+add_page(path: string, template: string, data: object?): nil
+paginate(items: array, per_page: int, path: string, template: string, data: object?): nil
+</code></pre>
+<h3 id="contentmap">6.8. contentmap</h3>
+<pre><code>list_content(path: string, options: {recursive: bool, suffix: string}?): array
+read_content(path: string): object
+</code></pre>
+<h3 id="exec">6.9. exec</h3>
+<pre><code>shell_escape(value: any): string
+exec(command: string, ... args: any): string
+</code></pre>
+
+<h2 id="language-reference">7. Language reference</h2>
+<h3 id="lexical-structure">7.1. Lexical structure</h3>
+<pre><code>tokenStream   ::= {text | comment | command}
+
+command       ::= commandStart {commandToken | lf | skip} commandEnd
+
+commandToken  ::= token | paren | bracket | brace | comment | commentSingle
+
+commandStart  ::= "{"  -- ignored
+commandEnd    ::= "}"  -- ignored
+
+comment       ::= "{#" {any - "#}"} "#}"   -- ignored
+
+commentSingle ::= '#' {any - lf}   -- ignored
+
+lf            ::= "\n"
+skip          ::= " " | "\t" | "\r"    -- ignored
+
+paren         ::= "(" {commandToken | lf | skip} ")"
+bracket       ::= "[" {commandToken | lf |  skip} "]"
+brace         ::= "{" {commandToken | lf | skip} "}"
+
+quote         ::= '"' {quoteText | command} '"'
+
+text          ::= {any - (commandStart | commandEnd)}
+quoteChar     ::= any - (commandStart | commandEnd | '"')
+                | "\\" (commandStart | commandEnd | escape)
+quoteText     ::= {quoteChar}
+
+token         ::= keyword
+                | operator
+                | int
+                | float
+                | string
+                | verbatim
+                | name
+
+keyword       ::= "if" | "then" | "else" | "end" | "for" | "in" | "switch" | "case" | "default"
+                | "do" | "and" | "or" | "not" | "export" | "return" | "break" | "continue"
+
+operator      ::= "." | "," | ":" | "=&gt;"
+                | "==" | "!=" | "&lt;=" | "&gt;=" | "&lt;" | "&gt;"
+                | "=" | "+=" | "-=" | "*=" | "/="
+                | "+" | "-" | "*" | "/" | "%"
+
+name          ::= (nameStart {nameFollow}) - keyword
+
+nameStart     ::= "a" | ... | "z"
+                | "A" | ... | "z"
+                | "_"
+                | "\x80" | ... | "\xFF"
+
+nameFollow    ::= nameStart | digit
+
+digit         ::= "0" | ... | "9"
+
+hex           ::= digit
+                | "a" | ... | "f"
+                | "A" | ... | "F"
+hex2          ::= hex hex
+hex4          ::= hex2 hex2
+hex8          ::= hex4 hex4
+
+int           ::= digit {digit}
+
+exponent      ::= ("e" | "E") ["-" | "+"] int
+
+float         ::= int ["." int] exponent
+
+escape        ::= '"'
+                | "'"
+                | '\\'
+                | '/'
+                | 'b'
+                | 'f'
+                | 'n'
+                | 'r'
+                | 't'
+                | 'x' hex2
+                | 'u' hex4
+                | 'U' hex8
+
+string        ::= "'" {(any - ("\\" | "'")) | '\\' escape} "'"
+
+verbatim      ::= '"""'  {any - '"""'} '"""'
+</code></pre>
+<h3 id="syntax">7.2. Syntax</h3>
+<pre><code>Template      ::= {Statements | text}
+
+Block         ::= (lf | text) Template (lf | text)
+                | text
+
+Statements    ::= {lf} [Statement {lf {lf} Statement}] {lf}
+
+Statement     ::= If
+                | For
+                | Switch
+                | Export
+                | "return" [Expression]
+                | "break" [int]
+                | "continue" [int]
+                | Assignment
+
+If            ::= "if" Expression Block
+                  {"else" "if" Expression Block}
+                  ["else" Block] "end" "if"
+                | "if" Expression "then" Expression "else" Statement
+
+For           ::= "for" name [":" name] "in" Expression Block
+                 ["else" Block] "end" "for"
+
+Switch        ::= "switch" Expression (lf | {lf} [text])
+                  {"case" Expression Block}
+                  ["default" Block] "end" "switch"
+
+Assignment    ::= Expression [("=" | "+=" | "-=" | "*=" | "/=") Expression]
+
+Export        ::= "export" name ["=" Expression]
+
+Expression    ::= "." name {"." name}
+                | FatArrow
+
+FatArrow      ::= Tuple "=&gt;" Statement
+                | PipeLine
+
+Tuple         ::= name
+                | "(" [name {"," name} [","]] ")"
+
+PipeLine      ::= PipeLine "|" name ["(" [Expression {"," Expression} [","]] ")"]
+                | LogicalOr
+
+LogicalOr     ::= LogicalOr "or" LogicalAnd
+                | LogicalAnd
+
+LogicalAnd    ::= Logical "and" LogicalNot
+                | LogicalNot
+
+LogicalNot    ::= "not" LogicalNot
+                | Comparison
+
+Comparison    ::= Comparison ("&lt;" | "&gt;" | "&lt;=" | "&gt;=" | "==" | "!=") MulDiv
+                | MulDiv
+
+MulDiv        ::= MulDiv ("*" | "/" | "%") AddSub
+                | AddSub
+
+AddSub        ::= AddSub ("+" | "-") Negate
+                | Negate
+
+Negate        ::= "-" Negate
+                | ApplyDot
+
+ApplyDot      ::= ApplyDot "(" [Expression {"," Expression} [","]] ")"
+                | ApplyDot "." name ["?"] 
+                | ApplyDot "[" Expression "]" ["?"] 
+                | Atom
+
+Key           ::= int
+                | float
+                | string
+                | name
+
+Atom          ::= "[" [Expression {"," Expression} [","]] "]"   -- ignore lf
+                | "(" Expression ")"   -- ignore lf
+                | "{" [Key ":" Expression {"," Key ":" Expression} [","]] "}"   -- ignore lf
+                | '"' Template '"'
+                | "do" Block "end" "do"   -- don't ignore lf
+                | int
+                | float
+                | string
+                | name ["?"]
+</code></pre>
+
+
+      </article>
+    </div>
+    <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Droid+Sans+Mono:400,700">
+    <script type="text/javascript">
+      document.getElementById('toc').addEventListener('click', function (e) {
+        if (e.target.tagName === 'A') {
+          document.getElementById('toc-toggle').checked = false;
+        }
+      }); </script>
+  </body>
+</html>
