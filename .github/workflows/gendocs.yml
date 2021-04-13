@@ -9,10 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: recursive
     - name: Install dependencies
       run: sudo apt install libicu-dev libgumbo-dev
-    - name: Fetch submodules
-      run: git submodule update
     - name: Build Plet
       run: make IMAGEMAGICK=0 STATIC_MD4C=1 all
     - name: Build docs
