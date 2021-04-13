@@ -27,9 +27,10 @@ export pygmentize = node => do
       else
         lexer_arg = "-l {shell_escape(language)}"
       end if
-      node.children = [
-        "echo {shell_escape(code)} | pygmentize {lexer_arg} -f html -O nowrap=True" | exec | parse_html
-      ]
+      highlighted = "echo {shell_escape(code)} | pygmentize {lexer_arg} -f html -O nowrap=True" | exec
+      if highlighted
+        node.children = [highlighted | parse_html]
+      end if
     end if
   else
     for child in node.children? or []
