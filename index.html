@@ -351,13 +351,13 @@ Static websites (or <a href="https://en.wikipedia.org/wiki/Static_web_page">stat
 <p>The available build options are:</p>
 <ul>
 <li><code>UNICODE</code> – Enable Unicode support (requires ICU).</li>
-<li><code>MARKDOWN</code> – Enable markdown support (required md4c).</li>
 <li><code>GUMBO</code> – Enable support for HTML manipulation (requires Gumbo).</li>
 <li><code>IMAGEMAGICK</code> – Enable support for automatic resizing and conversion of images (requires ImageMagick 7).</li>
 <li><code>MUSL</code> – Enable compatibility with musl libc.</li>
+<li><code>STATIC_MD4C</code> – Build with md4c source in lib instead of dynamiccaly linking with md4c.</li>
 </ul>
 <p>By default, the following options are enabled:</p>
-<pre><code class="language-sh" data-lang="sh">make <span class="nv">UNICODE</span><span class="o">=</span><span class="m">1</span> <span class="nv">MARKDOWN</span><span class="o">=</span><span class="m">1</span> <span class="nv">GUMBO</span><span class="o">=</span><span class="m">1</span> <span class="nv">IMAGEMAGICK</span><span class="o">=</span><span class="m">1</span> all
+<pre><code class="language-sh" data-lang="sh">make <span class="nv">UNICODE</span><span class="o">=</span><span class="m">1</span> <span class="nv">GUMBO</span><span class="o">=</span><span class="m">1</span> <span class="nv">IMAGEMAGICK</span><span class="o">=</span><span class="m">1</span> <span class="nv">STATIC_MD4C</span><span class="o">=</span><span class="m">0</span> <span class="nv">MUSL</span><span class="o">=</span><span class="m">0</span> all
 </code></pre>
 <h3 id="basic-usage">2.2. Basic usage</h3>
 <p>In this section we will create a basic blog consisting of a sorted list of blog posts, and a page for each blog post.</p>
@@ -559,10 +559,16 @@ We can easily link to the [first blog post](first.md).
 <pre><code class="language-plet" data-lang="plet"><span class="kc">true</span><span class="w"></span>
 <span class="kc">false</span><span class="w"></span>
 </code></pre>
+<p>Plet has three boolean operators:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="n">a</span><span class="w"> </span><span class="k">or</span><span class="w"> </span><span class="n">b</span><span class="w"></span>
+<span class="n">a</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="n">b</span><span class="w"></span>
+<span class="k">not</span><span class="w"> </span><span class="n">a</span><span class="w"></span>
+</code></pre>
 <h4 id="integers">4.1.3. Integers</h4>
 <p>The int type in Plet holds signed 64-bit integers.</p>
 <pre><code class="language-plet" data-lang="plet"><span class="m">12345</span><span class="w"></span>
 </code></pre>
+<p>The following operators work on ints:</p>
 <pre><code class="language-plet" data-lang="plet"><span class="o">-</span><span class="m">25</span><span class="w">      </span><span class="c1"># =&gt; -25   (unary minus)</span>
 <span class="m">12</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="m">56</span><span class="w">  </span><span class="c1"># =&gt; 68    (integer addition)</span>
 <span class="m">14</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="m">5</span><span class="w">   </span><span class="c1"># =&gt; 9     (integer subtraction)</span>
@@ -576,11 +582,17 @@ We can easily link to the [first blog post](first.md).
 <span class="m">123e4</span><span class="w"></span>
 <span class="m">123.5e-4</span><span class="w"></span>
 </code></pre>
+<p>The following operators work on floats:</p>
 <pre><code class="language-plet" data-lang="plet"><span class="o">-</span><span class="m">25.5</span><span class="w">     </span><span class="c1"># =&gt; -25.5 (unary minus)</span>
 <span class="m">1.2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="m">5.6</span><span class="w"> </span><span class="c1"># =&gt; 6.8   (floating point addition)</span>
 <span class="m">1.4</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="m">5.0</span><span class="w"> </span><span class="c1"># =&gt; -3.6  (floating point subtraction)</span>
 <span class="m">2.5</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m">2.0</span><span class="w"> </span><span class="c1"># =&gt; 5.0   (floating point multiplication)</span>
 <span class="m">7.0</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="m">2.0</span><span class="w"> </span><span class="c1"># =&gt; 2.5   (floating point division)</span>
+</code></pre>
+<p>The binary operators above accept both int and float operands. If either operand is a float then the result is always a float:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="m">5</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="m">2</span><span class="w">   </span><span class="c1"># =&gt; 2</span>
+<span class="m">5</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="m">2.0</span><span class="w"> </span><span class="c1"># =&gt; 2.5</span>
+<span class="m">5.0</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="c1"># =&gt; 2.5</span>
 </code></pre>
 <h4 id="time">4.1.5. Time</h4>
 <pre><code class="language-plet" data-lang="plet"><span class="n">time</span><span class="p">(</span><span class="s1">'2021-04-11T21:10:17Z'</span><span class="p">)</span><span class="w"></span>
@@ -589,22 +601,69 @@ We can easily link to the [first blog post](first.md).
 <pre><code class="language-plet" data-lang="plet"><span class="n">symbol</span><span class="p">(</span><span class="s1">'foo'</span><span class="p">)</span><span class="w"></span>
 </code></pre>
 <h4 id="strings">4.1.7. Strings</h4>
-<pre><code class="language-plet" data-lang="plet"><span class="s1">'Hello, World! \U0001F44D'</span><span class="w"></span>
+<p>Plet strings are arrays of bytes. There are three types of string literals:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="c1"># Single quote strings (no interpolation)</span>
+<span class="s1">'Hello, World! \U0001F44D'</span><span class="w"></span>
+<span class="c1"># Double quote string (interpolation)</span>
+<span class="s">"two plus two is </span><span class="cp">{</span><span class="m">2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="m">2</span><span class="cp">}</span><span class="s">"</span><span class="w"></span>
+<span class="c1"># Verbatim string (no interpolation or escape sequences)</span>
+<span class="s">"""Hello, "World"! \ and { and } are ignored."""</span><span class="w"></span>
 </code></pre>
-<pre><code class="language-plet" data-lang="plet"><span class="s">"two plus two is </span><span class="cp">{</span><span class="m">2</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="m">2</span><span class="cp">}</span><span class="s">"</span><span class="w"></span>
+<p>Single quote and double quote strings both support the following escape sequences:</p>
+<ul>
+<li><code>\'</code> – single quotation mark</li>
+<li><code>\"</code> – double quotation mark</li>
+<li><code>\\</code> – backslash</li>
+<li><code>\/</code> – forward slash</li>
+<li><code>\{</code> – left curly bracket (only in double quote strings)</li>
+<li><code>\}</code> – right curly bracket (only in double quote strings)</li>
+<li><code>\b</code> – backspace</li>
+<li><code>\f</code> – formfeed</li>
+<li><code>\n</code> – newline</li>
+<li><code>\r</code> – carriage return</li>
+<li><code>\t</code> – horizontal tab</li>
+<li><code>\xhh</code> – byte value given by hexadecimal number <code>hh</code></li>
+<li><code>\uhhhh</code> – Unicode code point given by hexadecimal number <code>hhhh</code></li>
+<li><code>\Uhhhhhhhh</code> – Unicode code point given by hexadecimal number <code>hhhhhhhh</code></li>
+</ul>
+<p>Unicode code points (specified using <code>\u</code> or <code>\U</code>) higher than U+007F are encoded using UTF-8.</p>
+<p>Double quote strings additionally support string interpolation with full Plet template support:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="s">"foo </span><span class="cp">{</span><span class="k">if</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="m">0</span><span class="cp">}</span><span class="s">bar</span><span class="cp">{</span><span class="k">else</span><span class="cp">}</span><span class="s">baz</span><span class="cp">{</span><span class="k">end</span><span class="w"> </span><span class="k">if</span><span class="cp">}</span><span class="s">"</span><span class="w"></span>
 </code></pre>
-<pre><code class="language-plet" data-lang="plet"><span class="s">"""Hello, "World"! \ and { and } are ignored."""</span><span class="w"></span>
+<p>The <code>length</code> of a string is always its byte length:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="n">length</span><span class="p">(</span><span class="s1">'\U0001F44D'</span><span class="p">)</span><span class="w"> </span><span class="c1"># =&gt; 4</span>
 </code></pre>
 <h4 id="arrays">4.1.8. Arrays</h4>
-<pre><code class="language-plet" data-lang="plet"><span class="p">[</span><span class="m">1</span><span class="p">,</span><span class="w"> </span><span class="m">2</span><span class="p">,</span><span class="w"> </span><span class="m">3</span><span class="p">]</span><span class="w"></span>
+<p>Plet arrays are dynamically typed 0-indexed sequences of values:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="m">1</span><span class="p">,</span><span class="w"> </span><span class="s1">'foo'</span><span class="p">,</span><span class="w"> </span><span class="kc">false</span><span class="p">]</span><span class="w"></span>
+<span class="n">a</span><span class="p">[</span><span class="m">1</span><span class="p">]</span><span class="w">      </span><span class="c1"># =&gt; 'foo'</span>
+<span class="n">length</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="w"> </span><span class="c1"># =&gt; 3</span>
+</code></pre>
+<p>Trailing commas are allowed:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="p">[</span><span class="w"></span>
+<span class="w">  </span><span class="s1">'foo'</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="s1">'bar'</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="s1">'baz'</span><span class="p">,</span><span class="w"></span>
+<span class="p">]</span><span class="w"></span>
 </code></pre>
 <h4 id="objects">4.1.9. Objects</h4>
+<p>Plet objects are dynamically typed sets of key-value pairs:</p>
 <pre><code class="language-plet" data-lang="plet"><span class="p">{</span><span class="w"></span>
 <span class="w">  </span><span class="n">foo</span><span class="p">:</span><span class="w"> </span><span class="m">25</span><span class="p">,</span><span class="w"></span>
 <span class="w">  </span><span class="n">bar</span><span class="p">:</span><span class="w"> </span><span class="s1">'Test'</span><span class="p">,</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </code></pre>
 <h4 id="functions">4.1.10. Functions</h4>
+<p>Functions in Plet are created using the <code>=&gt;</code> operator (“fat arrow”). The left side of the arrow is a tuple specifying the names of the parameters that the function accepts. The right side is the body of the function.</p>
+<pre><code class="language-plet" data-lang="plet"><span class="c1"># a function that accepts no parameters and always returns nil:</span>
+<span class="p">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="kc">nil</span><span class="w"></span>
+<span class="c1"># identity function that returns whatever value is passed to it:</span>
+<span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="w"></span>
+<span class="c1"># parentheses are optional when there's exactly one parameter:</span>
+<span class="n">x</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="w"></span>
+<span class="c1"># a function that accepts two parameters and returns the result of adding them together:</span>
+<span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">y</span><span class="w"></span>
+</code></pre>
 <pre><code class="language-plet" data-lang="plet"><span class="n">print_something</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">info</span><span class="p">(</span><span class="s1">'something'</span><span class="p">)</span><span class="w"></span>
 <span class="n">print_something</span><span class="p">()</span><span class="w"></span>
 <span class="n">increment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="m">1</span><span class="w"></span>
