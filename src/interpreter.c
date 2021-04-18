@@ -317,6 +317,10 @@ static InterpreterResult eval_mul(Node node, Value left, Value right, Env *env) 
 static InterpreterResult eval_div(Node node, Value left, Value right, Env *env) {
   if (left.type == V_INT) {
     if (right.type == V_INT) {
+      if (right.int_value == 0) {
+        eval_error(node, "divide by zero");
+        return RESULT_VALUE(nil_value);
+      }
       return RESULT_VALUE(create_int(left.int_value / right.int_value));
     } else if (right.type == V_FLOAT) {
       return RESULT_VALUE(create_float(left.int_value / right.float_value));

@@ -13,15 +13,15 @@ make clean all
 The available build options are:
 
 * `UNICODE` &ndash; Enable Unicode support (requires ICU).
-* `MARKDOWN` &ndash; Enable markdown support (required md4c).
 * `GUMBO` &ndash; Enable support for HTML manipulation (requires Gumbo).
 * `IMAGEMAGICK` &ndash; Enable support for automatic resizing and conversion of images (requires ImageMagick 7).
 * `MUSL` &ndash; Enable compatibility with musl libc.
+* `STATIC_MD4C` &ndash; Build with md4c source in lib instead of dynamiccaly linking with md4c.
 
 By default, the following options are enabled:
 
 ```sh
-make UNICODE=1 MARKDOWN=1 GUMBO=1 IMAGEMAGICK=1 all
+make UNICODE=1 GUMBO=1 IMAGEMAGICK=1 STATIC_MD4C=0 MUSL=0 all
 ```
 
 ### Basic usage

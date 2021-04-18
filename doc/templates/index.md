@@ -72,6 +72,14 @@ true
 false
 ```
 
+Plet has three boolean operators:
+
+```plet
+a or b
+a and b
+not a
+```
+
 #### Integers
 
 The int type in Plet holds signed 64-bit integers.
@@ -79,6 +87,8 @@ The int type in Plet holds signed 64-bit integers.
 ```plet
 12345
 ```
+
+The following operators work on ints:
 
 ```plet
 -25      # => -25   (unary minus)
@@ -99,12 +109,22 @@ The float type in Plet holds 64-bit double-precision floating point numbers.
 123.5e-4
 ```
 
+The following operators work on floats:
+
 ```plet
 -25.5     # => -25.5 (unary minus)
 1.2 + 5.6 # => 6.8   (floating point addition)
 1.4 - 5.0 # => -3.6  (floating point subtraction)
 2.5 * 2.0 # => 5.0   (floating point multiplication)
 7.0 / 2.0 # => 2.5   (floating point division)
+```
+
+The binary operators above accept both int and float operands. If either operand is a float then the result is always a float:
+
+```plet
+5 / 2   # => 2
+5 / 2.0 # => 2.5
+5.0 / 2 # => 2.5
 ```
 
 #### Time
@@ -121,25 +141,71 @@ symbol('foo')
 
 #### Strings
 
+Plet strings are arrays of bytes. There are three types of string literals:
+
 ```plet
+# Single quote strings (no interpolation)
 'Hello, World! \U0001F44D'
-```
-
-```plet
+# Double quote string (interpolation)
 "two plus two is {2 + 2}"
+# Verbatim string (no interpolation or escape sequences)
+"""Hello, "World"! \ and { and } are ignored."""
 ```
 
+Single quote and double quote strings both support the following escape sequences:
+
+* `\'` &ndash; single quotation mark
+* `\"` &ndash; double quotation mark
+* `\\` &ndash; backslash
+* `\/` &ndash; forward slash
+* `\{` &ndash; left curly bracket (only in double quote strings)
+* `\}` &ndash; right curly bracket (only in double quote strings)
+* `\b` &ndash; backspace
+* `\f` &ndash; formfeed
+* `\n` &ndash; newline
+* `\r` &ndash; carriage return
+* `\t` &ndash; horizontal tab
+* `\xhh` &ndash; byte value given by hexadecimal number `hh`
+* `\uhhhh` &ndash; Unicode code point given by hexadecimal number `hhhh`
+* `\Uhhhhhhhh` &ndash; Unicode code point given by hexadecimal number `hhhhhhhh`
+
+Unicode code points (specified using `\u` or `\U`) higher than U+007F are encoded using UTF-8.
+
+Double quote strings additionally support string interpolation with full Plet template support:
+
 ```plet
-"""Hello, "World"! \ and { and } are ignored."""
+"foo {if x > 0}bar{else}baz{end if}"
+```
+
+The `length` of a string is always its byte length:
+
+```plet
+length('\U0001F44D') # => 4
 ```
 
 #### Arrays
 
+Plet arrays are dynamically typed 0-indexed sequences of values:
+
 ```plet
-[1, 2, 3]
+a = [1, 'foo', false]
+a[1]      # => 'foo'
+length(a) # => 3
+```
+
+Trailing commas are allowed:
+
+```plet
+[
+  'foo',
+  'bar',
+  'baz',
+]
 ```
 
 #### Objects
+
+Plet objects are dynamically typed sets of key-value pairs:
 
 ```plet
 {
@@ -149,6 +215,19 @@ symbol('foo')
 ```
 
 #### Functions
+
+Functions in Plet are created using the `=>` operator (&ldquo;fat arrow&rdquo;). The left side of the arrow is a tuple specifying the names of the parameters that the function accepts. The right side is the body of the function.
+
+```plet
+# a function that accepts no parameters and always returns nil:
+() => nil
+# identity function that returns whatever value is passed to it:
+(x) => x
+# parentheses are optional when there's exactly one parameter:
+x => x
+# a function that accepts two parameters and returns the result of adding them together:
+(x, y) => x + y
+```
 
 ```plet
 print_something = () => info('something')
