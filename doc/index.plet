@@ -1,5 +1,6 @@
 content = read_content('index.md')
 add_static('style.css')
+add_static('CNAME')
 add_page('index.html', 'index.plet.html', {content: content})
 
 import('html')
