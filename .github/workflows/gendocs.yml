@@ -3,6 +3,8 @@ name: Generate docs
 on:
   push:
     branches: [ master ]
+    paths:
+      - doc/**
 
 jobs:
   deploy:
