@@ -179,7 +179,7 @@
             </li>
             
             <li>
-              <a href="#variables">4.2. Variables</a>
+              <a href="#variables-and-scope">4.2. Variables and scope</a>
               
             </li>
             
@@ -354,7 +354,7 @@ Static websites (or <a href="https://en.wikipedia.org/wiki/Static_web_page">stat
 <li><code>GUMBO</code> – Enable support for HTML manipulation (requires Gumbo).</li>
 <li><code>IMAGEMAGICK</code> – Enable support for automatic resizing and conversion of images (requires ImageMagick 7).</li>
 <li><code>MUSL</code> – Enable compatibility with musl libc.</li>
-<li><code>STATIC_MD4C</code> – Build with md4c source in lib instead of dynamiccaly linking with md4c.</li>
+<li><code>STATIC_MD4C</code> – Build with md4c source in lib instead of dynamically linking with md4c.</li>
 </ul>
 <p>By default, the following options are enabled:</p>
 <pre><code class="language-sh" data-lang="sh">make <span class="nv">UNICODE</span><span class="o">=</span><span class="m">1</span> <span class="nv">GUMBO</span><span class="o">=</span><span class="m">1</span> <span class="nv">IMAGEMAGICK</span><span class="o">=</span><span class="m">1</span> <span class="nv">STATIC_MD4C</span><span class="o">=</span><span class="m">0</span> <span class="nv">MUSL</span><span class="o">=</span><span class="m">0</span> all
@@ -575,6 +575,10 @@ We can easily link to the [first blog post](first.md).
 <span class="m">10</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m">3</span><span class="w">   </span><span class="c1"># =&gt; 30    (integer multiplication)</span>
 <span class="m">7</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="m">3</span><span class="w">    </span><span class="c1"># =&gt; 2     (integer division)</span>
 <span class="m">7</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="m">3</span><span class="w">    </span><span class="c1"># =&gt; 1     (remainder)</span>
+<span class="m">7</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="m">3</span><span class="w">    </span><span class="c1"># =&gt; false (less than)</span>
+<span class="m">7</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="m">3</span><span class="w">    </span><span class="c1"># =&gt; true  (greater than)</span>
+<span class="m">4</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="m">4</span><span class="w">   </span><span class="c1"># =&gt; true  (less than or equal to)</span>
+<span class="m">4</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="m">5</span><span class="w">   </span><span class="c1"># =&gt; false (greater than or equal to)</span>
 </code></pre>
 <h4 id="floating-point-numbers">4.1.4. Floating point numbers</h4>
 <p>The float type in Plet holds 64-bit double-precision floating point numbers.</p>
@@ -598,6 +602,7 @@ We can easily link to the [first blog post](first.md).
 <pre><code class="language-plet" data-lang="plet"><span class="n">time</span><span class="p">(</span><span class="s1">'2021-04-11T21:10:17Z'</span><span class="p">)</span><span class="w"></span>
 </code></pre>
 <h4 id="symbols">4.1.6. Symbols</h4>
+<p>Symbols are <a href="https://en.wikipedia.org/wiki/String_interning">interned strings</a> which means that they are faster to compare than regular strings.</p>
 <pre><code class="language-plet" data-lang="plet"><span class="n">symbol</span><span class="p">(</span><span class="s1">'foo'</span><span class="p">)</span><span class="w"></span>
 </code></pre>
 <h4 id="strings">4.1.7. Strings</h4>
@@ -634,7 +639,7 @@ We can easily link to the [first blog post](first.md).
 <pre><code class="language-plet" data-lang="plet"><span class="n">length</span><span class="p">(</span><span class="s1">'\U0001F44D'</span><span class="p">)</span><span class="w"> </span><span class="c1"># =&gt; 4</span>
 </code></pre>
 <h4 id="arrays">4.1.8. Arrays</h4>
-<p>Plet arrays are dynamically typed 0-indexed sequences of values:</p>
+<p>Plet arrays are dynamically typed mutable 0-indexed sequences of values:</p>
 <pre><code class="language-plet" data-lang="plet"><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="m">1</span><span class="p">,</span><span class="w"> </span><span class="s1">'foo'</span><span class="p">,</span><span class="w"> </span><span class="kc">false</span><span class="p">]</span><span class="w"></span>
 <span class="n">a</span><span class="p">[</span><span class="m">1</span><span class="p">]</span><span class="w">      </span><span class="c1"># =&gt; 'foo'</span>
 <span class="n">length</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="w"> </span><span class="c1"># =&gt; 3</span>
@@ -646,15 +651,45 @@ We can easily link to the [first blog post](first.md).
 <span class="w">  </span><span class="s1">'baz'</span><span class="p">,</span><span class="w"></span>
 <span class="p">]</span><span class="w"></span>
 </code></pre>
+<p>Items can be added to the end of an array using the <code>push</code> function:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[]</span><span class="w"></span>
+<span class="n">a</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">push</span><span class="p">(</span><span class="s1">'foo'</span><span class="p">)</span><span class="w"></span>
+<span class="n">a</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">push</span><span class="p">(</span><span class="s1">'bar'</span><span class="p">)</span><span class="w"></span>
+<span class="n">a</span><span class="p">[</span><span class="m">0</span><span class="p">]</span><span class="w">      </span><span class="c1"># =&gt; 'foo'</span>
+<span class="n">a</span><span class="p">[</span><span class="m">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'baz'</span><span class="w"></span>
+<span class="n">a</span><span class="p">[</span><span class="m">0</span><span class="p">]</span><span class="w">      </span><span class="c1"># =&gt; 'baz'</span>
+<span class="n">length</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="w"> </span><span class="c1"># =&gt; 2</span>
+</code></pre>
 <h4 id="objects">4.1.9. Objects</h4>
-<p>Plet objects are dynamically typed sets of key-value pairs:</p>
-<pre><code class="language-plet" data-lang="plet"><span class="p">{</span><span class="w"></span>
+<p>Plet objects are dynamically typed mutable sets of key-value pairs:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="n">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">  </span><span class="n">foo</span><span class="p">:</span><span class="w"> </span><span class="m">25</span><span class="p">,</span><span class="w"></span>
 <span class="w">  </span><span class="n">bar</span><span class="p">:</span><span class="w"> </span><span class="s1">'Test'</span><span class="p">,</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
+<span class="n">obj</span><span class="p">.</span><span class="n">foo</span><span class="w">     </span><span class="c1"># =&gt; 25</span>
+<span class="n">length</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span><span class="w"> </span><span class="c1"># =&gt; 2</span>
+</code></pre>
+<p>The keys of an object can be of any type. Entries can be added and replaced usng the assignment operator:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="n">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+<span class="n">obj</span><span class="p">.</span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'foo'</span><span class="w"></span>
+<span class="n">obj</span><span class="p">.</span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'bar'</span><span class="w"></span>
+<span class="n">obj</span><span class="p">.</span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'baz'</span><span class="w"></span>
+<span class="n">obj</span><span class="p">.</span><span class="n">a</span><span class="w">       </span><span class="c1"># =&gt; 'baz'</span>
+<span class="n">length</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span><span class="w"> </span><span class="c1"># =&gt; 2</span>
+</code></pre>
+<p>The dot-operator can only be used to access entries when the keys are symbols. For other types, the array access operator can be used:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="n">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="s1">'a'</span><span class="p">:</span><span class="w"> </span><span class="s1">'foo'</span><span class="p">,</span><span class="w"> </span><span class="c1"># string key</span>
+<span class="w">  </span><span class="m">15</span><span class="p">:</span><span class="w"> </span><span class="s1">'bar'</span><span class="p">,</span><span class="w">  </span><span class="c1"># int key</span>
+<span class="w">  </span><span class="n">sym</span><span class="p">:</span><span class="w"> </span><span class="s1">'baz'</span><span class="w">  </span><span class="c1"># symbol key</span>
+<span class="p">}</span><span class="w"></span>
+<span class="n">obj</span><span class="p">[</span><span class="s1">'a'</span><span class="p">]</span><span class="w">           </span><span class="c1"># =&gt; 'foo'</span>
+<span class="n">obj</span><span class="p">[</span><span class="m">15</span><span class="p">]</span><span class="w">            </span><span class="c1"># =&gt; 'bar'</span>
+<span class="n">obj</span><span class="p">[</span><span class="n">symbol</span><span class="p">(</span><span class="s1">'sym'</span><span class="p">)]</span><span class="w"> </span><span class="c1"># =&gt; 'baz'</span>
+<span class="n">obj</span><span class="p">.</span><span class="n">sym</span><span class="w">            </span><span class="c1"># =&gt; 'baz'</span>
 </code></pre>
 <h4 id="functions">4.1.10. Functions</h4>
-<p>Functions in Plet are created using the <code>=&gt;</code> operator (“fat arrow”). The left side of the arrow is a tuple specifying the names of the parameters that the function accepts. The right side is the body of the function.</p>
+<p>Functions in Plet are created using the <code>=&gt;</code> operator (“fat arrow”). The left side of the arrow is a tuple specifying the names of the parameters that the function accepts. The right side is the body of the function (a single expression).</p>
 <pre><code class="language-plet" data-lang="plet"><span class="c1"># a function that accepts no parameters and always returns nil:</span>
 <span class="p">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="kc">nil</span><span class="w"></span>
 <span class="c1"># identity function that returns whatever value is passed to it:</span>
@@ -664,16 +699,44 @@ We can easily link to the [first blog post](first.md).
 <span class="c1"># a function that accepts two parameters and returns the result of adding them together:</span>
 <span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">y</span><span class="w"></span>
 </code></pre>
-<pre><code class="language-plet" data-lang="plet"><span class="n">print_something</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">info</span><span class="p">(</span><span class="s1">'something'</span><span class="p">)</span><span class="w"></span>
-<span class="n">print_something</span><span class="p">()</span><span class="w"></span>
-<span class="n">increment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="m">1</span><span class="w"></span>
-<span class="n">info</span><span class="p">(</span><span class="s">"1 + 1 is </span><span class="cp">{</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">increment</span><span class="cp">}</span><span class="s">"</span><span class="p">)</span><span class="w"></span>
-<span class="n">plus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="w"></span>
-<span class="n">info</span><span class="p">(</span><span class="s">"3 + 5 is </span><span class="cp">{</span><span class="m">3</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">plus</span><span class="p">(</span><span class="m">5</span><span class="p">)</span><span class="cp">}</span><span class="s">"</span><span class="p">)</span><span class="w"></span>
+<p>Functions can be assigned to variables with the assignment operator:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="n">foo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="m">15</span><span class="w"></span>
+<span class="n">bar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">X</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="m">1</span><span class="w"></span>
+<span class="n">baz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">z</span><span class="w"></span>
 </code></pre>
-<h3 id="variables">4.2. Variables</h3>
+<p>There are two styles of function application. The first is prefix notation:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="n">foo</span><span class="p">()</span><span class="w"> </span><span class="c1"># Parentheses are required</span>
+<span class="n">bar</span><span class="p">(</span><span class="m">5</span><span class="p">)</span><span class="w"> </span>
+<span class="n">baz</span><span class="p">(</span><span class="m">2</span><span class="p">,</span><span class="w"> </span><span class="m">4</span><span class="p">,</span><span class="w"> </span><span class="m">6</span><span class="p">)</span><span class="w"></span>
+</code></pre>
+<p>The second style is infix notation using the pipe operator where the first parameter is written before the function name (the function must have at least one argument):</p>
+<pre><code class="language-plet" data-lang="plet"><span class="m">5</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">bar</span><span class="p">()</span><span class="w"></span>
+<span class="m">5</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">bar</span><span class="w">    </span><span class="c1"># With only one parameter the parentheses are optional</span>
+<span class="m">2</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">baz</span><span class="p">(</span><span class="m">4</span><span class="p">,</span><span class="w"> </span><span class="m">6</span><span class="p">)</span><span class="w"></span>
+</code></pre>
+<p>The second style can be used to chain several function calls without nested pairs of parentheses. The following two lines are equivalent:</p>
+<pre><code class="language-plet" data-lang="plet"><span class="n">foo</span><span class="p">()</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">bar</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">baz</span><span class="p">(</span><span class="m">1</span><span class="p">,</span><span class="w"> </span><span class="m">2</span><span class="p">)</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">baz</span><span class="p">(</span><span class="m">3</span><span class="p">,</span><span class="w"> </span><span class="m">4</span><span class="p">)</span><span class="w"></span>
+<span class="n">baz</span><span class="p">(</span><span class="n">baz</span><span class="p">(</span><span class="n">bar</span><span class="p">(</span><span class="n">foo</span><span class="p">()),</span><span class="w"> </span><span class="m">1</span><span class="p">,</span><span class="w"> </span><span class="m">2</span><span class="p">),</span><span class="w"> </span><span class="m">3</span><span class="p">,</span><span class="w"> </span><span class="m">4</span><span class="p">)</span><span class="w"></span>
+</code></pre>
+<p>Functions in Plet are <a href="https://en.wikipedia.org/wiki/First-class_function">first-class citizens</a> meaning they can be passed as arguments to other functions. A <em>higher-order function</em> is a function that takes another function as an argument.</p>
+<pre><code class="language-plet" data-lang="plet"><span class="n">func1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="m">1</span><span class="w"></span>
+<span class="n">func2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="n">operand</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">f</span><span class="p">(</span><span class="n">operand</span><span class="p">)</span><span class="w"></span>
+<span class="n">func2</span><span class="p">(</span><span class="n">func1</span><span class="p">,</span><span class="w"> </span><span class="m">5</span><span class="p">)</span><span class="w">      </span><span class="c1"># =&gt; 6</span>
+<span class="n">func2</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="m">2</span><span class="p">,</span><span class="w"> </span><span class="m">5</span><span class="p">)</span><span class="w"> </span><span class="c1"># =&gt; 7</span>
+</code></pre>
+<p>Plet has several built-in higher-order functions. One example is <code>map</code> which applies a function to all elements of an array and returns the resulting array (withour modifying the existing array):</p>
+<pre><code class="language-plet" data-lang="plet"><span class="p">[</span><span class="m">1</span><span class="p">,</span><span class="w"> </span><span class="m">2</span><span class="p">,</span><span class="w"> </span><span class="m">3</span><span class="p">,</span><span class="w"> </span><span class="m">4</span><span class="p">]</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">map</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m">2</span><span class="p">)</span><span class="w"></span>
+<span class="c1"># =&gt; [2, 4, 6, 8]</span>
+</code></pre>
+<h3 id="variables-and-scope">4.2. Variables and scope</h3>
+<p><code>=</code> is the assignment operator.</p>
 <h3 id="control-flow">4.3. Control flow</h3>
 <h4 id="blocks">4.3.1. Blocks</h4>
+<pre><code class="language-plet" data-lang="plet"><span class="k">do</span><span class="w"></span>
+<span class="w">  </span><span class="n">foo</span><span class="p">()</span><span class="w"></span>
+<span class="w">  </span><span class="n">bar</span><span class="p">()</span><span class="w"></span>
+<span class="k">end</span><span class="w"> </span><span class="k">do</span><span class="w"></span>
+</code></pre>
 <h4 id="conditional">4.3.2. Conditional</h4>
 <pre><code class="language-plet" data-lang="plet"><span class="k">if</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="m">5</span><span class="w"></span>
 <span class="w">  </span><span class="n">info</span><span class="p">(</span><span class="s1">'x is greater than 5'</span><span class="p">)</span><span class="w"></span>
@@ -710,7 +773,7 @@ is greater than
 <pre><code class="language-plet" data-lang="plet"><span class="k">switch</span><span class="w"> </span><span class="n">x</span><span class="w"></span>
 <span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="m">5</span><span class="w"></span>
 <span class="w">    </span><span class="n">info</span><span class="p">(</span><span class="s1">'x is 5'</span><span class="p">)</span><span class="w"> </span>
-<span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="m">10</span><span class="w"></span>
+<span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="m">6</span><span class="w"></span>
 <span class="w">    </span><span class="n">info</span><span class="p">(</span><span class="s1">'x is 6'</span><span class="p">)</span><span class="w"> </span>
 <span class="w">  </span><span class="k">default</span><span class="w"></span>
 <span class="w">    </span><span class="n">info</span><span class="p">(</span><span class="s1">'x is not 5 or 6'</span><span class="p">)</span><span class="w"> </span>
