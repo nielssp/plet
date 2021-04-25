@@ -97,6 +97,10 @@ The following operators work on ints:
 10 * 3   # => 30    (integer multiplication)
 7 / 3    # => 2     (integer division)
 7 % 3    # => 1     (remainder)
+7 < 3    # => false (less than)
+7 > 3    # => true  (greater than)
+4 <= 4   # => true  (less than or equal to)
+4 >= 5   # => false (greater than or equal to)
 ```
 
 #### Floating point numbers
@@ -134,6 +138,8 @@ time('2021-04-11T21:10:17Z')
 ```
 
 #### Symbols
+
+Symbols are [interned strings](https://en.wikipedia.org/wiki/String_interning) which means that they are faster to compare than regular strings.
 
 ```plet
 symbol('foo')
@@ -185,7 +191,7 @@ length('\U0001F44D') # => 4
 
 #### Arrays
 
-Plet arrays are dynamically typed 0-indexed sequences of values:
+Plet arrays are dynamically typed mutable 0-indexed sequences of values:
 
 ```plet
 a = [1, 'foo', false]
@@ -203,20 +209,59 @@ Trailing commas are allowed:
 ]
 ```
 
-#### Objects
-
-Plet objects are dynamically typed sets of key-value pairs:
+Items can be added to the end of an array using the `push` function:
 
 ```plet
-{
+a = []
+a | push('foo')
+a | push('bar')
+a[0]      # => 'foo'
+a[0] = 'baz'
+a[0]      # => 'baz'
+length(a) # => 2
+```
+
+#### Objects
+
+Plet objects are dynamically typed mutable sets of key-value pairs:
+
+```plet
+obj = {
   foo: 25,
   bar: 'Test',
 }
+obj.foo     # => 25
+length(obj) # => 2
+```
+
+The keys of an object can be of any type. Entries can be added and replaced usng the assignment operator:
+
+```plet
+obj = {}
+obj.a = 'foo'
+obj.b = 'bar'
+obj.a = 'baz'
+obj.a       # => 'baz'
+length(obj) # => 2
+```
+
+The dot-operator can only be used to access entries when the keys are symbols. For other types, the array access operator can be used:
+
+```plet
+obj = {
+  'a': 'foo', # string key
+  15: 'bar',  # int key
+  sym: 'baz'  # symbol key
+}
+obj['a']           # => 'foo'
+obj[15]            # => 'bar'
+obj[symbol('sym')] # => 'baz'
+obj.sym            # => 'baz'
 ```
 
 #### Functions
 
-Functions in Plet are created using the `=>` operator (&ldquo;fat arrow&rdquo;). The left side of the arrow is a tuple specifying the names of the parameters that the function accepts. The right side is the body of the function.
+Functions in Plet are created using the `=>` operator (&ldquo;fat arrow&rdquo;). The left side of the arrow is a tuple specifying the names of the parameters that the function accepts. The right side is the body of the function (a single expression).
 
 ```plet
 # a function that accepts no parameters and always returns nil:
@@ -229,20 +274,67 @@ x => x
 (x, y) => x + y
 ```
 
+Functions can be assigned to variables with the assignment operator:
+
 ```plet
-print_something = () => info('something')
-print_something()
-increment = x => x + 1
-info("1 + 1 is {1 | increment}")
-plus = (a, b) => a + b
-info("3 + 5 is {3 | plus(5)}")
+foo = () => 15
+bar = x => X + 1
+baz = (x, y, z) => x + y + z
 ```
 
-### Variables
+There are two styles of function application. The first is prefix notation:
+
+```plet
+foo() # Parentheses are required
+bar(5) 
+baz(2, 4, 6)
+```
+
+The second style is infix notation using the pipe operator where the first parameter is written before the function name (the function must have at least one argument):
+
+```plet
+5 | bar()
+5 | bar    # With only one parameter the parentheses are optional
+2 | baz(4, 6)
+```
+
+The second style can be used to chain several function calls without nested pairs of parentheses. The following two lines are equivalent:
+
+```plet
+foo() | bar | baz(1, 2) | baz(3, 4)
+baz(baz(bar(foo()), 1, 2), 3, 4)
+```
+
+Functions in Plet are [first-class citizens](https://en.wikipedia.org/wiki/First-class_function) meaning they can be passed as arguments to other functions. A *higher-order function* is a function that takes another function as an argument.
+
+```plet
+func1 = x => x + 1
+func2 = (f, operand) => f(operand)
+func2(func1, 5)      # => 6
+func2(x => x + 2, 5) # => 7
+```
+
+Plet has several built-in higher-order functions. One example is `map` which applies a function to all elements of an array and returns the resulting array (withour modifying the existing array):
+
+```plet
+[1, 2, 3, 4] | map(x => x * 2)
+# => [2, 4, 6, 8]
+```
+
+### Variables and scope
+
+`=` is the assignment operator.
 
 ### Control flow
 
 #### Blocks
+
+```plet
+do
+  foo()
+  bar()
+end do
+```
 
 #### Conditional
 
@@ -294,7 +386,7 @@ So instead of writing `if length(my_array) > 0` we can write `if my_array`.
 switch x
   case 5
     info('x is 5') 
-  case 10
+  case 6
     info('x is 6') 
   default
     info('x is not 5 or 6') 

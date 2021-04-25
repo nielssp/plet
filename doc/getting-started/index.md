@@ -16,7 +16,7 @@ The available build options are:
 * `GUMBO` &ndash; Enable support for HTML manipulation (requires Gumbo).
 * `IMAGEMAGICK` &ndash; Enable support for automatic resizing and conversion of images (requires ImageMagick 7).
 * `MUSL` &ndash; Enable compatibility with musl libc.
-* `STATIC_MD4C` &ndash; Build with md4c source in lib instead of dynamiccaly linking with md4c.
+* `STATIC_MD4C` &ndash; Build with md4c source in lib instead of dynamically linking with md4c.
 
 By default, the following options are enabled:
 
