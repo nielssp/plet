@@ -75,60 +75,64 @@ false
 Plet has three boolean operators:
 
 ```plet
-a or b
-a and b
-not a
+a or b   # returns a if a is truthy, otherwise returns b
+a and b  # returns b if a is truthy, otherwise returns a
+not a    # returns false if a is truthy, otherwise returns true
 ```
 
-#### Integers
-
-The int type in Plet holds signed 64-bit integers.
+The boolean operators are not restricted to booleans and can be used on any Plet values. The following values are considered &ldquo;falsy&rdquo;, all other values are &ldquo;truthy&rdquo;:
 
 ```plet
-12345
+nil
+false
+0
+0.0
+[]    # the empty array
+{}    # the empty object
+''    # the empty string
 ```
 
-The following operators work on ints:
+The `or` operator can thus be used to provide a fallback value if the left operand is nil or empty:
+
+```html+plet
+Your name is {name or 'unknown'}.
+```
+
+#### Numbers
+
+Plet has two numeric types:
+
+* `int`: 64-bit signed integers
+* `float`: 64-bit double-precision floating point numbers
 
 ```plet
--25      # => -25   (unary minus)
-12 + 56  # => 68    (integer addition)
-14 - 5   # => 9     (integer subtraction)
-10 * 3   # => 30    (integer multiplication)
+12345     # int
+123.45    # float
+123e4     # float
+123.5e-4  # float
+```
+
+The following operators work on both ints and floats:
+
+```plet
+-25      # => -25   (minus)
+12 + 56  # => 68    (addition)
+14 - 5   # => 9     (subtraction)
+10 * 3   # => 30    (multiplication)
 7 / 3    # => 2     (integer division)
-7 % 3    # => 1     (remainder)
+7 / 2.0  # => 2.5   (floating point division)
+5 == 5.0 # => true  (equal)
+5 != 2   # => true  (not equal)
 7 < 3    # => false (less than)
 7 > 3    # => true  (greater than)
 4 <= 4   # => true  (less than or equal to)
 4 >= 5   # => false (greater than or equal to)
 ```
 
-#### Floating point numbers
-
-The float type in Plet holds 64-bit double-precision floating point numbers.
+The binary operators above accept both int and float operands. If one operand is a float and the other an int, then the int is automatically converted to a float before applying the operator. The remainder operator below only works on ints:
 
 ```plet
-123.45
-123e4
-123.5e-4
-```
-
-The following operators work on floats:
-
-```plet
--25.5     # => -25.5 (unary minus)
-1.2 + 5.6 # => 6.8   (floating point addition)
-1.4 - 5.0 # => -3.6  (floating point subtraction)
-2.5 * 2.0 # => 5.0   (floating point multiplication)
-7.0 / 2.0 # => 2.5   (floating point division)
-```
-
-The binary operators above accept both int and float operands. If either operand is a float then the result is always a float:
-
-```plet
-5 / 2   # => 2
-5 / 2.0 # => 2.5
-5.0 / 2 # => 2.5
+7 % 3    # => 1     (remainder)
 ```
 
 #### Time
@@ -321,13 +325,9 @@ Plet has several built-in higher-order functions. One example is `map` which app
 # => [2, 4, 6, 8]
 ```
 
-### Variables and scope
+##### Blocks
 
-`=` is the assignment operator.
-
-### Control flow
-
-#### Blocks
+Blocks are expressions that can contain multiple statements and text nodes.
 
 ```plet
 do
@@ -335,6 +335,64 @@ do
   bar()
 end do
 ```
+
+Because they are expressions they can be assigned to variables or used as function bodies:
+
+```html+plet
+{my_block = do}
+Some text
+{end do}
+
+Content of block: {my_block}
+
+{my_function = x => do}
+The number is {x}
+{end do}
+
+Result of function: {my_function(42)}
+```
+
+The value of a block is the result of concatenating the value of each statement inside the block:
+
+```plet
+block = do
+  'foo'
+  42
+  'bar'
+end do
+
+block # => 'foo42bar'
+```
+
+Inside function bodies this behaviour can be avoided by using the `return` keyword:
+
+```plet
+my_function = x => do
+  return x + 5
+end do
+
+my_function(10) # => 15
+```
+
+The `return` keyword can alo be used to short-circuit out of a function:
+
+```plet
+factorial = n => do
+  if n <= 1
+    return 1
+  end if
+  return n * factorial(n - 1)
+end do
+
+factorial(8) # => 40320
+```
+
+### Variables and scope
+
+`=` is the assignment operator.
+
+### Control flow
+
 
 #### Conditional
 
@@ -363,22 +421,6 @@ x is equal to 5
 is greater than
 {if x <= y then 'x' else 'y'}
 ```
-
-##### Falsiness
-
-In conditionals the following values are considered &ldquo;falsy&rdquo;:
-
-```plet
-nil
-false
-0
-0.0
-[]    # the empty array
-{}    # the empty object
-''    # the empty string
-```
-
-So instead of writing `if length(my_array) > 0` we can write `if my_array`.
 
 #### Switch
 

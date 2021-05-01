@@ -189,7 +189,23 @@ void env_clear_error(Env *env) {
 }
 
 int equals(Value a, Value b) {
-  if (a.type != b.type) {
+  if (a.type == V_INT) {
+    if (b.type == V_INT) {
+      return a.int_value == b.int_value;
+    } else if (b.type == V_FLOAT) {
+      return a.int_value == b.float_value;
+    } else {
+      return 0;
+    }
+  } else if (a.type == V_FLOAT) {
+    if (b.type == V_INT) {
+      return a.float_value == b.int_value;
+    } else if (b.type == V_FLOAT) {
+      return a.float_value == b.float_value;
+    } else {
+      return 0;
+    }
+  } else if (a.type != b.type) {
     return 0;
   }
   switch (a.type) {
