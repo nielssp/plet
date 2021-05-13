@@ -263,6 +263,11 @@ char *combine_paths(const char *path1, const char *path2) {
   return combined_path;
 }
 
+int file_exists(const char *path) {
+  struct stat stat_buffer;
+  return stat(path, &stat_buffer) == 0;
+}
+
 time_t get_mtime(const char *path) {
   struct stat stat_buffer;
   if (stat(path, &stat_buffer) == 0) {
