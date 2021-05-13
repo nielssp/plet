@@ -5,6 +5,7 @@
     <title>Plet: The Complete Reference</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <link rel="stylesheet" type="text/css" href="style.css"/>
+    <link rel="icon" href="plet.png"/>
   </head>
   <body>
     <ul id="toolbar" role="toolbar">
@@ -81,12 +82,12 @@
             </li>
             
             <li>
-              <a href="#content-objects">3.2. Content objects</a>
+              <a href="#finding-content">3.2. Finding content</a>
               
             </li>
             
             <li>
-              <a href="#finding-content">3.3. Finding content</a>
+              <a href="#content-objects">3.3. Content objects</a>
               
             </li>
             
@@ -495,8 +496,46 @@ We can easily link to the [first blog post](first.md).
 
 <h2 id="content-management">3. Content management</h2>
 <h3 id="front-matter">3.1. Front matter</h3>
-<h3 id="content-objects">3.2. Content objects</h3>
-<h3 id="finding-content">3.3. Finding content</h3>
+<h3 id="finding-content">3.2. Finding content</h3>
+<pre><code class="language-plet" data-lang="plet"><span class="n">list_content</span><span class="p">(</span><span class="s1">'pages'</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">suffix</span><span class="p">:</span><span class="w"> </span><span class="s1">'.md'</span><span class="p">,</span><span class="w"> </span><span class="n">recursive</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">})</span><span class="w"></span>
+</code></pre>
+<h3 id="content-objects">3.3. Content objects</h3>
+<pre><code class="language-markdown" data-lang="markdown">{
+  my_custom_field: 'foo',
+}
+# Title
+
+Content
+</code></pre>
+<pre><code class="language-plet" data-lang="plet"><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">path</span><span class="p">:</span><span class="w"> </span><span class="s1">'/home/user/mypletsite/pages/subdir/file.md'</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">relative_path</span><span class="p">:</span><span class="w"> </span><span class="s1">'subdir'</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="s1">'file'</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="s1">'md'</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">modified</span><span class="p">:</span><span class="w"> </span><span class="n">time</span><span class="p">(</span><span class="s1">'2021-04-28T18:06:13Z'</span><span class="p">),</span><span class="w"></span>
+<span class="w">  </span><span class="n">content</span><span class="p">:</span><span class="w"> </span><span class="s1">'&lt;h1&gt;Title&lt;/h1&gt;&lt;p&gt;Content&lt;/p&gt;'</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">html</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="n">symbol</span><span class="p">(</span><span class="s1">'fragment'</span><span class="p">),</span><span class="w"></span>
+<span class="w">    </span><span class="n">children</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"></span>
+<span class="w">      </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="n">symbol</span><span class="p">(</span><span class="s1">'element'</span><span class="p">),</span><span class="w"></span>
+<span class="w">        </span><span class="n">tag</span><span class="p">:</span><span class="w"> </span><span class="n">symbol</span><span class="p">(</span><span class="s1">'h1'</span><span class="p">),</span><span class="w"></span>
+<span class="w">        </span><span class="n">attributes</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span><span class="w"></span>
+<span class="w">        </span><span class="n">children</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s1">'Title'</span><span class="p">],</span><span class="w"></span>
+<span class="w">      </span><span class="p">},</span><span class="w"></span>
+<span class="w">      </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">type</span><span class="p">:</span><span class="w"> </span><span class="n">symbol</span><span class="p">(</span><span class="s1">'element'</span><span class="p">),</span><span class="w"></span>
+<span class="w">        </span><span class="n">tag</span><span class="p">:</span><span class="w"> </span><span class="n">symbol</span><span class="p">(</span><span class="s1">'p'</span><span class="p">),</span><span class="w"></span>
+<span class="w">        </span><span class="n">attributes</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span><span class="w"></span>
+<span class="w">        </span><span class="n">children</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s1">'Content'</span><span class="p">],</span><span class="w"></span>
+<span class="w">      </span><span class="p">},</span><span class="w"></span>
+<span class="w">    </span><span class="p">],</span><span class="w"></span>
+<span class="w">  </span><span class="p">},</span><span class="w"></span>
+<span class="w">  </span><span class="n">title</span><span class="p">:</span><span class="w"> </span><span class="s1">'Title'</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">read_more</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="n">my_custom_field</span><span class="p">:</span><span class="w"> </span><span class="s1">'foo'</span><span class="p">,</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</code></pre>
 <h3 id="relative-paths">3.4. Relative paths</h3>
 <h3 id="handling-images">3.5. Handling images</h3>
 <h3 id="automatic-table-of-contents">3.6. Automatic table of contents</h3>
