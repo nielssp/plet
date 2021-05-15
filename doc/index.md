@@ -1,5 +1,6 @@
 {
   numbered_headings: 6,
+  nested_id_sep: '/',
 }
 # Plet: The Complete Reference
 

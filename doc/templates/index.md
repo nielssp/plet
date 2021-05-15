@@ -282,7 +282,7 @@ Functions can be assigned to variables with the assignment operator:
 
 ```plet
 foo = () => 15
-bar = x => X + 1
+bar = x => x + 1
 baz = (x, y, z) => x + y + z
 ```
 

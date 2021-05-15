@@ -20,7 +20,7 @@ lf            ::= "\n"
 skip          ::= " " | "\t" | "\r"    -- ignored
 
 paren         ::= "(" {commandToken | lf | skip} ")"
-bracket       ::= "[" {commandToken | lf |  skip} "]"
+bracket       ::= "[" {commandToken | lf | skip} "]"
 brace         ::= "{" {commandToken | lf | skip} "}"
 
 quote         ::= '"' {quoteText | command} '"'

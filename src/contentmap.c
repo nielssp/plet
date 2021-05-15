@@ -150,7 +150,7 @@ static int has_read_more(Value node) {
   return 0;
 }
 
-static Array *toc_get_section(Array *toc, int level, String **number, Env *env) {
+static Array *toc_get_section(Array *toc, int level, String **number, String **id, Env *env) {
   if (!toc->size || level <= 0) {
     return toc;
   }
@@ -164,11 +164,23 @@ static Array *toc_get_section(Array *toc, int level, String **number, Env *env) 
   if (object_get_symbol(last_entry, "number", &number_value) && number_value.type == V_STRING) {
     *number = number_value.string_value;
   }
-  return toc_get_section(children.array_value, level - 1, number, env);
+  Value id_value;
+  if (object_get_symbol(last_entry, "id", &id_value) && id_value.type == V_STRING) {
+    *id = id_value.string_value;
+  }
+  return toc_get_section(children.array_value, level - 1, number, id, env);
 }
 
-static Value slugify(String *string, Arena *arena) {
-  StringBuffer buffer = create_string_buffer(string->size, arena);
+static Value slugify(String *string, String *prefix, String *sep, Arena *arena) {
+  size_t size = string->size;
+  if (prefix && sep) {
+    size += prefix->size + sep->size;
+  }
+  StringBuffer buffer = create_string_buffer(size, arena);
+  if (prefix && sep) {
+    string_buffer_append(&buffer, prefix);
+    string_buffer_append(&buffer, sep);
+  }
   for (size_t i = 0; i < string->size; i++) {
     uint8_t byte = string->bytes[i];
     if ((byte >= '0' && byte <= '9') || (byte >= 'a' && byte <= 'z')) {
@@ -185,7 +197,7 @@ static Value slugify(String *string, Arena *arena) {
 }
 
 static void build_toc(Value node, Array *toc, int min_level, int max_level, int numbered_headings,
-    String *sep1, String *sep2, Env *env) {
+    String *sep1, String *sep2, String *nested_id_sep, Env *env) {
   if (node.type == V_OBJECT) {
     Value node_tag;
     if (object_get_symbol(node.object_value, "tag", &node_tag) && node_tag.type == V_SYMBOL) {
@@ -194,7 +206,8 @@ static void build_toc(Value node, Array *toc, int min_level, int max_level, int 
         int level = node_tag.symbol_value[1] - '0';
         if (level >= min_level && level <= max_level && html_get_attribute(node, "data-toc-ignore").type == V_NIL) {
           String *parent_number = NULL;
-          Array *section = toc_get_section(toc, level - min_level, &parent_number, env);
+          String *parent_id = NULL;
+          Array *section = toc_get_section(toc, level - min_level, &parent_number, &parent_id, env);
           Value entry = create_object(0, env->arena);
           StringBuffer buffer = create_string_buffer(0, env->arena);
           html_text_content(node, &buffer);
@@ -214,7 +227,7 @@ static void build_toc(Value node, Array *toc, int min_level, int max_level, int 
           object_def(entry.object_value, "title", title, env);
           Value id = html_get_attribute(node, "id");
           if (id.type != V_STRING) {
-            id = slugify(title.string_value, env->arena);
+            id = slugify(title.string_value, parent_id, nested_id_sep, env->arena);
             html_set_attribute(node, "id", id.string_value, env);
           }
           object_def(entry.object_value, "id", id, env);
@@ -226,7 +239,7 @@ static void build_toc(Value node, Array *toc, int min_level, int max_level, int 
     if (object_get_symbol(node.object_value, "children", &children) && children.type == V_ARRAY) {
       for (size_t i = 0; i < children.array_value->size; i++) {
         build_toc(children.array_value->cells[i], toc, min_level, max_level, numbered_headings,
-            sep1, sep2, env);
+            sep1, sep2, nested_id_sep, env);
       }
     }
   }
@@ -443,12 +456,16 @@ static Value create_content_object(const Path *path, const char *name, PathStack
   if (object_get_symbol(obj.object_value, "numbered_headings", &temp) && temp.type == V_INT) {
     numbered_headings = temp.int_value;
   }
+  String *nested_id_sep = NULL;
+  if (object_get_symbol(obj.object_value, "nested_id_sep", &temp) && temp.type == V_STRING) {
+    nested_id_sep = temp.string_value;
+  }
   Value toc = create_array(0, env->arena);
   if (max_toc_level > 1) {
     Value sep1 = copy_c_string(".", env->arena);
     Value sep2 = copy_c_string(". ", env->arena);
     build_toc(html, toc.array_value, 2, max_toc_level, numbered_headings, sep1.string_value,
-       sep2.string_value,  env); 
+       sep2.string_value, nested_id_sep, env); 
     InsertTocArgs insert_toc_args = {env, toc.array_value};
     html_transform(html, insert_toc, &insert_toc_args);
   }
