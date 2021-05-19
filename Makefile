@@ -1,4 +1,5 @@
 TARGET = plet
+DESTDIR ?= /usr/local
 CFLAGS = -Wall -pedantic -std=c11 -Wstrict-prototypes -Wmissing-prototypes -Wshadow
 LDFLAGS = 
 
@@ -56,6 +57,10 @@ test: test_all
 
 test_all: $(TEST_OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+.PHONY: install
+install: all
+	install -Dm755 "$(TARGET)" "$(DESTDIR)/bin/$(TARGET)"
 
 .PHONY: clean
 clean:
