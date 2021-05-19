@@ -963,6 +963,7 @@ parse_html(src: string): html_node
 <pre><code>add_static(path: string): nil
 add_reverse(content_path: string, path: string): nil
 add_page(path: string, template: string, data: object?): nil
+add_task(path: string, src: string, handler: (dest: string, src: string) =&gt; any): nil
 paginate(items: array, per_page: int, path: string, template: string, data: object?): nil
 </code></pre>
 <h3 id="module-reference/contentmap">6.8. contentmap</h3>
@@ -976,7 +977,9 @@ exec(command: string, ... args: any): string
 
 <h2 id="language-reference">7. Language reference</h2>
 <h3 id="language-reference/lexical-structure">7.1. Lexical structure</h3>
-<pre><code>tokenStream   ::= {text | comment | command}
+<pre><code>tokenStream   ::= [bom] {text | comment | command}
+
+bom           ::= "\xEF\xBB\xBF"     -- ignored
 
 command       ::= commandStart {commandToken | lf | skip} commandEnd
 
