@@ -21,7 +21,8 @@
 
 typedef enum {
   P_COPY,
-  P_TEMPLATE
+  P_TEMPLATE,
+  P_TASK
 } PageType;
 
 typedef struct {
@@ -30,6 +31,7 @@ typedef struct {
   Path *dest;
   Value web_path;
   Value data;
+  Value handler;
 } PageInfo;
 
 typedef struct {
@@ -38,6 +40,7 @@ typedef struct {
   const Path *dest;
   Value web_path;
   Value data;
+  Value handler;
 } ConstPageInfo;
 
 static Value encode_page_info(ConstPageInfo page, Env *env) {
@@ -54,6 +57,12 @@ static Value encode_page_info(ConstPageInfo page, Env *env) {
       object_def(object.object_value, "dest", path_to_string(page.dest, env->arena), env);
       object_def(object.object_value, "web_path", page.web_path, env);
       object_def(object.object_value, "data", page.data, env);
+      break;
+    case P_TASK:
+      object_def(object.object_value, "type", create_symbol(get_symbol("task", env->symbol_map)), env);
+      object_def(object.object_value, "src", path_to_string(page.src, env->arena), env);
+      object_def(object.object_value, "dest", path_to_string(page.dest, env->arena), env);
+      object_def(object.object_value, "handler", page.handler, env);
       break;
   }
   return object;
@@ -91,6 +100,17 @@ static int decode_page_info(Value value, PageInfo *page) {
     page->dest = string_to_path(dest.string_value);
     page->web_path = web_path;
     page->data = data;
+    return 1;
+  } else if (strcmp(type.symbol_value, "task") == 0) {
+    Value handler;
+    if (!object_get_symbol(value.object_value, "handler", &handler)
+        || (handler.type != V_FUNCTION && handler.type != V_CLOSURE)) {
+      return 0;
+    }
+    page->type = P_TASK;
+    page->src = string_to_path(src.string_value);
+    page->dest = string_to_path(dest.string_value);
+    page->handler = handler;
     return 1;
   }
   return 0;
@@ -224,6 +244,46 @@ static Value add_page(const Tuple *args, Env *env) {
   return nil_value;
 }
 
+static Value add_task(const Tuple *args, Env *env) {
+  check_args(3, args, env);
+  Value dest = args->values[0];
+  if (dest.type != V_STRING) {
+    arg_type_error(0, V_STRING, args, env);
+    return nil_value;
+  }
+  Value src = args->values[1];
+  if (src.type != V_STRING) {
+    arg_type_error(1, V_STRING, args, env);
+    return nil_value;
+  }
+  Value handler = args->values[2];
+  if (handler.type != V_FUNCTION && handler.type != V_CLOSURE) {
+    arg_type_error(2, V_FUNCTION, args, env);
+    return nil_value;
+  }
+  Value site_map;
+  if (!env_get_symbol("SITE_MAP", &site_map, env) || site_map.type != V_ARRAY) {
+    env_error(env, -1, "SITE_MAP is missign or not an object");
+    return nil_value;
+  }
+  String *site_path = dest.string_value;
+  site_path = string_trim(site_path, (uint8_t *) "/", 1, env->arena).string_value;
+  Path *src_path = string_to_src_path(src.string_value, env);
+  if (!src_path) {
+    return nil_value;
+  }
+  Path *dest_path = string_to_dist_path(site_path, env);
+  if (!dest_path) {
+    delete_path(src_path);
+    return nil_value;
+  }
+  array_push(site_map.array_value, encode_page_info((ConstPageInfo) { P_TASK, src_path, dest_path,
+        nil_value, nil_value, handler }, env), env->arena);
+  delete_path(dest_path);
+  delete_path(src_path);
+  return nil_value;
+}
+
 static Value create_page(int64_t total, int64_t per_page, int64_t page, int64_t pages, int64_t offset,
     Value path_template, Env *env) {
   Value obj = create_object(6, env->arena);
@@ -344,6 +404,7 @@ void import_sitemap(Env *env) {
   env_def_fn("add_static", add_static, env);
   env_def_fn("add_reverse", add_reverse, env);
   env_def_fn("add_page", add_page, env);
+  env_def_fn("add_task", add_task, env);
   env_def_fn("paginate", paginate, env);
   Value content_handlers;
   if (!env_get(get_symbol("CONTENT_HANDLERS", env->symbol_map), &content_handlers, env)) {
@@ -397,6 +458,22 @@ static int compile_page(PageInfo page, Env *env) {
       }
       return status;
     }
+    case P_TASK: {
+      int status = 0;
+      Path *dir = path_get_parent(page.dest);
+      if (mkdir_rec(dir->path)) {
+        Tuple *func_args = alloca(sizeof(Tuple) + 2 * sizeof(Value));
+        func_args->size = 2;
+        func_args->values[0] = path_to_string(page.dest, env->arena);
+        func_args->values[1] = path_to_string(page.src, env->arena);
+        Value value;
+        if (apply(page.handler, func_args, &value, env)) {
+          status = 1;
+        }
+      }
+      delete_path(dir);
+      return status;
+    }
   }
   return 0;
 }
@@ -411,6 +488,7 @@ Value compile_page_object(Object *object, Env *env, Env **template_env) {
   switch (page.type) {
     case P_COPY:
       output = read_asset_module(page.src, env);
+      break;
     case P_TEMPLATE: {
       Module *module = get_template(page.src, env);
       if (module) {
@@ -418,6 +496,22 @@ Value compile_page_object(Object *object, Env *env, Env **template_env) {
         env_def("PATH", copy_value(page.web_path, *template_env), *template_env);
         output = eval_template(module, *template_env);
       }
+      break;
+    }
+    case P_TASK: {
+      Path *dir = path_get_parent(page.dest);
+      if (mkdir_rec(dir->path)) {
+        Tuple *func_args = alloca(sizeof(Tuple) + 2 * sizeof(Value));
+        func_args->size = 2;
+        func_args->values[0] = path_to_string(page.dest, env->arena);
+        func_args->values[1] = path_to_string(page.src, env->arena);
+        Value value;
+        if (apply(page.handler, func_args, &value, env)) {
+          output = read_asset_module(page.dest, env);
+        }
+      }
+      delete_path(dir);
+      break;
     }
   }
   delete_path(page.src);

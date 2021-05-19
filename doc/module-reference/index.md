@@ -95,6 +95,7 @@ parse_html(src: string): html_node
 add_static(path: string): nil
 add_reverse(content_path: string, path: string): nil
 add_page(path: string, template: string, data: object?): nil
+add_task(path: string, src: string, handler: (dest: string, src: string) => any): nil
 paginate(items: array, per_page: int, path: string, template: string, data: object?): nil
 ```
 

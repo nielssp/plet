@@ -253,7 +253,7 @@ Value read_asset_module(const Path *name, Env *env) {
       buffer.capacity += 8192;
       buffer.data = reallocate(buffer.data, buffer.capacity);
     }
-    n = fread(buffer.data, 1, 8192, file);
+    n = fread(buffer.data + buffer.size, 1, 8192, file);
     buffer.size += n;
   } while (n == 8192);
   Value content = nil_value;

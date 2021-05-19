@@ -3,7 +3,9 @@
 ### Lexical structure
 
 ```
-tokenStream   ::= {text | comment | command}
+tokenStream   ::= [bom] {text | comment | command}
+
+bom           ::= "\xEF\xBB\xBF"     -- ignored
 
 command       ::= commandStart {commandToken | lf | skip} commandEnd
 
