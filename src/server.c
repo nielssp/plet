@@ -93,6 +93,8 @@ static const char *get_mime_type(const char *file_extension) {
     return "application/atom+xml";
   } else if (strcmp(file_extension, "xml") == 0) {
     return "application/xml";
+  } else if (strcmp(file_extension, "svg") == 0) {
+    return "image/svg+xml";
   }
   return "text/plain";
 }
