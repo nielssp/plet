@@ -248,7 +248,7 @@ article > h2:not(:first-child)::before {
   margin-bottom: 1rem;
 }
 
-code .k, code .kt {
+code .k, code .kt, code .kd {
   font-weight: bold;
 }
 
@@ -265,7 +265,7 @@ code .m, code .mi, code .mf, code .kc {
 }
 
 code .cp, code .cm, code .c1 {
-  color: #888;
+  color: #545454;
 }
 
 code .cp {
@@ -276,8 +276,8 @@ code .cm, code .c1 {
   font-style: italic;
 }
 
-code .nt {
-  color: #597;
+code .nt, code .nc {
+  color: #152;
 }
 
 code .err {
