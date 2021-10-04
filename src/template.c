@@ -129,6 +129,38 @@ static Value read(const Tuple *args, Env *env) {
   return content;
 }
 
+static Value asset_link(const Tuple *args, Env *env) {
+  check_args(1, args, env);
+  Value src_value = args->values[0];
+  if (src_value.type != V_STRING) {
+    arg_type_error(0, V_STRING, args, env);
+    return nil_value;
+  }
+  Path *src_path = string_to_src_path(src_value.string_value, env);
+  if (!src_path) {
+    return nil_value;
+  }
+  Path *dest_path = string_to_dist_path(src_value.string_value, env);
+  if (!dest_path) {
+    delete_path(src_path);
+    return nil_value;
+  }
+  load_asset_module(src_path, env);
+  copy_file(src_path->path, dest_path->path);
+  delete_path(src_path);
+  delete_path(dest_path);
+  if (string_equals("index.html", src_value.string_value)) {
+    src_value = copy_c_string("", env->arena);
+  } else if (string_ends_with("/index.html", src_value.string_value)) {
+    src_value = create_string(src_value.string_value->bytes, src_value.string_value->size - 11, env->arena);
+  }
+  Value root_path;
+  if (env_get(get_symbol("ROOT_PATH", env->symbol_map), &root_path, env) && root_path.type == V_STRING) {
+    return combine_string_paths(root_path.string_value, src_value.string_value, env);
+  }
+  return src_value;
+}
+
 static Value page_list(const Tuple *args, Env *env) {
   check_args_between(1, 3, args, env);
   Value n = args->values[0];
@@ -230,6 +262,7 @@ void import_template(Env *env) {
   env_def_fn("url", url, env);
   env_def_fn("is_current", is_current, env);
   env_def_fn("read", read, env);
+  env_def_fn("asset_link", asset_link, env);
   env_def_fn("page_list", page_list, env);
   env_def_fn("page_link", page_link, env);
 }

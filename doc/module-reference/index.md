@@ -72,6 +72,7 @@ link(link: string?): string
 url(link: string?): string
 is_current(link: string?): bool
 read(file: string): string
+asset_link(path: string): string
 page_list(n: int, page: int? = PAGE.page, pages: int? = PAGE.pages): array
 page_link(page: int, path: string? = PAGE.path): string
 filter_content(content: object, filters: array?): string
