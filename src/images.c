@@ -78,10 +78,11 @@ static void resize_image(const Path *src_path, const Path *dist_path, int width,
 }
 
 static Path *handle_image(const Path *asset_path, const Path *src_path, int *attr_width, int *attr_height,
-    Path **original_asset_web_path, ImageArgs *args) {
+    Path **original_asset_web_path, int *larger, ImageArgs *args) {
   Path *asset_web_path = path_join(args->asset_root, asset_path, 1);
   Path *dist_path = path_join(args->dist_root, asset_web_path, 1);
   Path *dest_dir = path_get_parent(dist_path);
+  *larger = 0;
   if (mkdir_rec(dest_dir->path)) {
     char *extension = path_get_lowercase_extension(src_path);
     if (is_supported(extension)) {
@@ -94,6 +95,7 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
         int width = info.width;
         int height = info.height;
         if (width > args->max_width || height > args->max_height || *attr_width || *attr_height) {
+          *larger = 1;
           int requested_width, requested_height;
           if (*attr_width && *attr_height) {
             requested_width = *attr_width;
@@ -157,6 +159,9 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
               resize_image(src_path, dist_path, target_width, target_height, args);
             }
           } else if (asset_has_changed(src_path, dist_path)) {
+            if (original_asset_web_path) {
+              *original_asset_web_path = asset_web_path;
+            }
             if (copy_file(src_path->path, dist_path->path)) {
               notify_output_observers(dist_path, args->env);
             }
@@ -215,13 +220,14 @@ static HtmlTransformation transform_images(Value node, void *context) {
 
       Path *original_asset_web_path = NULL;
 
+      int larger = 0;
+
       Path *asset_web_path = handle_image(asset_path, src_path, &attr_width, &attr_height,
-          args->link_full ? &original_asset_web_path : NULL, args);
+          args->link_full ? &original_asset_web_path : NULL, &larger, args);
 
       StringBuffer new_link = create_string_buffer(sizeof("pletlink:") + asset_web_path->size, args->env->arena);
       string_buffer_printf(&new_link, "pletlink:%s", asset_web_path->path);
       html_set_attribute(node, "src", finalize_string_buffer(new_link).string_value, args->env);
-      delete_path(asset_web_path);
       delete_path(src_path);
       delete_path(asset_path);
 
@@ -236,7 +242,12 @@ static HtmlTransformation transform_images(Value node, void *context) {
         html_set_attribute(node, "height", buffer.string, args->env);
       }
 
-      if (original_asset_web_path) {
+      if (original_asset_web_path || larger) {
+        if (!original_asset_web_path) {
+          original_asset_web_path = asset_web_path;
+        } else {
+          delete_path(asset_web_path);
+        }
         Value link_node = html_create_element("a", 0, args->env);
         StringBuffer original_link = create_string_buffer(sizeof("pletlink:") + original_asset_web_path->size,
             args->env->arena);
@@ -245,6 +256,8 @@ static HtmlTransformation transform_images(Value node, void *context) {
         html_append_child(link_node, node, args->env->arena);
         delete_path(original_asset_web_path);
         return HTML_REPLACE(link_node);
+      } else {
+        delete_path(asset_web_path);
       }
     }
   }
