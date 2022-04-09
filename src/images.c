@@ -159,9 +159,6 @@ static Path *handle_image(const Path *asset_path, const Path *src_path, int *att
               resize_image(src_path, dist_path, target_width, target_height, args);
             }
           } else if (asset_has_changed(src_path, dist_path)) {
-            if (original_asset_web_path) {
-              *original_asset_web_path = asset_web_path;
-            }
             if (copy_file(src_path->path, dist_path->path)) {
               notify_output_observers(dist_path, args->env);
             }
@@ -230,6 +227,11 @@ static HtmlTransformation transform_images(Value node, void *context) {
       html_set_attribute(node, "src", finalize_string_buffer(new_link).string_value, args->env);
       delete_path(src_path);
       delete_path(asset_path);
+      if (!original_asset_web_path && larger && args->link_full) {
+        original_asset_web_path = asset_web_path;
+      } else {
+        delete_path(asset_web_path);
+      }
 
       if (attr_width) {
         StringBuffer buffer = create_string_buffer(0, args->env->arena);
@@ -242,12 +244,7 @@ static HtmlTransformation transform_images(Value node, void *context) {
         html_set_attribute(node, "height", buffer.string, args->env);
       }
 
-      if (original_asset_web_path || larger) {
-        if (!original_asset_web_path) {
-          original_asset_web_path = asset_web_path;
-        } else {
-          delete_path(asset_web_path);
-        }
+      if (original_asset_web_path) {
         Value link_node = html_create_element("a", 0, args->env);
         StringBuffer original_link = create_string_buffer(sizeof("pletlink:") + original_asset_web_path->size,
             args->env->arena);
@@ -256,8 +253,6 @@ static HtmlTransformation transform_images(Value node, void *context) {
         html_append_child(link_node, node, args->env->arena);
         delete_path(original_asset_web_path);
         return HTML_REPLACE(link_node);
-      } else {
-        delete_path(asset_web_path);
       }
     }
   }
