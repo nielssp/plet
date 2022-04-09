@@ -215,7 +215,7 @@ int rfc2822_date(time_t timestamp, Buffer *buffer) {
     if (!strftime(timezone, sizeof(timezone), " %z", t)) {
       timezone[0] = '\0';
     }
-    buffer_printf(buffer, "%s, %d %s %d %d:%02d:%02d%s", rfc2822_day_names[t->tm_wday], t->tm_mday,
+    buffer_printf(buffer, "%s, %d %s %d %02d:%02d:%02d%s", rfc2822_day_names[t->tm_wday], t->tm_mday,
         rfc2822_month_names[t->tm_mon], t->tm_year + 1900, t->tm_hour, t->tm_min, t->tm_sec, timezone);
     return 1;
   } else {
